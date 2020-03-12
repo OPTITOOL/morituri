@@ -312,7 +312,7 @@ osmium::unsigned_object_id_type build_way(ogr_feature_uptr &feat,
   STATIC_WAY(builder.object()).set_id(g_osm_id++);
   set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
 
-  builder.add_user(USER);
+  builder.set_user(USER);
   osmium::builder::WayNodeListBuilder wnl_builder(g_way_buffer, &builder);
   for (int i = 0; i < ogr_ls->getNumPoints(); i++) {
     osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
