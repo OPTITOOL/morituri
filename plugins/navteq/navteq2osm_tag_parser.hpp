@@ -324,11 +324,11 @@ bool is_imperial(area_id_type area_id,
     if (cntry_map->find(area_govt_map->at(area_id)) != cntry_map->end()) {
       auto unit_measure =
           cntry_map->at(area_govt_map->at(area_id)).unit_measure;
-      if (unit_measure == 'E') {
+      if (unit_measure == "E") {
         return true;
-      } else if (unit_measure != 'M') {
+      } else if (unit_measure != "M") {
         format_error("unit_measure in navteq data is invalid: '" +
-                     std::to_string(unit_measure) + "'");
+                     unit_measure + "'");
       }
     }
   }

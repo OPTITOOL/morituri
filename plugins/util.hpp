@@ -14,19 +14,17 @@
 #include <gdal/ogr_api.h>
 #include <gdal/ogrsf_frmts.h>
 #include <map>
+#include <memory>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/types.hpp>
 #include <shapefil.h>
 #include <sstream>
 
 #include "../plugins/comm2osm_exceptions.hpp"
-#include "ogr_types.hpp"
 #include "ogr_util.hpp"
 #include "readers.hpp"
 
 #include <unicode/unistr.h>
-
-#include <bits/unique_ptr.h>
 
 const int INCH_BASE = 12;
 const int POUND_BASE = 2000;

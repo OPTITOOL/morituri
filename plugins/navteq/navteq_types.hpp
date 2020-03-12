@@ -14,8 +14,6 @@
 #include <osmium/osm/types.hpp>
 #include <unordered_map>
 
-#include "../ogr_types.hpp"
-
 typedef std::vector<boost::filesystem::path> path_vector_type;
 
 typedef uint64_t cond_id_type;
@@ -25,20 +23,21 @@ typedef uint64_t mod_val_type;
 typedef std::pair<mod_typ_type, mod_val_type> mod_pair_type;
 
 struct cntry_ref_type {
-  char unit_measure;
-  char speed_limit_unit[3];
+  std::string unit_measure;
+  std::string speed_limit_unit;
   std::string iso_code;
   cntry_ref_type() {}
-  cntry_ref_type(char unit_measure, const char *speed_limit_unit,
-                 std::string iso_code) {
+  cntry_ref_type(const std::string &unit_measure,
+                 const std::string &speed_limit_unit,
+                 const std::string &iso_code) {
     this->unit_measure = unit_measure;
-    strcpy(this->speed_limit_unit, speed_limit_unit);
+    this->speed_limit_unit = speed_limit_unit;
     this->iso_code = iso_code;
   }
   bool operator==(cntry_ref_type rhs) {
     if (this->unit_measure != rhs.unit_measure)
       return false;
-    if (strcmp(this->speed_limit_unit, rhs.speed_limit_unit))
+    if (this->speed_limit_unit != rhs.speed_limit_unit)
       return false;
     if (this->iso_code != rhs.iso_code)
       return false;

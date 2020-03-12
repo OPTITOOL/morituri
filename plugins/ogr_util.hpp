@@ -20,8 +20,6 @@
 #include <geos/operation/buffer/BufferParameters.h>
 #include <geos/operation/buffer/OffsetCurveBuilder.h>
 
-#include "ogr_types.hpp"
-
 geos::geom::GeometryFactory::unique_ptr geos_factory;
 
 boost::iostreams::stream<boost::iostreams::null_sink>
