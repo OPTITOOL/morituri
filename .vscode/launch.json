@@ -1,0 +1,45 @@
+{
+    // Verwendet IntelliSense zum Ermitteln möglicher Attribute.
+    // Zeigen Sie auf vorhandene Attribute, um die zugehörigen Beschreibungen anzuzeigen.
+    // Weitere Informationen finden Sie unter https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch comm2osm",
+            "type": "cppdbg",
+            "request": "launch",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/rvoptmain",
+            "environment": [],
+            "externalConsole": false,
+            "windows": {
+                "program": "${workspaceFolder}/build/rvoptmain/rvoptservice.exe",
+                "MIMode": "gdb",
+                "miDebuggerPath": "c:/msys64/mingw64/bin/gdb.exe",
+                "miDebuggerArgs": "-x c:/dev/rvopt/.gdbinit",
+                "args": [
+                    "resources/rvoptserver.ini",
+                    "-D\"Logging/statistics.gnuplot.exe\"=C:\\dev\\rvopt\\thirdparty\\gnuplot\\bin\\wgnuplot.exe"
+                ]
+            },
+            "linux": {
+                "program": "${workspaceFolder}/build/comm2osm",
+                "MIMode": "gdb",
+                "args": [
+                    "resources/rvoptserver.ini",
+                    "-D\"Logging/statistics.gnuplot.exe\"=/usr/bin/gnuplot-nox"
+                ]
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "logging": {
+                "engineLogging": true
+            }
+        }
+    ]
+}

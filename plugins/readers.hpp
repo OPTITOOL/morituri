@@ -10,6 +10,7 @@
 
 #include <boost/filesystem/path.hpp>
 #include <gdal/ogrsf_frmts.h>
+#include <shapefil.h>
 
 #include "comm2osm_exceptions.hpp"
 
