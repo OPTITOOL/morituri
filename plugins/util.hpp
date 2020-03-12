@@ -12,6 +12,7 @@
 #include <gdal/ogrsf_frmts.h>
 #include <shapefil.h>
 #include <osmium/osm/types.hpp>
+#include <osmium/builder/osm_object_builder.hpp>
 #include <sstream>
 #include <boost/iostreams/stream.hpp>
 #include <boost/iostreams/device/null.hpp>
@@ -22,6 +23,8 @@
 #include "readers.hpp"
 #include "ogr_types.hpp"
 #include "ogr_util.hpp"
+
+#include <unicode/unistr.h>
 
 #include <bits/unique_ptr.h>
 
@@ -37,9 +40,7 @@ const double SHORT_TON = 0.90718474;
 
 /**
  * \brief Checks shapefile existance and validity
- *
- * \param shp_file path and file name of shapefile
- *
+ * \param shp_file path of SHP file
  * \return Returns true if existing and valid
  * */
 
@@ -65,11 +66,8 @@ bool shp_file_exists(boost::filesystem::path shp_file) {
 }
 
 /**
-
  * \brief Checks DBF file existance and validity
- *
- * \param dbf_file path and file name of DBF file
- *
+ * \param dbf_file path of DBF file
  * \return Returns true if existing and valid
  * */
 bool dbf_file_exists(const char* dbf_file) {
@@ -89,6 +87,13 @@ bool dbf_file_exists(boost::filesystem::path dbf_file) {
     return dbf_file_exists(dbf_file.c_str());
 }
 
+/**
+ * \brief returns index of a given field in a DBFHandle
+ * \param handle DBFHandle
+ * \param field_name field of DBFhandle
+ * \return index of given field
+ */
+
 int dbf_get_field_index(DBFHandle handle, int row, const char *field_name) {
     assert(handle);
     assert(field_name);
@@ -99,10 +104,17 @@ int dbf_get_field_index(DBFHandle handle, int row, const char *field_name) {
     return index;
 }
 
+/**
+ * \brief get field of a given DBFHandle as string
+ */
 std::string dbf_get_string_by_field(DBFHandle handle, int row, const char *field_name) {
     return DBFReadStringAttribute(handle, row, dbf_get_field_index(handle, row, field_name));
 }
 
+
+/**
+ * \brief get field of a given DBFHandle as uint64_t
+ */
 uint64_t dbf_get_uint_by_field(DBFHandle handle, int row, const char *field_name) {
     return DBFReadIntegerAttribute(handle, row, dbf_get_field_index(handle, row, field_name));
 }
@@ -162,24 +174,34 @@ bool string_is_not_unsigned_integer(std::string s) {
     return !string_is_unsigned_integer(s);
 }
 
+/**
+ * \brief converts kilogram to tons
+ */
 template <class T>
 std::string kg_to_t(T kilo){
     std::stringstream stream;
     stream << kilo/1000.0f;
     return stream.str();
 }
-
+/**
+ * \brief converts centimeter to meters
+ */
 template <class T>
 std::string cm_to_m(T meter){
     std::stringstream stream;
     stream << meter/100.0f;
     return stream.str();
 }
-
+/**
+ * \brief converts inches to feet
+ */
 std::string inch_to_feet(unsigned int inches) {
     return std::to_string((unsigned int) floor(inches / INCH_BASE)) + "'" + std::to_string(inches % INCH_BASE) + "\"";
 }
 
+/**
+ * \brief converts pounds to metric tons
+ */
 std::string lbs_to_metric_ton(double lbs){
     double short_ton = lbs / (double) POUND_BASE;
     double metric_ton = short_ton * SHORT_TON;
@@ -188,31 +210,39 @@ std::string lbs_to_metric_ton(double lbs){
     return stream.str();
 }
 
-/* unused */
-
-std::string to_lower(std::string s) {
-    transform(s.begin(), s.end(), s.begin(), ::tolower);
-    return s;
-}
-
-template<class Type1, class Type2>
-void print_map(std::map<Type1, Type2> map) {
-    for (auto i : map)
-        std::cout << i.first << " - " << i.second << std::endl;
-}
-
+/**
+ * \brief initializes
+ */
 template<class Type1, class Type2>
 void init_map_at_element(std::map<Type1, Type2> *map, Type1 key, osmium::unsigned_object_id_type id) {
     if (map->find(key) == map->end()) map->insert(std::make_pair(key, id));
 }
 
-template<typename Derived, typename Base, typename Del>
-std::unique_ptr<Derived, Del>
-static_unique_ptr_cast( std::unique_ptr<Base, Del>&& p )
-{
-    auto d = static_cast<Derived *>(p.release());
-    return std::unique_ptr<Derived, Del>(d, std::move(p.get_deleter()));
+/**
+ * \brief duplicate const char* value to change
+ */
+std::string to_camel_case_with_spaces(const char* camel) {
+    icu::UnicodeString uniString( camel, "UTF-8" );
+    uniString.toTitle(0);
+    
+    std::string response;
+    uniString.toUTF8String(response);
+    return response;
 }
 
+/**
+ * \brief apply camel case with spaces to string
+ */
+std::string to_camel_case_with_spaces(std::string camel) {
+    return to_camel_case_with_spaces(camel.c_str());
+}
+
+void add_uint_tag(osmium::builder::TagListBuilder* tl_builder, const char* tag_key,
+        uint uint_tag_val) {
+    std::string val_s = std::to_string(uint_tag_val);
+    if (tag_key) {
+        tl_builder->add_tag(tag_key, val_s.c_str());
+    }
+}
 
 #endif /* UTIL_HPP_ */

@@ -11,6 +11,10 @@ TEST_CASE("Shapefile exists", "[SHP exist]"){
     CHECK(shp_file_exists(std::string("tests/testdata/faroe-islands-latest/roads.shp")) == true);
     CHECK(shp_file_exists(std::string("tests/testdata/faroe-islands-latest/README")) == false);
     CHECK(shp_file_exists(std::string("tests/testdata/faroe-islands-latest/???")) == false);
+
+    CHECK(shp_file_exists(boost::filesystem::path("tests/testdata/faroe-islands-latest/roads.shp")) == true);
+    CHECK(shp_file_exists(boost::filesystem::path("tests/testdata/faroe-islands-latest/README")) == false);
+    CHECK(shp_file_exists(boost::filesystem::path("tests/testdata/faroe-islands-latest/???")) == false);
 }
 
 TEST_CASE("DBF exists", "[DBF exist]"){
@@ -21,6 +25,10 @@ TEST_CASE("DBF exists", "[DBF exist]"){
     CHECK(dbf_file_exists(std::string("tests/testdata/faroe-islands-latest/roads.dbf")) == true);
     CHECK(dbf_file_exists(std::string("tests/testdata/faroe-islands-latest/README")) == false);
     CHECK(dbf_file_exists(std::string("tests/testdata/faroe-islands-latest/???")) == false);
+
+    CHECK(dbf_file_exists(boost::filesystem::path("tests/testdata/faroe-islands-latest/roads.dbf")) == true);
+    CHECK(dbf_file_exists(boost::filesystem::path("tests/testdata/faroe-islands-latest/README")) == false);
+    CHECK(dbf_file_exists(boost::filesystem::path("tests/testdata/faroe-islands-latest/???")) == false);
 }
 
 TEST_CASE("is_in_range", "[is_in_range]"){
@@ -133,13 +141,6 @@ TEST_CASE("lbs_to_metric_ton", "[lbs_to_metric_ton]"){
     CHECK(lbs_to_metric_ton(10000)  == std::string("4.53592"));
 }
 
-TEST_CASE("to_lower", "[to_lower]"){
-    CHECK(to_lower("Abc") == std::string("abc"));
-    CHECK(to_lower("AbC") == std::string("abc"));
-    CHECK(to_lower("aBC") == std::string("abc"));
-    CHECK(to_lower("abc") == std::string("abc"));
-}
-
 TEST_CASE("init_map_at_element", "[init_map_at_element]"){
     std::map<int,int> m;
     init_map_at_element(&m, 1, 2);
@@ -175,3 +176,10 @@ TEST_CASE("ogr2wkb", "[ogr2wkb]"){
     CHECK(wkb_test == wkb_reference);
 }
 
+TEST_CASE("to_camel_case_with_spaces", "[to_camel_case_with_spaces]"){
+    CHECK(to_camel_case_with_spaces("SIBIRIEN") == std::string("Sibirien"));
+    CHECK(to_camel_case_with_spaces("FUCHSBERGER DAMM") == std::string("Fuchsberger Damm"));
+    CHECK(to_camel_case_with_spaces("KÖNIGSBERGER STRASSE") == std::string("Königsberger Strasse"));
+    CHECK(to_camel_case_with_spaces("KØBENHAVN") == std::string("København"));
+    CHECK(to_camel_case_with_spaces("") == std::string(""));
+}
