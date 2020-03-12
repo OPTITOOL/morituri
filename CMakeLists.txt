@@ -21,7 +21,7 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
 ENDIF()
 
 set(Boost_NO_BOOST_CMAKE ON)
-find_package(Boost 1.65.0 REQUIRED)
+find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem)
 find_package(GDAL REQUIRED)
 find_package(GEOS REQUIRED)
 find_package(Osmium)
@@ -41,4 +41,4 @@ include_directories( ${GDAL_INCLUDE_DIR} ${GEOS_INCLUDE_DIR} ${OSMIUM_INCLUDE_DI
 
 add_executable (${PROJECT_NAME} ${MAIN_CPP_FILES} ${CPP_FILES})
 
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${CMAKE_DL_LIBS} ${GDAL_LIBRARY} ${GEOS_LIBRARY} ${OSMIUM_LIBRARIES} ${SHP_LIBRARIES} bz2 z expat )
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${CMAKE_DL_LIBS} ${GDAL_LIBRARY} ${GEOS_LIBRARY} ${OSMIUM_LIBRARIES} ${SHP_LIBRARIES} bz2 z expat pthread icuuc)

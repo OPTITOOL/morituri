@@ -128,7 +128,7 @@ ELSE(WIN32)
         #  "${GEOS_CONFIG_LIBS}" )
         #MESSAGE("DBG  GEOS_CONFIG_LIBS=${GEOS_CONFIG_LIBS}")
         #MESSAGE("DBG  GEOS_LIB_NAME_WITH_PREFIX=${GEOS_LIB_NAME_WITH_PREFIX}")
-        SET(GEOS_LIB_NAME_WITH_PREFIX -lgeos_c CACHE STRING INTERNAL)
+        SET(GEOS_LIB_NAME_WITH_PREFIX -lgeos CACHE STRING INTERNAL)
 
         ## remove prefix -l because we need the pure name
 
