@@ -13,27 +13,26 @@
 #include <boost/filesystem/path.hpp>
 #include <string>
 
-class navteq_plugin: public base_plugin {
+class navteq_plugin : public base_plugin {
 private:
-    bool is_valid_format(std::string format);
-    void recurse_dir(boost::filesystem::path dir);
-    bool check_files(boost::filesystem::path dir);
-    void write_output();
-    void add_administrative_boundaries();
-    void add_water();
-    void add_landuse();
+  bool is_valid_format(std::string format);
+  void recurse_dir(boost::filesystem::path dir);
+  bool check_files(boost::filesystem::path dir);
+  void write_output();
+  void add_administrative_boundaries();
+  void add_water();
+  void add_landuse();
 
-    path_vector_type dirs;
+  path_vector_type dirs;
 
 public:
+  navteq_plugin(boost::filesystem::path executable_path);
+  virtual ~navteq_plugin();
 
-    navteq_plugin(boost::filesystem::path executable_path);
-    virtual ~navteq_plugin();
-
-    bool check_input(boost::filesystem::path input_path, boost::filesystem::path output_path =
-            boost::filesystem::path());
-    void execute();
-
+  bool
+  check_input(boost::filesystem::path input_path,
+              boost::filesystem::path output_path = boost::filesystem::path());
+  void execute();
 };
 
 #endif /* NAVTEQPLUGIN_HPP_ */

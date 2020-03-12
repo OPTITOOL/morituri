@@ -22,11 +22,10 @@
 
 OGRLayer *read_shape_file(boost::filesystem::path shp_file,
                           std::ostream &out = std::cerr) {
-  RegisterOGRShape();
   out << "reading " << shp_file << std::endl;
 
-  GDALDataset *input_data_source =
-      (GDALDataset *)GDALOpen(shp_file.c_str(), GDALAccess::GA_ReadOnly);
+  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
+      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
   if (input_data_source == nullptr)
     throw(shp_error(shp_file.string()));
 

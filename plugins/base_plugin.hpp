@@ -80,8 +80,8 @@ public:
   /**
    * \brief	Converts input to OSM files
    *
-   *			This function is pure virtual and has to be implemented by
-   *every plugin. It does the actual conversion to the OSM-format.
+   *			This function is pure virtual and has to be implemented
+   *by every plugin. It does the actual conversion to the OSM-format.
    * */
   virtual void execute() = 0;
 };

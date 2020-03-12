@@ -67,13 +67,14 @@ void check_args_and_setup(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
 
+  GDALAllRegister();
   check_args_and_setup(argc, argv);
 
   std::vector<std::unique_ptr<base_plugin>> plugins;
 
   boost::filesystem::path executable_path(argv[0]);
 
-  plugins.emplace_back(std::make_unique<dummy_plugin>());
+  // plugins.emplace_back(std::make_unique<dummy_plugin>());
   plugins.emplace_back(std::make_unique<navteq_plugin>(executable_path));
 
   for (auto &plugin : plugins) {

@@ -13,7 +13,6 @@
 #include <memory>
 #include <vector>
 
-typedef std::unique_ptr<OGRFeature> ogr_feature_uptr;
 typedef std::unique_ptr<OGRLayer> ogr_layer_uptr;
 typedef std::vector<ogr_layer_uptr> ogr_layer_uptr_vector;
 

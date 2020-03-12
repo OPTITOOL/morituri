@@ -46,10 +46,8 @@ const double SHORT_TON = 0.90718474;
  * */
 
 bool shp_file_exists(const char *shp_file) {
-
-  GDALAllRegister();
-  GDALDataset *input_data_source =
-      (GDALDataset *)GDALOpen(shp_file, GDALAccess::GA_ReadOnly);
+  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
+      shp_file, GDAL_OF_READONLY, nullptr, nullptr, nullptr);
   if (input_data_source == nullptr) {
     return false;
   }
