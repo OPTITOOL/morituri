@@ -305,11 +305,9 @@ void test__z_lvl_range(short z_lvl) {
  * \param z_lvl z-level of way. initially invalid (-5).
  * \return id of created Way.
  */
-osmium::unsigned_object_id_type build_way(OGRFeature *feat,
-                                          OGRLineString *ogr_ls,
-                                          node_map_type *node_ref_map = nullptr,
-                                          bool is_sub_linestring = false,
-                                          short z_lvl = -5) {
+osmium::unsigned_object_id_type
+build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
+          bool is_sub_linestring = false, short z_lvl = -5) {
 
   if (is_sub_linestring)
     test__z_lvl_range(z_lvl);
@@ -618,11 +616,11 @@ void set_ferry_z_lvls_to_zero(OGRFeature *feat,
   if (z_lvl_vec.size() > 2)
     z_lvl_vec.erase(z_lvl_vec.begin() + 1, z_lvl_vec.end() - 1);
   // erase first z_lvl if first index references first node
-  if (z_lvl_vec.size() > 0 && z_lvl_vec.begin()->first != 0)
+  if (!z_lvl_vec.empty() && z_lvl_vec.begin()->first != 0)
     z_lvl_vec.erase(z_lvl_vec.begin());
   // erase last z_lvl if last index references last node
   OGRLineString *ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
-  if (z_lvl_vec.size() > 0 &&
+  if (!z_lvl_vec.empty() &&
       (z_lvl_vec.end() - 1)->first != ogr_ls->getNumPoints() - 1)
     z_lvl_vec.erase(z_lvl_vec.end());
 }
@@ -724,30 +722,27 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
 
   auto it = z_level_map->find(link_id);
   if (it == z_level_map->end()) {
-    osmium::unsigned_object_id_type way_id =
-        build_way(feat, ogr_ls, &node_ref_map);
+    auto way_id = build_way(feat, ogr_ls, &node_ref_map);
     g_way_offset_map.set(way_id, g_way_buffer.commit());
   } else {
-    index_z_lvl_vector_type &index_z_lvl_vector = it->second;
+    auto &index_z_lvl_vector = it->second;
 
     // way with different z_levels
-    auto first_point_with_different_z_lvl = index_z_lvl_vector.front();
+    auto &first_point_with_different_z_lvl = index_z_lvl_vector.front();
     auto first_index = 0;
-    z_lvl_type first_z_lvl;
+    z_lvl_type first_z_lvl = 0;
     if (first_point_with_different_z_lvl.first == first_index)
       first_z_lvl = first_point_with_different_z_lvl.second;
-    else
-      first_z_lvl = 0;
+
     process_first_end_point(first_index, first_z_lvl, ogr_ls, z_level_map,
                             node_ref_map);
 
-    auto last_point_with_different_z_lvl = index_z_lvl_vector.back();
+    auto &last_point_with_different_z_lvl = index_z_lvl_vector.back();
     auto last_index = ogr_ls->getNumPoints() - 1;
-    z_lvl_type last_z_lvl;
+    z_lvl_type last_z_lvl = 0;
     if (last_point_with_different_z_lvl.first == last_index)
       last_z_lvl = last_point_with_different_z_lvl.second;
-    else
-      last_z_lvl = 0;
+
     process_last_end_point(last_index, last_z_lvl, ogr_ls, z_level_map,
                            node_ref_map);
 

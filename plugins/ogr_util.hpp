@@ -20,8 +20,6 @@
 #include <geos/operation/buffer/BufferParameters.h>
 #include <geos/operation/buffer/OffsetCurveBuilder.h>
 
-geos::geom::GeometryFactory::unique_ptr geos_factory;
-
 boost::iostreams::stream<boost::iostreams::null_sink>
     cnull((boost::iostreams::null_sink()));
 
@@ -45,12 +43,10 @@ std::string ogr2wkb(OGRGeometry *ogr_geom) {
   return wkb;
 }
 
-geos::io::WKBReader *wkb_reader = nullptr;
+geos::io::WKBReader wkb_reader;
 geos::geom::Geometry *wkb2geos(const std::string &wkb) {
-  if (!wkb_reader)
-    wkb_reader = new geos::io::WKBReader();
   std::istringstream ss(wkb);
-  geos::geom::Geometry *geos_geom = wkb_reader->read(ss);
+  geos::geom::Geometry *geos_geom = wkb_reader.read(ss);
   if (!geos_geom)
     throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
   return geos_geom;
@@ -62,13 +58,11 @@ geos::geom::Geometry *ogr2geos(OGRGeometry *ogr_geom) {
   return wkb2geos(ogr2wkb(ogr_geom));
 }
 
-geos::io::WKBWriter *wkb_writer = nullptr;
+geos::io::WKBWriter wkb_writer;
 std::string geos2wkb(const geos::geom::Geometry *geos_geom) {
-  if (!wkb_writer)
-    wkb_writer = new geos::io::WKBWriter();
   std::ostringstream ss;
-  wkb_writer->setOutputDimension(geos_geom->getCoordinateDimension());
-  wkb_writer->write(*geos_geom, ss);
+  wkb_writer.setOutputDimension(geos_geom->getCoordinateDimension());
+  wkb_writer.write(*geos_geom, ss);
   return ss.str();
 }
 
@@ -103,29 +97,28 @@ geos::geom::Coordinate move_point(const geos::geom::Coordinate &moving_coord,
 }
 
 void cut_front(double cut, geos::geom::CoordinateSequence *geos_cs) {
-  double node_distance =
-      std::abs(geos_cs->getAt(0).distance(geos_cs->getAt(1)));
+  double node_distance = std::abs(geos_cs->front().distance(geos_cs->getAt(1)));
   while (cut >= node_distance) {
     geos_cs->deleteAt(0);
     cut -= node_distance;
-    node_distance = std::abs(geos_cs->getAt(0).distance(geos_cs->getAt(1)));
+    node_distance = std::abs(geos_cs->front().distance(geos_cs->getAt(1)));
   }
   assert(cut >= 0);
   if (cut > 0)
-    geos_cs->setAt(move_point(geos_cs->getAt(0), geos_cs->getAt(1), cut), 0);
+    geos_cs->setAt(move_point(geos_cs->front(), geos_cs->getAt(1), cut), 0);
 }
 
 void cut_back(double cut, geos::geom::CoordinateSequence *geos_cs) {
   auto len = geos_cs->getSize();
   assert(len >= 2);
-  auto moving_coord = geos_cs->getAt(len - 1);
+  auto moving_coord = geos_cs->back();
   auto reference_coord = geos_cs->getAt(len - 2);
   double node_distance = std::abs(moving_coord.distance(reference_coord));
   while (cut >= node_distance) {
     geos_cs->deleteAt(geos_cs->getSize() - 1);
     cut -= node_distance;
     len = geos_cs->getSize();
-    moving_coord = geos_cs->getAt(len - 1);
+    moving_coord = geos_cs->back();
     reference_coord = geos_cs->getAt(len - 2);
     node_distance = std::abs(moving_coord.distance(reference_coord));
   }
@@ -133,6 +126,11 @@ void cut_back(double cut, geos::geom::CoordinateSequence *geos_cs) {
   if (cut > 0)
     geos_cs->setAt(move_point(moving_coord, reference_coord, cut), len - 1);
 }
+
+geos::geom::GeometryFactory::unique_ptr geos_factory =
+    geos::geom::GeometryFactory::create();
+std::unique_ptr<geos::operation::buffer::OffsetCurveBuilder>
+    offset_curve_builder;
 
 geos::geom::LineString *cut_caps(geos::geom::LineString *geos_ls) {
   geos::geom::CoordinateSequence *geos_cs = geos_ls->getCoordinates();
@@ -151,28 +149,33 @@ geos::geom::LineString *cut_caps(geos::geom::LineString *geos_ls) {
 
 OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
                                    bool left) {
-  if (geos_factory.get() == nullptr)
-    geos_factory = geos::geom::GeometryFactory::create();
-
-  auto offset_curve_builder = new geos::operation::buffer::OffsetCurveBuilder(
-      geos_factory->getPrecisionModel(),
-      geos::operation::buffer::BufferParameters());
+  if (!offset_curve_builder) {
+    offset_curve_builder =
+        std::make_unique<geos::operation::buffer::OffsetCurveBuilder>(
+            geos_factory->getPrecisionModel(),
+            geos::operation::buffer::BufferParameters());
+  }
 
   std::vector<geos::geom::CoordinateSequence *> cs_vec;
-  offset_curve_builder->getSingleSidedLineCurve(
-      ogr2geos(ogr_ls)->getCoordinates(), offset, cs_vec, left, !left);
-  assert(cs_vec.size() == 1);
+  auto convGeometry = ogr2geos(ogr_ls);
+  auto inputCS = convGeometry->getCoordinates();
+  offset_curve_builder->getSingleSidedLineCurve(inputCS, offset, cs_vec, left,
+                                                !left);
 
-  auto cs = cs_vec.at(0);
+  delete inputCS;
+  delete convGeometry;
+
+  auto cs = cs_vec.front();
 
   // getSingleSidedLineCurve() always produces a ring (bug?). therefore:
   // first_coord == last_coord => drop last_coord
   if (cs->front() == cs->back())
     cs->deleteAt(cs->size() - 1);
 
-  geos::geom::LineString *offset_geos_ls = geos_factory->createLineString(cs);
-  offset_geos_ls = cut_caps(offset_geos_ls);
-  OGRGeometry *offset_ogr_geom = geos2ogr(offset_geos_ls);
+  auto offset_geos_ls = geos_factory->createLineString(cs);
+  auto cut_caps_geos_ls = cut_caps(offset_geos_ls);
+  auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls);
+  delete cut_caps_geos_ls;
   delete offset_geos_ls;
 
   return static_cast<OGRLineString *>(offset_ogr_geom);
