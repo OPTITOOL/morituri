@@ -43,9 +43,9 @@ const double SHORT_TON = 0.90718474;
  * \return Returns true if existing and valid
  * */
 
-bool shp_file_exists(const char *shp_file) {
+bool shp_file_exists(const std::string &shp_file) {
   GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
-      shp_file, GDAL_OF_READONLY, nullptr, nullptr, nullptr);
+      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
   if (input_data_source == nullptr) {
     return false;
   }
@@ -53,12 +53,8 @@ bool shp_file_exists(const char *shp_file) {
   return true;
 }
 
-bool shp_file_exists(std::string shp_file) {
-  return shp_file_exists(shp_file.c_str());
-}
-
 bool shp_file_exists(boost::filesystem::path shp_file) {
-  return shp_file_exists(shp_file.c_str());
+  return shp_file_exists(shp_file.string());
 }
 
 /**
@@ -66,8 +62,8 @@ bool shp_file_exists(boost::filesystem::path shp_file) {
  * \param dbf_file path of DBF file
  * \return Returns true if existing and valid
  * */
-bool dbf_file_exists(const char *dbf_file) {
-  DBFHandle handle = DBFOpen(dbf_file, "rb");
+bool dbf_file_exists(const std::string &dbf_file) {
+  DBFHandle handle = DBFOpen(dbf_file.c_str(), "rb");
   if (handle == nullptr) {
     return false;
   }
@@ -75,12 +71,8 @@ bool dbf_file_exists(const char *dbf_file) {
   return true;
 }
 
-bool dbf_file_exists(const std::string &dbf_file) {
-  return dbf_file_exists(dbf_file.c_str());
-}
-
-bool dbf_file_exists(boost::filesystem::path dbf_file) {
-  return dbf_file_exists(dbf_file.c_str());
+bool dbf_file_exists(const boost::filesystem::path &dbf_file) {
+  return dbf_file_exists(dbf_file.string());
 }
 
 /**
@@ -164,7 +156,7 @@ template <class Type> bool is_in_range(Type test, Type from, Type to) {
   return true;
 }
 
-bool string_is_unsigned_integer(std::string s) {
+bool string_is_unsigned_integer(const std::string &s) {
   if (s.empty())
     return false;
   for (auto i : s)
@@ -173,7 +165,7 @@ bool string_is_unsigned_integer(std::string s) {
   return true;
 }
 
-bool string_is_not_unsigned_integer(std::string s) {
+bool string_is_not_unsigned_integer(const std::string &s) {
   return !string_is_unsigned_integer(s);
 }
 
@@ -237,7 +229,7 @@ std::string to_camel_case_with_spaces(const char *camel) {
 /**
  * \brief apply camel case with spaces to string
  */
-std::string to_camel_case_with_spaces(std::string camel) {
+std::string to_camel_case_with_spaces(const std::string &camel) {
   return to_camel_case_with_spaces(camel.c_str());
 }
 

@@ -16,8 +16,8 @@
 class navteq_plugin : public base_plugin {
 private:
   bool is_valid_format(std::string format);
-  void recurse_dir(boost::filesystem::path dir);
-  bool check_files(boost::filesystem::path dir);
+  void recurse_dir(const boost::filesystem::path &dir);
+  bool check_files(const boost::filesystem::path &dir);
   void write_output();
   void add_administrative_boundaries();
   void add_water();
@@ -26,12 +26,12 @@ private:
   path_vector_type dirs;
 
 public:
-  navteq_plugin(boost::filesystem::path executable_path);
+  navteq_plugin(const boost::filesystem::path &executable_path);
   virtual ~navteq_plugin();
 
-  bool
-  check_input(boost::filesystem::path input_path,
-              boost::filesystem::path output_path = boost::filesystem::path());
+  bool check_input(
+      const boost::filesystem::path &input_path,
+      const boost::filesystem::path &output_path = boost::filesystem::path());
   void execute();
 };
 

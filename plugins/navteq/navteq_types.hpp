@@ -51,7 +51,7 @@ struct mod_group_type {
   mod_typ_type mod_type;
   mod_val_type mod_val;
   mod_group_type(mod_typ_type mod_type, mod_val_type mod_val,
-                 std::string lang_code) {
+                 const std::string &lang_code) {
     this->lang_code = lang_code;
     this->mod_type = mod_type;
     this->mod_val = mod_val;

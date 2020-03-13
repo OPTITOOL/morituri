@@ -45,8 +45,8 @@ std::string ogr2wkb(OGRGeometry *ogr_geom) {
   return wkb;
 }
 
-geos::io::WKBReader *wkb_reader;
-geos::geom::Geometry *wkb2geos(std::string wkb) {
+geos::io::WKBReader *wkb_reader = nullptr;
+geos::geom::Geometry *wkb2geos(const std::string &wkb) {
   if (!wkb_reader)
     wkb_reader = new geos::io::WKBReader();
   std::istringstream ss(wkb);
@@ -62,7 +62,7 @@ geos::geom::Geometry *ogr2geos(OGRGeometry *ogr_geom) {
   return wkb2geos(ogr2wkb(ogr_geom));
 }
 
-geos::io::WKBWriter *wkb_writer;
+geos::io::WKBWriter *wkb_writer = nullptr;
 std::string geos2wkb(const geos::geom::Geometry *geos_geom) {
   if (!wkb_writer)
     wkb_writer = new geos::io::WKBWriter();
@@ -72,8 +72,8 @@ std::string geos2wkb(const geos::geom::Geometry *geos_geom) {
   return ss.str();
 }
 
-OGRGeometry *wkb2ogr(std::string wkb) {
-  OGRGeometry *ogr_geom;
+OGRGeometry *wkb2ogr(const std::string &wkb) {
+  OGRGeometry *ogr_geom = nullptr;
   OGRErr res = OGRGeometryFactory::createFromWkb(
       (unsigned char *)(wkb.c_str()), nullptr, &ogr_geom, wkb.size());
   if (res != OGRERR_NONE)

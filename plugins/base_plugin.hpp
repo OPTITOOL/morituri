@@ -16,21 +16,22 @@
 
 class base_plugin {
 public:
-  const char *name;
+  std::string name;
   boost::filesystem::path input_path;
   boost::filesystem::path output_path;
   boost::filesystem::path executable_path;
 
   base_plugin() { this->name = ""; };
-  base_plugin(const char *name) { this->name = name; };
-  base_plugin(const char *name, boost::filesystem::path executable_path) {
+  base_plugin(const std::string &name) { this->name = name; };
+  base_plugin(const std::string &name,
+              const boost::filesystem::path &executable_path) {
     this->name = name;
     this->executable_path = executable_path.parent_path();
   }
 
   virtual ~base_plugin(){};
 
-  const char *get_name() { return name; }
+  std::string get_name() { return name; }
 
   /*
    * \brief	Sets input_path and output_path.
@@ -41,9 +42,9 @@ public:
    * \param	inputh_path_rhs	input path to set
    * \param	output_path_rhs	output path to set (may be ommited)
    * */
-  void plugin_setup(
-      boost::filesystem::path input_path_rhs,
-      boost::filesystem::path output_path_rhs = boost::filesystem::path()) {
+  void plugin_setup(const boost::filesystem::path &input_path_rhs,
+                    const boost::filesystem::path &output_path_rhs =
+                        boost::filesystem::path()) {
     input_path = input_path_rhs;
     if (!boost::filesystem::is_directory(input_path))
       throw(osmium::io_error("input_path '" + input_path.string() +
@@ -73,9 +74,9 @@ public:
    *
    * \return returns true if input is existing and valid
    *  */
-  virtual bool check_input(
-      boost::filesystem::path input_path,
-      boost::filesystem::path output_path = boost::filesystem::path("")) = 0;
+  virtual bool check_input(const boost::filesystem::path &input_path,
+                           const boost::filesystem::path &output_path =
+                               boost::filesystem::path("")) = 0;
 
   /**
    * \brief	Converts input to OSM files

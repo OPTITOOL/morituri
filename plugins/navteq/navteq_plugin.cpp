@@ -22,7 +22,7 @@
 
  */
 
-navteq_plugin::navteq_plugin(boost::filesystem::path executable_path)
+navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
   // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
   g_executable_path = this->executable_path;
@@ -42,7 +42,7 @@ bool navteq_plugin::is_valid_format(std::string filename) {
   return false;
 }
 
-bool navteq_plugin::check_files(boost::filesystem::path dir) {
+bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
   if (!shp_file_exists(dir / STREETS_SHP))
     return false;
 
@@ -83,7 +83,7 @@ bool navteq_plugin::check_files(boost::filesystem::path dir) {
  * \return Existance of valid data in a subdirectory.
  */
 
-void navteq_plugin::recurse_dir(boost::filesystem::path dir) {
+void navteq_plugin::recurse_dir(const boost::filesystem::path &dir) {
   if (check_files(dir))
     dirs.push_back(dir);
 
@@ -95,8 +95,8 @@ void navteq_plugin::recurse_dir(boost::filesystem::path dir) {
   }
 }
 
-bool navteq_plugin::check_input(boost::filesystem::path input_path,
-                                boost::filesystem::path output_file) {
+bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
+                                const boost::filesystem::path &output_file) {
   if (!boost::filesystem::is_directory(input_path))
     throw(std::runtime_error("directory " + input_path.string() +
                              " does not exist"));
@@ -175,22 +175,30 @@ void navteq_plugin::add_landuse() {
 
 void navteq_plugin::execute() {
 
+  std::cout << "Procesing Meta areas" << std::endl;
   preprocess_meta_areas(dirs);
 
+  std::cout << "Procesing alt street rout types" << std::endl;
   process_alt_steets_route_types(dirs);
 
+  std::cout << "Add street shapes" << std::endl;
   add_street_shapes(dirs);
   assert__id_uniqueness();
 
+  std::cout << "Add turn restrictions" << std::endl;
   add_turn_restrictions(dirs);
   assert__id_uniqueness();
 
+  std::cout << "Add administrative boundaries" << std::endl;
   add_administrative_boundaries();
 
+  std::cout << "Add water" << std::endl;
   add_water();
 
+  std::cout << "Add landuse" << std::endl;
   add_landuse();
 
+  std::cout << "Add city nodes" << std::endl;
   add_city_nodes(dirs);
 
   if (!output_path.empty())

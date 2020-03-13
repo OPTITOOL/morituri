@@ -321,6 +321,7 @@ osmium::unsigned_object_id_type build_way(OGRFeature *feat,
   builder.set_user(USER);
   {
     osmium::builder::WayNodeListBuilder wnl_builder(g_way_buffer, &builder);
+
     for (int i = 0; i < ogr_ls->getNumPoints(); i++) {
       osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
       bool is_end_point = i == 0 || i == ogr_ls->getNumPoints() - 1;
@@ -347,9 +348,11 @@ osmium::unsigned_object_id_type build_way(OGRFeature *feat,
 
   link_id_type link_id = build_tag_list(feat, &builder, g_way_buffer, z_lvl);
   assert(link_id != 0);
-  if (g_link_id_map.find(link_id) == g_link_id_map.end())
-    g_link_id_map.insert(std::make_pair(link_id, osm_id_vector_type()));
-  g_link_id_map.at(link_id).push_back(
+
+  auto it = g_link_id_map.find(link_id);
+  if (it == g_link_id_map.end())
+    it = g_link_id_map.emplace(link_id, osm_id_vector_type()).first;
+  it->second.push_back(
       (osmium::unsigned_object_id_type)STATIC_WAY(builder.object()).id());
 
   return STATIC_WAY(builder.object()).id();
@@ -570,16 +573,16 @@ void process_end_point(bool first, ushort index, z_lvl_type z_lvl,
     auto it = g_z_lvl_nodes_map.find(node_id);
     if (it != g_z_lvl_nodes_map.end()) {
       osmium::unsigned_object_id_type osm_id = it->second;
-      node_ref_map.insert(std::make_pair(location, osm_id));
+      node_ref_map.emplace(location, osm_id);
     } else {
       osmium::unsigned_object_id_type osm_id = build_node(location);
-      node_ref_map.insert(std::make_pair(location, osm_id));
-      g_z_lvl_nodes_map.insert(std::make_pair(node_id, osm_id));
+      node_ref_map.emplace(location, osm_id);
+      g_z_lvl_nodes_map.emplace(node_id, osm_id);
     }
   } else if (g_way_end_points_map.find(location) ==
              g_way_end_points_map.end()) {
     // adds all zero z-level end points to g_way_end_points_map
-    g_way_end_points_map.insert(std::make_pair(location, build_node(location)));
+    g_way_end_points_map.emplace(location, build_node(location));
   }
 }
 
@@ -598,9 +601,9 @@ void process_last_end_point(ushort index, z_lvl_type z_lvl,
 void middle_points_preparation(OGRLineString *ogr_ls,
                                node_map_type &node_ref_map) {
   // creates remaining nodes required for way
-  for (int i = 1; i < ogr_ls->getNumPoints() - 1; i++) {
+  for (int i = 1; i < ogr_ls->getNumPoints() - 1; ++i) {
     osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
-    node_ref_map.insert(std::make_pair(location, build_node(location)));
+    node_ref_map.emplace(location, build_node(location));
   }
   g_node_buffer.commit();
 }
