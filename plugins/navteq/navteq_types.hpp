@@ -14,8 +14,6 @@
 #include <osmium/osm/types.hpp>
 #include <unordered_map>
 
-typedef std::vector<boost::filesystem::path> path_vector_type;
-
 typedef uint64_t cond_id_type;
 typedef uint64_t mod_typ_type;
 typedef uint64_t mod_val_type;

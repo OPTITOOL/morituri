@@ -20,7 +20,7 @@ bool parse_bool(const char *value) {
   return false;
 }
 
-bool fits_street_ref(std::string &st_name) {
+bool fits_street_ref(const std::string &st_name) {
   if (st_name.empty())
     return false;
   if (st_name.size() > 6)
@@ -38,11 +38,11 @@ bool fits_street_ref(std::string &st_name) {
   return number_started;
 }
 
-bool begins_with(std::string &str, const char *start_str) {
+bool begins_with(const std::string &str, const char *start_str) {
   return (strncmp(str.c_str(), start_str, strlen(start_str)) == 0);
 }
 
-uint get_number_after(std::string &str, const char *start_str) {
+uint get_number_after(const std::string &str, const char *start_str) {
   if (!begins_with(str, start_str))
     return 0; /* doesn't start with start_str */
 
@@ -82,7 +82,7 @@ bool is_motorized_allowed(OGRFeature *f) {
   return false;
 }
 
-uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map = nullptr) {
+uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
   area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
   area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
 

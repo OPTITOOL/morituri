@@ -23,7 +23,7 @@ private:
   void add_water();
   void add_landuse();
 
-  path_vector_type dirs;
+  std::vector<boost::filesystem::path> dirs;
 
 public:
   navteq_plugin(const boost::filesystem::path &executable_path);

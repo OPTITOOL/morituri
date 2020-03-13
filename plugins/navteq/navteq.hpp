@@ -1328,7 +1328,7 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
   DBFClose(handle);
 }
 
-void preprocess_meta_areas(path_vector_type dirs) {
+void preprocess_meta_areas(const std::vector<boost::filesystem::path> &dirs) {
   for (auto dir : dirs) {
     process_meta_areas(dir);
   }
@@ -1446,7 +1446,7 @@ void init_cdms_map(
  * \param handle DBF file handle to navteq manoeuvres.
  * */
 
-void add_turn_restrictions(path_vector_type dirs) {
+void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs) {
   // maps COND_ID to COND_TYPE
   std::map<osmium::unsigned_object_id_type, ushort> cdms_map;
   for (auto dir : dirs) {
@@ -1484,7 +1484,7 @@ void add_turn_restrictions(path_vector_type dirs) {
   }
 }
 
-void add_city_nodes(path_vector_type dirs) {
+void add_city_nodes(const std::vector<boost::filesystem::path> &dirs) {
 
   for (auto dir : dirs) {
     DBFHandle name_place_handle = read_dbf_file(dir / NAMED_PLC_DBF);
@@ -1594,15 +1594,6 @@ void init_g_cntry_ref_map(const boost::filesystem::path &dir,
   DBFClose(cntry_ref_handle);
 }
 
-std::vector<OGRLayer *> init_street_layers(const path_vector_type &dirs,
-                                           std::ostream &out) {
-  std::vector<OGRLayer *> layer_vector;
-  for (auto dir : dirs) {
-    layer_vector.push_back(read_shape_file(dir / STREETS_SHP, out));
-  }
-  return layer_vector;
-}
-
 // \brief stores z_levels in z_level_map for later use. Maps link_ids to pairs
 // of indices and z-levels of waypoints with z-levels not equal 0.
 void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
@@ -1678,27 +1669,40 @@ void init_highway_names(const boost::filesystem::path &dir) {
     parse_highway_names(dir / SEC_HWYS_DBF);
 }
 
-z_lvl_map process_z_levels(const path_vector_type &dirs,
-                           std::vector<OGRLayer *> &layer_vector,
+z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
                            std::ostream &out) {
-  assert(layer_vector.size() == dirs.size());
+
   z_lvl_map z_level_map;
-  for (int i = 0; i < layer_vector.size(); i++) {
-    boost::filesystem::path dir = dirs.at(i);
-    auto &layer = layer_vector.at(i);
+
+  for (auto &dir : dirs) {
+    auto path = dir / STREETS_SHP;
+    auto *ds = open_shape_file(path, out);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(path.string()));
     assert(layer->GetGeomType() == wkbLineString);
 
     init_z_level_map(dir, out, z_level_map);
     init_conditional_driving_manoeuvres(dir, out);
     init_country_reference(dir, out);
     init_highway_names(dir);
+
+    GDALClose(ds);
   }
   return z_level_map;
 }
 
-void process_way_end_nodes(std::vector<OGRLayer *> &layer_vector,
-                           z_lvl_map &z_level_map) {
-  for (auto &layer : layer_vector) {
+void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
+                           z_lvl_map &z_level_map, std::ostream &out) {
+  for (auto &dir : dirs) {
+    auto path = dir / STREETS_SHP;
+    auto *ds = open_shape_file(path, out);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(path.string()));
+
     // get all nodes which may be a routable crossing
     while (auto feat = layer->GetNextFeature()) {
       link_id_type link_id = get_uint_from_feature(feat, LINK_ID);
@@ -1711,24 +1715,33 @@ void process_way_end_nodes(std::vector<OGRLayer *> &layer_vector,
     }
     g_node_buffer.commit();
     g_way_buffer.commit();
-    layer->ResetReading();
+    GDALClose(ds);
   }
 }
 
-void process_way(std::vector<OGRLayer *> &layer_vector,
-                 z_lvl_map &z_level_map) {
-  for (auto &layer : layer_vector) {
+void process_way(const std::vector<boost::filesystem::path> &dirs,
+                 z_lvl_map &z_level_map, std::ostream &out) {
+  for (auto &dir : dirs) {
+    auto path = dir / STREETS_SHP;
+    auto *ds = open_shape_file(path, out);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(path.string()));
+
     while (auto feat = layer->GetNextFeature()) {
       process_way(feat, &z_level_map);
       OGRFeature::DestroyFeature(feat);
     }
+    GDALClose(ds);
   }
 }
 
 /**
  * \brief Parses AltStreets.dbf for route type values.
  */
-void process_alt_steets_route_types(path_vector_type dirs) {
+void process_alt_steets_route_types(
+    const std::vector<boost::filesystem::path> &dirs) {
   for (auto dir : dirs) {
     DBFHandle alt_streets_handle = read_dbf_file(dir / ALT_STREETS_DBF);
     for (int i = 0; i < DBFGetRecordCount(alt_streets_handle); i++) {
@@ -1762,20 +1775,19 @@ void process_alt_steets_route_types(path_vector_type dirs) {
  * \param layer Pointer to administrative layer.
  */
 
-void add_street_shapes(path_vector_type dirs, bool test = false) {
+void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
+                       bool test = false) {
 
   std::ostream &out = test ? cnull : std::cerr;
 
-  std::vector<OGRLayer *> layer_vector = init_street_layers(dirs, out);
-
   out << " processing z-levels" << std::endl;
-  z_lvl_map z_level_map = process_z_levels(dirs, layer_vector, out);
+  z_lvl_map z_level_map = process_z_levels(dirs, out);
 
   out << " processing way end points" << std::endl;
-  process_way_end_nodes(layer_vector, z_level_map);
+  process_way_end_nodes(dirs, z_level_map, out);
 
   out << " processing ways" << std::endl;
-  process_way(layer_vector, z_level_map);
+  process_way(dirs, z_level_map, out);
 
   out << " clean" << std::endl;
   for (auto elem : z_level_map)
@@ -1792,8 +1804,8 @@ void add_street_shapes(path_vector_type dirs, bool test = false) {
   g_route_type_map.clear();
 }
 
-void add_street_shapes(boost::filesystem::path dir, bool test = false) {
-  path_vector_type dir_vector;
+void add_street_shapes(const boost::filesystem::path &dir, bool test = false) {
+  std::vector<boost::filesystem::path> dir_vector;
   dir_vector.push_back(dir);
   add_street_shapes(dir_vector, test);
 }

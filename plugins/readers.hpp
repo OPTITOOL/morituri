@@ -14,28 +14,6 @@
 
 #include "comm2osm_exceptions.hpp"
 
-/*
- * \brief Checks shapefile existance and validity.
- * \param shp_file path and file name of shapefile.
- * \return Pointer to first layer in Shapefile.
- * */
-
-OGRLayer *read_shape_file(boost::filesystem::path shp_file,
-                          std::ostream &out = std::cerr) {
-  out << "reading " << shp_file << std::endl;
-
-  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
-      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
-  if (input_data_source == nullptr)
-    throw(shp_error(shp_file.string()));
-
-  OGRLayer *input_layer = input_data_source->GetLayer(0);
-  if (input_layer == nullptr)
-    throw(shp_empty_error(shp_file.string()));
-
-  return input_layer;
-}
-
 GDALDataset *open_shape_file(boost::filesystem::path shp_file,
                              std::ostream &out = std::cerr) {
   out << "reading " << shp_file << std::endl;
