@@ -199,8 +199,7 @@ size_t build_turn_restriction(const osm_id_vector_type &osm_ids) {
  * \return link id of parsed feature.
  */
 
-link_id_type build_tag_list(std::unique_ptr<OGRFeature> &feat,
-                            osmium::builder::Builder *builder,
+link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
                             osmium::memory::Buffer &buf, short z_level = -5) {
   osmium::builder::TagListBuilder tl_builder(buf, builder);
 
@@ -306,11 +305,11 @@ void test__z_lvl_range(short z_lvl) {
  * \param z_lvl z-level of way. initially invalid (-5).
  * \return id of created Way.
  */
-osmium::unsigned_object_id_type
-build_way(std::unique_ptr<OGRFeature> &feat,
-          std::unique_ptr<OGRLineString> &ogr_ls,
-          node_map_type *node_ref_map = nullptr, bool is_sub_linestring = false,
-          short z_lvl = -5) {
+osmium::unsigned_object_id_type build_way(OGRFeature *feat,
+                                          OGRLineString *ogr_ls,
+                                          node_map_type *node_ref_map = nullptr,
+                                          bool is_sub_linestring = false,
+                                          short z_lvl = -5) {
 
   if (is_sub_linestring)
     test__z_lvl_range(z_lvl);
@@ -363,13 +362,13 @@ build_way(std::unique_ptr<OGRFeature> &feat,
  * begin. \param end_index Node index in ogr_ls, where sublinestring will end.
  * \return sublinestring from ogr_ls [start_index, end_index] inclusive
  */
-OGRLineString
-create_sublinestring_geometry(std::unique_ptr<OGRLineString> &ogr_ls,
-                              int start_index, int end_index = -1) {
+OGRLineString create_sublinestring_geometry(OGRLineString *ogr_ls,
+                                            int start_index,
+                                            int end_index = -1) {
   assert(start_index < end_index || end_index == -1);
   assert(start_index < ogr_ls->getNumPoints());
   OGRLineString ogr_sub_ls;
-  ogr_sub_ls.addSubLineString(ogr_ls.get(), start_index, end_index);
+  ogr_sub_ls.addSubLineString(ogr_ls, start_index, end_index);
   return ogr_sub_ls;
 }
 
@@ -406,14 +405,13 @@ bool is_superior_or_equal(short superior, short than) {
  * \param node_ref_map provides osm_ids of Nodes to a given location.
  * \param z_lvl
  */
-void build_sub_way_by_index(std::unique_ptr<OGRFeature> &feat,
-                            std::unique_ptr<OGRLineString> &ogr_ls,
+void build_sub_way_by_index(OGRFeature *feat, OGRLineString *ogr_ls,
                             ushort start_index, ushort end_index,
                             node_map_type *node_ref_map, short z_lvl = 0) {
-  std::unique_ptr<OGRLineString> ogr_sub_ls_uptr(new OGRLineString(
-      create_sublinestring_geometry(ogr_ls, start_index, end_index)));
+  OGRLineString subLineString =
+      create_sublinestring_geometry(ogr_ls, start_index, end_index);
   osmium::unsigned_object_id_type way_id =
-      build_way(feat, ogr_sub_ls_uptr, node_ref_map, true, z_lvl);
+      build_way(feat, &subLineString, node_ref_map, true, z_lvl);
 
   g_way_offset_map.set(way_id, g_way_buffer.commit());
 }
@@ -429,11 +427,12 @@ void build_sub_way_by_index(std::unique_ptr<OGRFeature> &feat,
  * \param node_ref_map location to osm_id mapping (to preserve uniqueness of
  * node locations) \return start_index
  */
-ushort create_continuing_sub_ways(
-    std::unique_ptr<OGRFeature> &feat, std::unique_ptr<OGRLineString> &ogr_ls,
-    ushort first_index, ushort start_index, ushort last_index, uint link_id,
-    const index_z_lvl_vector_type &node_z_level_vector,
-    node_map_type *node_ref_map) {
+ushort
+create_continuing_sub_ways(OGRFeature *feat, OGRLineString *ogr_ls,
+                           ushort first_index, ushort start_index,
+                           ushort last_index, uint link_id,
+                           const index_z_lvl_vector_type &node_z_level_vector,
+                           node_map_type *node_ref_map) {
 
   for (auto it = node_z_level_vector.cbegin(); it != node_z_level_vector.cend();
        ++it) {
@@ -514,8 +513,7 @@ ushort create_continuing_sub_ways(
  * provides osm_ids of Nodes to a given location. \param link_id link_id of
  * processed feature - for debug only.
  */
-void split_way_by_z_level(std::unique_ptr<OGRFeature> &feat,
-                          std::unique_ptr<OGRLineString> &ogr_ls,
+void split_way_by_z_level(OGRFeature *feat, OGRLineString *ogr_ls,
                           const index_z_lvl_vector_type &node_z_level_vector,
                           node_map_type *node_ref_map, uint link_id) {
 
@@ -562,8 +560,8 @@ void split_way_by_z_level(std::unique_ptr<OGRFeature> &feat,
  */
 
 void process_end_point(bool first, ushort index, z_lvl_type z_lvl,
-                       std::unique_ptr<OGRLineString> &ogr_ls,
-                       z_lvl_map *z_level_map, node_map_type &node_ref_map) {
+                       OGRLineString *ogr_ls, z_lvl_map *z_level_map,
+                       node_map_type &node_ref_map) {
   ushort i = first ? 0 : ogr_ls->getNumPoints() - 1;
   osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
 
@@ -586,20 +584,18 @@ void process_end_point(bool first, ushort index, z_lvl_type z_lvl,
 }
 
 void process_first_end_point(ushort index, z_lvl_type z_lvl,
-                             std::unique_ptr<OGRLineString> &ogr_ls,
-                             z_lvl_map *z_level_map,
+                             OGRLineString *ogr_ls, z_lvl_map *z_level_map,
                              node_map_type &node_ref_map) {
   process_end_point(true, index, z_lvl, ogr_ls, z_level_map, node_ref_map);
 }
 
 void process_last_end_point(ushort index, z_lvl_type z_lvl,
-                            std::unique_ptr<OGRLineString> &ogr_ls,
-                            z_lvl_map *z_level_map,
+                            OGRLineString *ogr_ls, z_lvl_map *z_level_map,
                             node_map_type &node_ref_map) {
   process_end_point(false, index, z_lvl, ogr_ls, z_level_map, node_ref_map);
 }
 
-void middle_points_preparation(std::unique_ptr<OGRLineString> &ogr_ls,
+void middle_points_preparation(OGRLineString *ogr_ls,
                                node_map_type &node_ref_map) {
   // creates remaining nodes required for way
   for (int i = 1; i < ogr_ls->getNumPoints() - 1; i++) {
@@ -613,7 +609,7 @@ void middle_points_preparation(std::unique_ptr<OGRLineString> &ogr_ls,
  * \brief replaces all z-levels by zero, which are not an endpoint
  * \param z_lvl_vec vector containing pairs of [z_lvl_index, z_lvl]
  */
-void set_ferry_z_lvls_to_zero(std::unique_ptr<OGRFeature> &feat,
+void set_ferry_z_lvls_to_zero(OGRFeature *feat,
                               index_z_lvl_vector_type &z_lvl_vec) {
   // erase middle z_lvls
   if (z_lvl_vec.size() > 2)
@@ -634,8 +630,7 @@ void set_ferry_z_lvls_to_zero(std::unique_ptr<OGRFeature> &feat,
  * ogr_ls linestring which receives the interpolated house numbers \param left
  * specifies on which side of the linestring the house numbers will be applied
  */
-void create_house_numbers(std::unique_ptr<OGRFeature> &feat,
-                          std::unique_ptr<OGRLineString> &ogr_ls, bool left) {
+void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
   const char *ref_addr = left ? L_REFADDR : R_REFADDR;
   const char *nref_addr = left ? L_NREFADDR : R_NREFADDR;
   const char *addr_schema = left ? L_ADDRSCH : R_ADDRSCH;
@@ -650,7 +645,7 @@ void create_house_numbers(std::unique_ptr<OGRFeature> &feat,
     return;
 
   std::unique_ptr<OGRLineString> offset_ogr_ls(
-      create_offset_curve(ogr_ls.get(), HOUSENUMBER_CURVE_OFFSET, left));
+      create_offset_curve(ogr_ls, HOUSENUMBER_CURVE_OFFSET, left));
   assert(ogr_ls);
   {
     // scope way_builder
@@ -700,8 +695,7 @@ void create_house_numbers(std::unique_ptr<OGRFeature> &feat,
   g_way_buffer.commit();
 }
 
-void create_house_numbers(std::unique_ptr<OGRFeature> &feat,
-                          std::unique_ptr<OGRLineString> &ogr_ls) {
+void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls) {
   create_house_numbers(feat, ogr_ls, true);
   create_house_numbers(feat, ogr_ls, false);
 }
@@ -712,14 +706,11 @@ void create_house_numbers(std::unique_ptr<OGRFeature> &feat,
  * \param ogr_ls linestring which provides the geometry.
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
-void process_way(std::unique_ptr<OGRFeature> &feat, z_lvl_map *z_level_map) {
+void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
 
   node_map_type node_ref_map;
 
-  // caution! ogr_ls refers to a geometry which is part of feat => you mustn't
-  // cleanup
-  std::unique_ptr<OGRLineString> ogr_ls(
-      static_cast<OGRLineString *>(feat->GetGeometryRef()));
+  auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
 
   // creates remaining nodes required for way
   middle_points_preparation(ogr_ls, node_ref_map);
@@ -737,7 +728,7 @@ void process_way(std::unique_ptr<OGRFeature> &feat, z_lvl_map *z_level_map) {
     index_z_lvl_vector_type &index_z_lvl_vector = it->second;
 
     // way with different z_levels
-    auto first_point_with_different_z_lvl = index_z_lvl_vector.at(0);
+    auto first_point_with_different_z_lvl = index_z_lvl_vector.front();
     auto first_index = 0;
     z_lvl_type first_z_lvl;
     if (first_point_with_different_z_lvl.first == first_index)
@@ -747,8 +738,7 @@ void process_way(std::unique_ptr<OGRFeature> &feat, z_lvl_map *z_level_map) {
     process_first_end_point(first_index, first_z_lvl, ogr_ls, z_level_map,
                             node_ref_map);
 
-    auto last_point_with_different_z_lvl =
-        index_z_lvl_vector.at(index_z_lvl_vector.size() - 1);
+    auto last_point_with_different_z_lvl = index_z_lvl_vector.back();
     auto last_index = ogr_ls->getNumPoints() - 1;
     z_lvl_type last_z_lvl;
     if (last_point_with_different_z_lvl.first == last_index)
@@ -771,8 +761,6 @@ void process_way(std::unique_ptr<OGRFeature> &feat, z_lvl_map *z_level_map) {
   if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
     create_house_numbers(feat, ogr_ls);
   }
-  // ogr_ls will be cleaned alongside with feat
-  ogr_ls.release();
 }
 
 // \brief writes way end node to way_end_points_map.
@@ -1380,11 +1368,11 @@ osm_id_vector_type collect_via_manoeuvre_osm_ids(
       return osm_id_vector_type();
 
     osm_id_vector_type &osm_id_vector = g_link_id_map.at(it);
-    auto first_osm_id = osm_id_vector.at(0);
+    auto first_osm_id = osm_id_vector.front();
     const auto &first_way =
         g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(first_osm_id));
     osmium::Location first_way_front = first_way.nodes().front().location();
-    auto last_osm_id = osm_id_vector.at(osm_id_vector.size() - 1);
+    auto last_osm_id = osm_id_vector.back();
     const auto &last_way =
         g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(last_osm_id));
     osmium::Location last_way_back = last_way.nodes().back().location();
@@ -1621,7 +1609,7 @@ void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
     assert(point_num >= 0);
     short z_level = dbf_get_uint_by_field(handle, i, Z_LEVEL);
 
-    if (i > 0 && last_link_id != link_id && v.size() > 0) {
+    if (i > 0 && last_link_id != link_id && !v.empty()) {
       z_level_map.insert(std::make_pair(last_link_id, v));
       v = index_z_lvl_vector_type();
     }
@@ -1699,17 +1687,14 @@ void process_way_end_nodes(std::vector<OGRLayer *> &layer_vector,
                            z_lvl_map &z_level_map) {
   for (auto &layer : layer_vector) {
     // get all nodes which may be a routable crossing
-
-    int feature_count = layer->GetFeatureCount(false);
-    assert(feature_count >= 0);
-    for (auto j = 0; j < feature_count; j++) {
-      auto feat = std::unique_ptr<OGRFeature>(layer->GetFeature(j));
+    while (auto feat = layer->GetNextFeature()) {
       link_id_type link_id = get_uint_from_feature(feat, LINK_ID);
       // omit way end nodes with different z-levels (they have to be handled
       // extra)
       if (z_level_map.find(link_id) == z_level_map.end())
         process_way_end_nodes(
             static_cast<OGRLineString *>(feat->GetGeometryRef()));
+      OGRFeature::DestroyFeature(feat);
     }
     g_node_buffer.commit();
     g_way_buffer.commit();
@@ -1720,11 +1705,9 @@ void process_way_end_nodes(std::vector<OGRLayer *> &layer_vector,
 void process_way(std::vector<OGRLayer *> &layer_vector,
                  z_lvl_map &z_level_map) {
   for (auto &layer : layer_vector) {
-    int feature_count = layer->GetFeatureCount(false);
-    assert(feature_count >= 0);
-    for (auto j = 0; j < feature_count; j++) {
-      auto feat = std::unique_ptr<OGRFeature>(layer->GetFeature(j));
+    while (auto feat = layer->GetNextFeature()) {
       process_way(feat, &z_level_map);
+      OGRFeature::DestroyFeature(feat);
     }
   }
 }
@@ -1811,10 +1794,7 @@ void add_admin_shape(boost::filesystem::path admin_shape_file) {
   auto layer = read_shape_file(admin_shape_file);
   assert(layer->GetGeomType() == wkbPolygon);
 
-  int feature_count = layer->GetFeatureCount(false);
-  assert(feature_count >= 0);
-  for (auto i = 0; i < feature_count; i++) {
-    auto feat = layer->GetFeature(i);
+  while (auto feat = layer->GetNextFeature()) {
     process_admin_boundary(layer, feat);
     OGRFeature::DestroyFeature(feat);
   }
@@ -1826,10 +1806,7 @@ void add_water_shape(boost::filesystem::path water_shape_file) {
   assert(layer->GetGeomType() == wkbPolygon ||
          layer->GetGeomType() == wkbLineString);
 
-  int feature_count = layer->GetFeatureCount(false);
-  assert(feature_count >= 0);
-  for (auto i = 0; i < feature_count; i++) {
-    auto feat = layer->GetFeature(i);
+  while (auto feat = layer->GetNextFeature()) {
     process_water(layer, feat);
     OGRFeature::DestroyFeature(feat);
   }
@@ -1840,10 +1817,7 @@ void add_landuse_shape(boost::filesystem::path water_shape_file) {
   auto layer = read_shape_file(water_shape_file);
   assert(layer->GetGeomType() == wkbPolygon);
 
-  int feature_count = layer->GetFeatureCount(false);
-  assert(feature_count >= 0);
-  for (auto i = 0; i < feature_count; i++) {
-    auto feat = layer->GetFeature(i);
+  while (auto feat = layer->GetNextFeature()) {
     process_landuse(layer, feat);
     OGRFeature::DestroyFeature(feat);
   }

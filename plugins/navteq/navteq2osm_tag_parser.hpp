@@ -65,7 +65,7 @@ uint get_number_after(std::string &str, const char *start_str) {
   }
 }
 
-bool is_motorized_allowed(std::unique_ptr<OGRFeature> &f) {
+bool is_motorized_allowed(OGRFeature *f) {
   if (parse_bool(get_field_from_feature(f, AR_AUTO)))
     return true;
   if (parse_bool(get_field_from_feature(f, AR_BUS)))
@@ -82,8 +82,7 @@ bool is_motorized_allowed(std::unique_ptr<OGRFeature> &f) {
   return false;
 }
 
-uint get_area_code_l(std::unique_ptr<OGRFeature> &f,
-                     mtd_area_map_type *mtd_area_map = nullptr) {
+uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map = nullptr) {
   area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
   area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
 
@@ -146,9 +145,8 @@ std::string get_hwy_value(ushort route_type, uint area_code_1,
   return get_hwy_vector(HWY_ROUTE_TYPE_MAP, area_code_1).at(route_type);
 }
 
-void add_highway_tag(osmium::builder::TagListBuilder *builder,
-                     std::unique_ptr<OGRFeature> &f, link_id_type link_id,
-                     ushort route_type, ushort func_class,
+void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
+                     link_id_type link_id, ushort route_type, ushort func_class,
                      mtd_area_map_type *mtd_area_map = nullptr,
                      std::string ref_name = "") {
   const char *highway = "highway";
@@ -203,7 +201,6 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder,
 }
 
 const char *parse_one_way_tag(const char *value) {
-  const char *one_way = "oneway";
   if (!strcmp(value, "F")) // F --> FROM reference node
     return YES;
   else if (!strcmp(value, "T")) // T --> TO reference node
@@ -222,8 +219,7 @@ void add_one_way_tag(osmium::builder::TagListBuilder *builder,
     builder->add_tag(one_way, parsed_value);
 }
 
-void add_access_tags(osmium::builder::TagListBuilder *builder,
-                     std::unique_ptr<OGRFeature> &f) {
+void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
   if (!parse_bool(get_field_from_feature(f, AR_AUTO)))
     builder->add_tag("motorcar", NO);
   if (!parse_bool(get_field_from_feature(f, AR_BUS)))
@@ -252,7 +248,7 @@ void add_access_tags(osmium::builder::TagListBuilder *builder,
  * \brief adds maxspeed tag
  */
 void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
-                       std::unique_ptr<OGRFeature> &f) {
+                       OGRFeature *f) {
   const char *from_speed_limit_s =
       strdup(get_field_from_feature(f, FR_SPEED_LIMIT));
   const char *to_speed_limit_s =
@@ -299,7 +295,7 @@ void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
  * \brief adds here:speed_cat tag
  */
 void add_here_speed_cat_tag(osmium::builder::TagListBuilder *builder,
-                            std::unique_ptr<OGRFeature> &f) {
+                            OGRFeature *f) {
   auto speed_cat = get_uint_from_feature(f, SPEED_CAT);
   if (0 < speed_cat &&
       speed_cat < (sizeof(speed_cat_metric) / sizeof(const char *)))
@@ -474,7 +470,7 @@ bool is_ferry(const char *value) {
                      std::string(FERRY) + " not valid"));
 }
 
-bool only_pedestrians(std::unique_ptr<OGRFeature> &f) {
+bool only_pedestrians(OGRFeature *f) {
   if (strcmp(get_field_from_feature(f, AR_PEDESTRIANS), "Y"))
     return false;
   if (!strcmp(get_field_from_feature(f, AR_AUTO), "Y"))
@@ -493,8 +489,7 @@ bool only_pedestrians(std::unique_ptr<OGRFeature> &f) {
   return true;
 }
 
-void add_ferry_tag(osmium::builder::TagListBuilder *builder,
-                   std::unique_ptr<OGRFeature> &f) {
+void add_ferry_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
   const char *ferry = get_field_from_feature(f, FERRY);
   builder->add_tag("route", "ferry");
   if (!strcmp(ferry, "B")) {
@@ -516,15 +511,13 @@ void add_ferry_tag(osmium::builder::TagListBuilder *builder,
                        std::string(FERRY) + " not valid"));
 }
 
-void add_lanes_tag(osmium::builder::TagListBuilder *builder,
-                   std::unique_ptr<OGRFeature> &f) {
+void add_lanes_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
   const char *number_of_physical_lanes = get_field_from_feature(f, PHYS_LANES);
   if (strcmp(number_of_physical_lanes, "0"))
     builder->add_tag("lanes", number_of_physical_lanes);
 }
 
-void add_postcode_tag(osmium::builder::TagListBuilder *builder,
-                      std::unique_ptr<OGRFeature> &f) {
+void add_postcode_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
   std::string l_postcode = get_field_from_feature(f, L_POSTCODE);
   std::string r_postcode = get_field_from_feature(f, R_POSTCODE);
 
@@ -568,9 +561,8 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
   return ref_tag;
 }
 
-void add_highway_tags(osmium::builder::TagListBuilder *builder,
-                      std::unique_ptr<OGRFeature> &f, link_id_type link_id,
-                      ushort route_type,
+void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
+                      link_id_type link_id, ushort route_type,
                       mtd_area_map_type *mtd_area_map = nullptr,
                       std::string ref_name = "") {
 
@@ -606,14 +598,15 @@ void add_highway_tags(osmium::builder::TagListBuilder *builder,
  * \brief maps navteq tags for access, tunnel, bridge, etc. to osm tags
  * \return link id of processed feature.
  */
-link_id_type parse_street_tags(
-    osmium::builder::TagListBuilder *builder, std::unique_ptr<OGRFeature> &f,
-    cdms_map_type *cdms_map = nullptr, cnd_mod_map_type *cnd_mod_map = nullptr,
-    area_id_govt_code_map_type *area_govt_map = nullptr,
-    cntry_ref_map_type *cntry_map = nullptr,
-    mtd_area_map_type *mtd_area_map = nullptr,
-    link_id_route_type_map *route_type_map = nullptr,
-    link_id_to_names_map *names_map = nullptr) {
+link_id_type
+parse_street_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
+                  cdms_map_type *cdms_map = nullptr,
+                  cnd_mod_map_type *cnd_mod_map = nullptr,
+                  area_id_govt_code_map_type *area_govt_map = nullptr,
+                  cntry_ref_map_type *cntry_map = nullptr,
+                  mtd_area_map_type *mtd_area_map = nullptr,
+                  link_id_route_type_map *route_type_map = nullptr,
+                  link_id_to_names_map *names_map = nullptr) {
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   link_id_type link_id = std::stoul(link_id_s);
