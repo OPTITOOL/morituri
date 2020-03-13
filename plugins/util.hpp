@@ -68,14 +68,14 @@ bool shp_file_exists(boost::filesystem::path shp_file) {
  * */
 bool dbf_file_exists(const char *dbf_file) {
   DBFHandle handle = DBFOpen(dbf_file, "rb");
-  if (handle == NULL) {
+  if (handle == nullptr) {
     return false;
   }
   DBFClose(handle);
   return true;
 }
 
-bool dbf_file_exists(std::string dbf_file) {
+bool dbf_file_exists(const std::string &dbf_file) {
   return dbf_file_exists(dbf_file.c_str());
 }
 
@@ -90,10 +90,9 @@ bool dbf_file_exists(boost::filesystem::path dbf_file) {
  * \return index of given field
  */
 
-int dbf_get_field_index(DBFHandle handle, int row, const char *field_name) {
+int dbf_get_field_index(DBFHandle handle, const char *field_name) {
   assert(handle);
   assert(field_name);
-  assert(row < DBFGetRecordCount(handle));
   // if (row >= DBFGetRecordCount(handle)) throw(std::runtime_error("row=" +
   // std::to_string(row) + " is out of bounds."));
   int index = DBFGetFieldIndex(handle, field_name);
@@ -109,7 +108,7 @@ int dbf_get_field_index(DBFHandle handle, int row, const char *field_name) {
 std::string dbf_get_string_by_field(DBFHandle handle, int row,
                                     const char *field_name) {
   return DBFReadStringAttribute(handle, row,
-                                dbf_get_field_index(handle, row, field_name));
+                                dbf_get_field_index(handle, field_name));
 }
 
 /**
@@ -118,7 +117,7 @@ std::string dbf_get_string_by_field(DBFHandle handle, int row,
 uint64_t dbf_get_uint_by_field(DBFHandle handle, int row,
                                const char *field_name) {
   return DBFReadIntegerAttribute(handle, row,
-                                 dbf_get_field_index(handle, row, field_name));
+                                 dbf_get_field_index(handle, field_name));
 }
 
 /* getting fields from OGRFeatures -- begin */

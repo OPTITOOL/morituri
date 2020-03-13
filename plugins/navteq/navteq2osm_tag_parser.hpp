@@ -21,7 +21,7 @@ bool parse_bool(const char *value) {
 }
 
 bool fits_street_ref(std::string &st_name) {
-  if (st_name.size() == 0)
+  if (st_name.empty())
     return false;
   if (st_name.size() > 6)
     return false;

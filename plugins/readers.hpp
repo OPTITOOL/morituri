@@ -36,11 +36,23 @@ OGRLayer *read_shape_file(boost::filesystem::path shp_file,
   return input_layer;
 }
 
+GDALDataset *open_shape_file(boost::filesystem::path shp_file,
+                             std::ostream &out = std::cerr) {
+  out << "reading " << shp_file << std::endl;
+
+  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
+      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
+  if (input_data_source == nullptr)
+    throw(shp_error(shp_file.string()));
+
+  return input_data_source;
+}
+
 DBFHandle read_dbf_file(boost::filesystem::path dbf_file,
                         std::ostream &out = std::cerr) {
   out << "reading " << dbf_file << std::endl;
   DBFHandle handle = DBFOpen(dbf_file.c_str(), "rb");
-  if (handle == NULL)
+  if (handle == nullptr)
     throw(dbf_error(dbf_file.string()));
   return handle;
 }

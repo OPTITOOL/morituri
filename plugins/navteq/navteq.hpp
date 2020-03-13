@@ -1297,8 +1297,10 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
         dbf_get_uint_by_field(handle, i, AREA_ID);
 
     mtd_area_dataset data;
-    if (g_mtd_area_map.find(area_id) != g_mtd_area_map.end()) {
-      data = g_mtd_area_map.at(area_id);
+
+    auto it = g_mtd_area_map.find(area_id);
+    if (it != g_mtd_area_map.end()) {
+      data = it->second;
     }
     data.area_id = area_id;
 
@@ -1314,11 +1316,11 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
 
     std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
     std::string area_name = dbf_get_string_by_field(handle, i, AREA_NAME);
-    data.lang_code_2_area_name.push_back(
-        std::make_pair(lang_code, to_camel_case_with_spaces(area_name)));
+    data.lang_code_2_area_name.emplace_back(
+        lang_code, to_camel_case_with_spaces(area_name));
     data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
 
-    g_mtd_area_map.insert(std::make_pair(area_id, data));
+    g_mtd_area_map.emplace(area_id, data);
   }
   DBFClose(handle);
 }
@@ -1361,13 +1363,14 @@ osm_id_vector_type collect_via_manoeuvre_osm_ids(
   osmium::Location curr;
   uint ctr = 0;
 
-  for (auto it : via_manoeuvre_link_id) {
+  for (auto linkId : via_manoeuvre_link_id) {
     bool reverse = false;
 
-    if (g_link_id_map.find(it) == g_link_id_map.end())
+    auto it = g_link_id_map.find(linkId);
+    if (it == g_link_id_map.end())
       return osm_id_vector_type();
 
-    osm_id_vector_type &osm_id_vector = g_link_id_map.at(it);
+    osm_id_vector_type &osm_id_vector = it->second;
     auto first_osm_id = osm_id_vector.front();
     const auto &first_way =
         g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(first_osm_id));
@@ -1443,8 +1446,11 @@ void init_cdms_map(
 void add_turn_restrictions(path_vector_type dirs) {
   // maps COND_ID to COND_TYPE
   std::map<osmium::unsigned_object_id_type, ushort> cdms_map;
-  for (auto dir : dirs)
-    init_cdms_map(read_dbf_file(dir / CDMS_DBF), cdms_map);
+  for (auto dir : dirs) {
+    auto handle = read_dbf_file(dir / CDMS_DBF);
+    init_cdms_map(handle, cdms_map);
+    DBFClose(handle);
+  }
 
   for (auto dir : dirs) {
     DBFHandle rdms_handle = read_dbf_file(dir / RDMS_DBF);
@@ -1540,8 +1546,8 @@ void init_g_cnd_mod_map(const boost::filesystem::path &dir, std::ostream &out) {
     mod_typ_type mod_type =
         dbf_get_uint_by_field(cnd_mod_handle, i, CM_MOD_TYPE);
     mod_val_type mod_val = dbf_get_uint_by_field(cnd_mod_handle, i, CM_MOD_VAL);
-    g_cnd_mod_map.insert(
-        std::make_pair(cond_id, mod_group_type(mod_type, mod_val, lang_code)));
+    g_cnd_mod_map.emplace(cond_id,
+                          mod_group_type(mod_type, mod_val, lang_code));
   }
   DBFClose(cnd_mod_handle);
 }
@@ -1551,7 +1557,7 @@ void init_g_cdms_map(const boost::filesystem::path &dir, std::ostream &out) {
   for (int i = 0; i < DBFGetRecordCount(cdms_handle); i++) {
     link_id_type link_id = dbf_get_uint_by_field(cdms_handle, i, LINK_ID);
     cond_id_type cond_id = dbf_get_uint_by_field(cdms_handle, i, COND_ID);
-    g_cdms_map.insert(std::make_pair(link_id, cond_id));
+    g_cdms_map.emplace(link_id, cond_id);
   }
   DBFClose(cdms_handle);
 }
@@ -1563,7 +1569,7 @@ void init_g_area_to_govt_code_map(const boost::filesystem::path &dir,
     area_id_type area_id = dbf_get_uint_by_field(mtd_area_handle, i, AREA_ID);
     govt_code_type govt_code =
         dbf_get_uint_by_field(mtd_area_handle, i, GOVT_CODE);
-    g_area_to_govt_code_map.insert(std::make_pair(area_id, govt_code));
+    g_area_to_govt_code_map.emplace(area_id, govt_code);
   }
   DBFClose(mtd_area_handle);
 }
@@ -1580,7 +1586,7 @@ void init_g_cntry_ref_map(const boost::filesystem::path &dir,
         dbf_get_string_by_field(cntry_ref_handle, i, SPEEDLIMITUNIT);
     auto iso_code = dbf_get_string_by_field(cntry_ref_handle, i, ISO_CODE);
     auto cntry_ref = cntry_ref_type(unit_measure, speed_limit_unit, iso_code);
-    g_cntry_ref_map.insert(std::make_pair(govt_code, cntry_ref));
+    g_cntry_ref_map.emplace(govt_code, cntry_ref);
   }
   DBFClose(cntry_ref_handle);
 }
@@ -1598,6 +1604,8 @@ std::vector<OGRLayer *> init_street_layers(const path_vector_type &dirs,
 // of indices and z-levels of waypoints with z-levels not equal 0.
 void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
                       z_lvl_map &z_level_map) {
+
+  // open dbf
   DBFHandle handle = read_dbf_file(dir / ZLEVELS_DBF, out);
 
   link_id_type last_link_id;
@@ -1610,16 +1618,19 @@ void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
     short z_level = dbf_get_uint_by_field(handle, i, Z_LEVEL);
 
     if (i > 0 && last_link_id != link_id && !v.empty()) {
-      z_level_map.insert(std::make_pair(last_link_id, v));
+      z_level_map.emplace(last_link_id, v);
       v = index_z_lvl_vector_type();
     }
     if (z_level != 0)
-      v.push_back(std::make_pair(point_num, z_level));
+      v.emplace_back(point_num, z_level);
     last_link_id = link_id;
   }
 
+  // close dbf
+  DBFClose(handle);
+
   if (!v.empty())
-    z_level_map.insert(std::make_pair(last_link_id, v));
+    z_level_map.emplace(last_link_id, v);
 }
 
 void init_conditional_driving_manoeuvres(const boost::filesystem::path &dir,
@@ -1651,14 +1662,13 @@ void parse_highway_names(const boost::filesystem::path &dbf_file) {
       continue;
 
     if (g_hwys_ref_map.find(link_id) == g_hwys_ref_map.end())
-      g_hwys_ref_map.insert(
-          std::make_pair(link_id, std::vector<std::string>()));
+      g_hwys_ref_map.emplace(link_id, std::vector<std::string>());
     g_hwys_ref_map.at(link_id).push_back(hwy_name);
   }
   DBFClose(maj_hwys_handle);
 }
 
-void init_highway_names(const boost::filesystem::path &dir, std::ostream &out) {
+void init_highway_names(const boost::filesystem::path &dir) {
   if (dbf_file_exists(dir / MAJ_HWYS_DBF))
     parse_highway_names(dir / MAJ_HWYS_DBF);
   if (dbf_file_exists(dir / SEC_HWYS_DBF))
@@ -1678,7 +1688,7 @@ z_lvl_map process_z_levels(const path_vector_type &dirs,
     init_z_level_map(dir, out, z_level_map);
     init_conditional_driving_manoeuvres(dir, out);
     init_country_reference(dir, out);
-    init_highway_names(dir, out);
+    init_highway_names(dir);
   }
   return z_level_map;
 }
@@ -1735,6 +1745,7 @@ void process_alt_steets_route_types(path_vector_type dirs) {
         g_route_type_map[link_id] = route_type;
       }
     }
+    DBFClose(alt_streets_handle);
   }
 }
 
@@ -1791,18 +1802,25 @@ void add_street_shapes(boost::filesystem::path dir, bool test = false) {
 
 void add_admin_shape(boost::filesystem::path admin_shape_file) {
 
-  auto layer = read_shape_file(admin_shape_file);
+  auto ds = open_shape_file(admin_shape_file);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(admin_shape_file.string()));
   assert(layer->GetGeomType() == wkbPolygon);
 
   while (auto feat = layer->GetNextFeature()) {
     process_admin_boundary(layer, feat);
     OGRFeature::DestroyFeature(feat);
   }
+
+  GDALClose(ds);
 }
 
 void add_water_shape(boost::filesystem::path water_shape_file) {
-
-  auto layer = read_shape_file(water_shape_file);
+  auto ds = open_shape_file(water_shape_file);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(water_shape_file.string()));
   assert(layer->GetGeomType() == wkbPolygon ||
          layer->GetGeomType() == wkbLineString);
 
@@ -1810,17 +1828,23 @@ void add_water_shape(boost::filesystem::path water_shape_file) {
     process_water(layer, feat);
     OGRFeature::DestroyFeature(feat);
   }
+
+  GDALClose(ds);
 }
 
-void add_landuse_shape(boost::filesystem::path water_shape_file) {
+void add_landuse_shape(boost::filesystem::path landuse_shape_file) {
 
-  auto layer = read_shape_file(water_shape_file);
+  auto ds = open_shape_file(landuse_shape_file);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(landuse_shape_file.string()));
   assert(layer->GetGeomType() == wkbPolygon);
 
   while (auto feat = layer->GetNextFeature()) {
     process_landuse(layer, feat);
     OGRFeature::DestroyFeature(feat);
   }
+  GDALClose(ds);
 }
 
 /****************************************************
