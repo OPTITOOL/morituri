@@ -158,11 +158,6 @@ static const char *speed_cat_metric[] = {
 
 #define OSM_MAX_WAY_NODES 1000
 
-#define STATIC_NODE(x) static_cast<osmium::Node &>(x)
-#define STATIC_WAY(x) static_cast<osmium::Way &>(x)
-#define STATIC_RELATION(x) static_cast<osmium::Relation &>(x)
-#define STATIC_OSMOBJECT(x) static_cast<osmium::OSMObject &>(x)
-
 // default tags for osm nodes ways and relations
 #define USER "import"
 #define VERSION "1"
@@ -199,7 +194,7 @@ std::map<int, std::vector<std::string>> const HWY_ROUTE_TYPE_MAP = {
       PRIMARY}}, // exceptional handling for type 3
     {6 /*"NLD"*/, {"", TRUNK, TRUNK, PRIMARY, "", "", SECONDARY}},
     //{   6 /*"???"*/, { "", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY,
-    //UNCLASSIFIED } },
+    // UNCLASSIFIED } },
     {7 /*"LUX"*/, {"", TRUNK, TRUNK, PRIMARY, SECONDARY, "", ""}},
     {8 /*"CHE"*/, {"", TRUNK, TRUNK, PRIMARY, "", "", ""}},
     {9 /*"AUT"*/,

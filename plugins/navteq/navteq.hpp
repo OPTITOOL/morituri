@@ -161,9 +161,8 @@ size_t build_turn_restriction(const osm_id_vector_type &osm_ids) {
   {
     // scope builder
     osmium::builder::RelationBuilder builder(g_rel_buffer);
-    STATIC_RELATION(builder.object())
-        .set_id(std::to_string(g_osm_id++).c_str());
-    set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+    builder.object().set_id(std::to_string(g_osm_id++).c_str());
+    set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
 
     {
@@ -223,12 +222,11 @@ link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
  */
 osmium::unsigned_object_id_type
 build_node(osmium::Location location, osmium::builder::NodeBuilder *builder) {
-  assert(builder != nullptr);
-  STATIC_NODE(builder->object()).set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder->object()));
+  builder->object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder->object());
   builder->set_user(USER);
-  STATIC_NODE(builder->object()).set_location(location);
-  return STATIC_NODE(builder->object()).id();
+  builder->object().set_location(location);
+  return builder->object().id();
 }
 
 /**
@@ -313,8 +311,8 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
     test__z_lvl_range(z_lvl);
 
   osmium::builder::WayBuilder builder(g_way_buffer);
-  STATIC_WAY(builder.object()).set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
 
   builder.set_user(USER);
   {
@@ -350,10 +348,9 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
   auto it = g_link_id_map.find(link_id);
   if (it == g_link_id_map.end())
     it = g_link_id_map.emplace(link_id, osm_id_vector_type()).first;
-  it->second.push_back(
-      (osmium::unsigned_object_id_type)STATIC_WAY(builder.object()).id());
+  it->second.push_back((osmium::unsigned_object_id_type)builder.object().id());
 
-  return STATIC_WAY(builder.object()).id();
+  return builder.object().id();
 }
 
 /**
@@ -651,8 +648,8 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
   {
     // scope way_builder
     osmium::builder::WayBuilder way_builder(g_way_buffer);
-    STATIC_WAY(way_builder.object()).set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(STATIC_OSMOBJECT(way_builder.object()));
+    way_builder.object().set_id(g_osm_id++);
+    set_dummy_osm_object_attributes(way_builder.object());
     way_builder.set_user(USER);
     {
       // scope wnl_builder
@@ -824,15 +821,15 @@ osm_id_vector_type build_closed_ways(OGRLinearRing *ring) {
   int i = 0;
   do {
     osmium::builder::WayBuilder builder(g_way_buffer);
-    STATIC_WAY(builder.object()).set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+    builder.object().set_id(g_osm_id++);
+    set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
     osmium::builder::WayNodeListBuilder wnl_builder(g_way_buffer, &builder);
     for (int j = i;
          j < std::min(i + OSM_MAX_WAY_NODES, (int)osm_way_node_ids.size()); j++)
       wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
                                osm_way_node_ids.at(j).first);
-    osm_way_ids.push_back(STATIC_WAY(builder.object()).id());
+    osm_way_ids.push_back(builder.object().id());
     i += OSM_MAX_WAY_NODES - 1;
   } while (i < osm_way_node_ids.size());
   return osm_way_ids;
@@ -1091,8 +1088,8 @@ osm_id_vector_type build_water_ways_with_tagList(OGRLayer *layer,
   int i = 0;
   do {
     osmium::builder::WayBuilder builder(g_way_buffer);
-    STATIC_WAY(builder.object()).set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+    builder.object().set_id(g_osm_id++);
+    set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
     build_water_way_taglist(builder, layer, feat);
     osmium::builder::WayNodeListBuilder wnl_builder(g_way_buffer, &builder);
@@ -1100,7 +1097,7 @@ osm_id_vector_type build_water_ways_with_tagList(OGRLayer *layer,
          j < std::min(i + OSM_MAX_WAY_NODES, (int)osm_way_node_ids.size()); j++)
       wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
                                osm_way_node_ids.at(j).first);
-    osm_way_ids.push_back(STATIC_WAY(builder.object()).id());
+    osm_way_ids.push_back(builder.object().id());
     i += OSM_MAX_WAY_NODES - 1;
   } while (i < osm_way_node_ids.size());
   return osm_way_ids;
@@ -1124,12 +1121,12 @@ build_admin_boundary_relation_with_tags(OGRLayer *layer, OGRFeature *feat,
                                         osm_id_vector_type ext_osm_way_ids,
                                         osm_id_vector_type int_osm_way_ids) {
   osmium::builder::RelationBuilder builder(g_rel_buffer);
-  STATIC_RELATION(builder.object()).set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
   build_admin_boundary_taglist(builder, layer, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
-  return STATIC_RELATION(builder.object()).id();
+  return builder.object().id();
 }
 
 osmium::unsigned_object_id_type
@@ -1137,12 +1134,12 @@ build_water_relation_with_tags(OGRLayer *layer, OGRFeature *feat,
                                osm_id_vector_type ext_osm_way_ids,
                                osm_id_vector_type int_osm_way_ids) {
   osmium::builder::RelationBuilder builder(g_rel_buffer);
-  STATIC_RELATION(builder.object()).set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
   build_water_poly_taglist(builder, layer, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
-  return STATIC_RELATION(builder.object()).id();
+  return builder.object().id();
 }
 
 osmium::unsigned_object_id_type
@@ -1150,12 +1147,12 @@ build_landuse_relation_with_tags(OGRLayer *layer, OGRFeature *feat,
                                  osm_id_vector_type ext_osm_way_ids,
                                  osm_id_vector_type int_osm_way_ids) {
   osmium::builder::RelationBuilder builder(g_rel_buffer);
-  STATIC_RELATION(builder.object()).set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(STATIC_OSMOBJECT(builder.object()));
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
   build_landuse_taglist(builder, layer, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
-  return STATIC_RELATION(builder.object()).id();
+  return builder.object().id();
 }
 
 /**

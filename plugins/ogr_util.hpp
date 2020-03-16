@@ -157,13 +157,11 @@ OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
   }
 
   std::vector<geos::geom::CoordinateSequence *> cs_vec;
-  auto convGeometry = ogr2geos(ogr_ls);
+  auto convGeometry = std::unique_ptr<geos::geom::Geometry>(ogr2geos(ogr_ls));
   auto inputCS = convGeometry->getCoordinates();
   offset_curve_builder->getSingleSidedLineCurve(inputCS, offset, cs_vec, left,
                                                 !left);
-
   delete inputCS;
-  delete convGeometry;
 
   auto cs = cs_vec.front();
 
