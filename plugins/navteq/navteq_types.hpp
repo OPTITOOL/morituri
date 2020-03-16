@@ -122,6 +122,4 @@ typedef std::pair<osmium::Location, z_lvl_type> node_id_type;
 typedef std::map<node_id_type, osmium::unsigned_object_id_type>
     z_lvl_nodes_map_type;
 
-typedef std::pair<const char *, const char *> key_val_pair_type;
-
 #endif /* PLUGINS_NAVTEQ_NAVTEQ_TYPES_HPP_ */
