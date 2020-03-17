@@ -249,10 +249,8 @@ void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
  */
 void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
                        OGRFeature *f) {
-  const char *from_speed_limit_s =
-      strdup(get_field_from_feature(f, FR_SPEED_LIMIT));
-  const char *to_speed_limit_s =
-      strdup(get_field_from_feature(f, TO_SPEED_LIMIT));
+  char *from_speed_limit_s = strdup(get_field_from_feature(f, FR_SPEED_LIMIT));
+  char *to_speed_limit_s = strdup(get_field_from_feature(f, TO_SPEED_LIMIT));
 
   uint from_speed_limit = get_uint_from_feature(f, FR_SPEED_LIMIT);
   uint to_speed_limit = get_uint_from_feature(f, TO_SPEED_LIMIT);
@@ -289,6 +287,9 @@ void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
   if (to_speed_limit > 130 && to_speed_limit < 999)
     std::cerr << "Warning: Found speed limit > 130 (to_speed_limit): "
               << to_speed_limit << std::endl;
+
+  free(from_speed_limit_s);
+  free(to_speed_limit_s);
 }
 
 /**

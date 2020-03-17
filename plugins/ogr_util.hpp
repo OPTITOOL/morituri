@@ -174,6 +174,7 @@ OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
   auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls);
   delete cut_caps_geos_ls;
   delete convGeometry;
+  delete cs;
 
   return static_cast<OGRLineString *>(offset_ogr_geom);
 }

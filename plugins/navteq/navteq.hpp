@@ -240,27 +240,6 @@ osmium::unsigned_object_id_type build_node(const osmium::Location &location) {
 }
 
 /**
- * \brief creates Node with tags and writes it to m_buffer.
- * \param location Location of Node being created.
- * \param kv_vector holds tags as key value pairs
- * \return id of created Node.
- */
-osmium::unsigned_object_id_type build_node_with_tags(
-    osmium::Location location,
-    const std::vector<std::pair<const char *, const char *>> &kv_vector) {
-  osmium::builder::NodeBuilder node_builder(g_node_buffer);
-  auto node_id = build_node(location, &node_builder);
-
-  osmium::builder::TagListBuilder tl_builder(g_node_buffer, &node_builder);
-  for (auto kv_pair : kv_vector) {
-    if (kv_pair.first) {
-      tl_builder.add_tag(kv_pair);
-    }
-  }
-  return node_id;
-}
-
-/**
  * \brief gets id from Node with location. creates Node if missing.
  * \param location Location of Node being created.
  * \return id of found or created Node.
@@ -649,28 +628,37 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
       // scope wnl_builder
       osmium::builder::WayNodeListBuilder wnl_builder(g_way_buffer,
                                                       &way_builder);
+
       for (int i = 0; i < offset_ogr_ls->getNumPoints(); i++) {
         osmium::Location location(offset_ogr_ls->getX(i),
                                   offset_ogr_ls->getY(i));
-
-        std::vector<std::pair<const char *, const char *>> tags;
-        if (i == 0 || i == offset_ogr_ls->getNumPoints() - 1) {
-          if (i == 0) {
-            tags.emplace_back(
-                "addr:housenumber",
-                get_field_from_feature(feat, left ? ref_addr : nref_addr));
-          } else if (i == offset_ogr_ls->getNumPoints() - 1) {
-            tags.emplace_back(
-                "addr:housenumber",
-                get_field_from_feature(feat, left ? nref_addr : ref_addr));
+        {
+          // scope node_builder
+          osmium::builder::NodeBuilder node_builder(g_node_buffer);
+          auto node_id = build_node(location, &node_builder);
+          {
+            // scope tl_builder
+            osmium::builder::TagListBuilder tl_builder(g_node_buffer,
+                                                       &node_builder);
+            if (i == 0 || i == offset_ogr_ls->getNumPoints() - 1) {
+              if (i == 0) {
+                tl_builder.add_tag(
+                    "addr:housenumber",
+                    get_field_from_feature(feat, left ? ref_addr : nref_addr));
+              } else if (i == offset_ogr_ls->getNumPoints() - 1) {
+                tl_builder.add_tag(
+                    "addr:housenumber",
+                    get_field_from_feature(feat, left ? nref_addr : ref_addr));
+              }
+              tl_builder.add_tag("addr:street",
+                                 to_camel_case_with_spaces(
+                                     get_field_from_feature(feat, ST_NAME))
+                                     .c_str());
+            }
           }
-          tags.emplace_back("addr:street",
-                            strdup(to_camel_case_with_spaces(
-                                       get_field_from_feature(feat, ST_NAME))
-                                       .c_str()));
+
+          wnl_builder.add_node_ref(osmium::NodeRef(node_id, location));
         }
-        auto node_id = build_node_with_tags(location, tags);
-        wnl_builder.add_node_ref(osmium::NodeRef(node_id, location));
       }
     }
     {
@@ -775,8 +763,8 @@ node_vector_type create_closed_way_nodes(OGRLinearRing *ring) {
     osmium::Location location(ring->getX(i), ring->getY(i));
     osm_way_node_ids.emplace_back(location, build_node(location));
   }
-  // first and last node are the same in rings, hence add first node_id and skip
-  // last node.
+  // first and last node are the same in rings, hence add first node_id and
+  // skip last node.
   osmium::Location last_location(ring->getX(numOfPoints - 1),
                                  ring->getY(numOfPoints - 1));
   if (last_location != osm_way_node_ids.front().first)
@@ -1460,8 +1448,8 @@ void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs) {
       if (via_manoeuvre_osm_id.empty())
         continue;
 
-      // todo find out which direction turn restriction has and apply. For now:
-      // always apply 'no_straight_on'
+      // todo find out which direction turn restriction has and apply. For
+      // now: always apply 'no_straight_on'
       build_turn_restriction(via_manoeuvre_osm_id);
     }
     DBFClose(rdms_handle);
