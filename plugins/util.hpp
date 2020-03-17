@@ -122,11 +122,9 @@ uint64_t dbf_get_uint_by_field(DBFHandle handle, int row,
  * \return const char* of field value
  */
 const char *get_field_from_feature(OGRFeature *feat, const char *field) {
-  assert(feat);
   int field_index = feat->GetFieldIndex(field);
   if (field_index == -1)
     std::cerr << field << std::endl;
-  assert(field_index != -1);
   return feat->GetFieldAsString(field_index);
 }
 
@@ -205,21 +203,11 @@ std::string lbs_to_metric_ton(double lbs) {
 }
 
 /**
- * \brief initializes
- */
-template <class Type1, class Type2>
-void init_map_at_element(std::map<Type1, Type2> *map, Type1 &key,
-                         osmium::unsigned_object_id_type id) {
-  if (map->find(key) == map->end())
-    map->insert(std::make_pair(key, id));
-}
-
-/**
  * \brief duplicate const char* value to change
  */
 std::string to_camel_case_with_spaces(const char *camel) {
   icu::UnicodeString uniString(camel, "UTF-8");
-  uniString.toTitle(0);
+  uniString.toTitle(nullptr);
 
   std::string response;
   uniString.toUTF8String(response);
@@ -237,7 +225,7 @@ void add_uint_tag(osmium::builder::TagListBuilder *tl_builder,
                   const char *tag_key, uint uint_tag_val) {
   std::string val_s = std::to_string(uint_tag_val);
   if (tag_key) {
-    tl_builder->add_tag(tag_key, val_s.c_str());
+    tl_builder->add_tag(tag_key, val_s);
   }
 }
 

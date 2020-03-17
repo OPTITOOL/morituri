@@ -15,6 +15,9 @@
 #include <geos/io/WKBWriter.h>
 #include <shapefil.h>
 
+#include <geos/geom/CoordinateFilter.h>
+#include <geos/geom/CoordinateSequenceFactory.h>
+#include <geos/geom/GeometryFactory.h>
 #include <geos/geom/LineString.h>
 #include <geos/geom/Point.h>
 #include <geos/operation/buffer/BufferParameters.h>
@@ -22,6 +25,17 @@
 
 boost::iostreams::stream<boost::iostreams::null_sink>
     cnull((boost::iostreams::null_sink()));
+
+// create static geom factory
+geos::geom::GeometryFactory::unique_ptr geos_factory =
+    geos::geom::GeometryFactory::create();
+
+// create static buffer operation
+std::unique_ptr<geos::operation::buffer::OffsetCurveBuilder>
+    offset_curve_builder =
+        std::make_unique<geos::operation::buffer::OffsetCurveBuilder>(
+            geos_factory->getPrecisionModel(),
+            geos::operation::buffer::BufferParameters());
 
 /**
  * Following functions convert OGRGeometry to geos::geom::Geometry and vice
@@ -127,19 +141,13 @@ void cut_back(double cut, geos::geom::CoordinateSequence *geos_cs) {
     geos_cs->setAt(move_point(moving_coord, reference_coord, cut), len - 1);
 }
 
-geos::geom::GeometryFactory::unique_ptr geos_factory =
-    geos::geom::GeometryFactory::create();
-std::unique_ptr<geos::operation::buffer::OffsetCurveBuilder>
-    offset_curve_builder;
-
-geos::geom::LineString *cut_caps(geos::geom::LineString *geos_ls) {
-  geos::geom::CoordinateSequence *geos_cs = geos_ls->getCoordinates();
+geos::geom::LineString *cut_caps(geos::geom::CoordinateSequence *cs,
+                                 double length) {
+  geos::geom::CoordinateSequence *geos_cs = cs->clone();
 
   double cut_ratio = 0.1;
   double max_cut = 0.00025;
-  double cut = std::min(max_cut, geos_ls->getLength() * cut_ratio);
-
-  assert(cut < geos_ls->getLength() / 2);
+  double cut = std::min(max_cut, length * cut_ratio);
 
   cut_front(cut, geos_cs);
   cut_back(cut, geos_cs);
@@ -149,19 +157,11 @@ geos::geom::LineString *cut_caps(geos::geom::LineString *geos_ls) {
 
 OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
                                    bool left) {
-  if (!offset_curve_builder) {
-    offset_curve_builder =
-        std::make_unique<geos::operation::buffer::OffsetCurveBuilder>(
-            geos_factory->getPrecisionModel(),
-            geos::operation::buffer::BufferParameters());
-  }
 
   std::vector<geos::geom::CoordinateSequence *> cs_vec;
-  auto convGeometry = std::unique_ptr<geos::geom::Geometry>(ogr2geos(ogr_ls));
-  auto inputCS = convGeometry->getCoordinates();
-  offset_curve_builder->getSingleSidedLineCurve(inputCS, offset, cs_vec, left,
-                                                !left);
-  delete inputCS;
+  auto convGeometry = dynamic_cast<geos::geom::LineString *>(ogr2geos(ogr_ls));
+  offset_curve_builder->getSingleSidedLineCurve(
+      convGeometry->getCoordinatesRO(), offset, cs_vec, left, !left);
 
   auto cs = cs_vec.front();
 
@@ -170,11 +170,10 @@ OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
   if (cs->front() == cs->back())
     cs->deleteAt(cs->size() - 1);
 
-  auto offset_geos_ls = geos_factory->createLineString(cs);
-  auto cut_caps_geos_ls = cut_caps(offset_geos_ls);
+  auto cut_caps_geos_ls = cut_caps(cs, convGeometry->getLength());
   auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls);
   delete cut_caps_geos_ls;
-  delete offset_geos_ls;
+  delete convGeometry;
 
   return static_cast<OGRLineString *>(offset_ogr_geom);
 }

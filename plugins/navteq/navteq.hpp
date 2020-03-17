@@ -177,8 +177,7 @@ size_t build_turn_restriction(const osm_id_vector_type &osm_ids) {
         rml_builder.add_member(osmium::item_type::way, osm_ids.at(i), "via");
       if (osm_ids.size() == 2)
         add_common_node_as_via(osm_ids, rml_builder);
-      rml_builder.add_member(osmium::item_type::way,
-                             osm_ids.at(osm_ids.size() - 1), "to");
+      rml_builder.add_member(osmium::item_type::way, osm_ids.back(), "to");
     }
     {
       // scope tl_builder
@@ -207,7 +206,7 @@ link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
       &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map);
 
   if (z_level != -5 && z_level != 0)
-    tl_builder.add_tag("layer", std::to_string(z_level).c_str());
+    tl_builder.add_tag("layer", std::to_string(z_level));
   if (link_id == 0)
     throw(format_error("layers column field '" + std::string(LINK_ID) +
                        "' is missing"));
@@ -221,7 +220,8 @@ link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
  * \return id of created Node.
  */
 osmium::unsigned_object_id_type
-build_node(osmium::Location location, osmium::builder::NodeBuilder *builder) {
+build_node(const osmium::Location &location,
+           osmium::builder::NodeBuilder *builder) {
   builder->object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder->object());
   builder->set_user(USER);
@@ -234,7 +234,7 @@ build_node(osmium::Location location, osmium::builder::NodeBuilder *builder) {
  * \param location Location of Node being created.
  * \return id of created Node.
  */
-osmium::unsigned_object_id_type build_node(osmium::Location location) {
+osmium::unsigned_object_id_type build_node(const osmium::Location &location) {
   osmium::builder::NodeBuilder builder(g_node_buffer);
   return build_node(location, &builder);
 }
@@ -265,7 +265,7 @@ osmium::unsigned_object_id_type build_node_with_tags(
  * \param location Location of Node being created.
  * \return id of found or created Node.
  */
-osmium::unsigned_object_id_type get_node(osmium::Location location) {
+osmium::unsigned_object_id_type get_node(const osmium::Location &location) {
   auto it = g_way_end_points_map.find(location);
   if (it != g_way_end_points_map.end())
     return it->second;
@@ -343,10 +343,7 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
   link_id_type link_id = build_tag_list(feat, &builder, g_way_buffer, z_lvl);
   assert(link_id != 0);
 
-  auto it = g_link_id_map.find(link_id);
-  if (it == g_link_id_map.end())
-    it = g_link_id_map.emplace(link_id, osm_id_vector_type()).first;
-  it->second.push_back((osmium::unsigned_object_id_type)builder.object().id());
+  g_link_id_map[link_id].emplace_back(builder.object().id());
 
   return builder.object().id();
 }
@@ -642,7 +639,6 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
 
   std::unique_ptr<OGRLineString> offset_ogr_ls(
       create_offset_curve(ogr_ls, HOUSENUMBER_CURVE_OFFSET, left));
-  assert(ogr_ls);
   {
     // scope way_builder
     osmium::builder::WayBuilder way_builder(g_way_buffer);
@@ -656,7 +652,6 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
       for (int i = 0; i < offset_ogr_ls->getNumPoints(); i++) {
         osmium::Location location(offset_ogr_ls->getX(i),
                                   offset_ogr_ls->getY(i));
-        assert(location.valid());
 
         std::vector<std::pair<const char *, const char *>> tags;
         if (i == 0 || i == offset_ogr_ls->getNumPoints() - 1) {
@@ -756,8 +751,9 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
 }
 
 // \brief writes way end node to way_end_points_map.
-void process_way_end_node(osmium::Location location) {
-  init_map_at_element(&g_way_end_points_map, location, get_node(location));
+void process_way_end_node(const osmium::Location &location) {
+  if (g_way_end_points_map.find(location) == g_way_end_points_map.end())
+    g_way_end_points_map.emplace(location, get_node(location));
 }
 
 // \brief gets end nodes of linestring and processes them.
@@ -774,22 +770,19 @@ void process_way_end_nodes(OGRLineString *ogr_ls) {
  */
 node_vector_type create_closed_way_nodes(OGRLinearRing *ring) {
   node_vector_type osm_way_node_ids;
-  loc_osmid_pair_type first_node;
-  for (int i = 0; i < ring->getNumPoints() - 1; i++) {
+  auto numOfPoints = ring->getNumPoints();
+  for (int i = 0; i < numOfPoints - 1; ++i) {
     osmium::Location location(ring->getX(i), ring->getY(i));
-    auto osm_id = build_node(location);
-    osm_way_node_ids.push_back(loc_osmid_pair_type(location, osm_id));
-    if (i == 0)
-      first_node = loc_osmid_pair_type(location, osm_id);
+    osm_way_node_ids.emplace_back(location, build_node(location));
   }
   // first and last node are the same in rings, hence add first node_id and skip
   // last node.
-  osmium::Location last_location(ring->getX(ring->getNumPoints() - 1),
-                                 ring->getY(ring->getNumPoints() - 1));
-  if (last_location != first_node.first)
+  osmium::Location last_location(ring->getX(numOfPoints - 1),
+                                 ring->getY(numOfPoints - 1));
+  if (last_location != osm_way_node_ids.front().first)
     throw format_error(
         "admin boundary ring is invalid. First and last node don't match");
-  osm_way_node_ids.push_back(first_node);
+  osm_way_node_ids.push_back(osm_way_node_ids.front());
   return osm_way_node_ids;
 }
 
@@ -799,10 +792,11 @@ node_vector_type create_closed_way_nodes(OGRLinearRing *ring) {
  */
 node_vector_type create_open_way_nodes(OGRLineString *line) {
   node_vector_type osm_way_node_ids;
-  for (int i = 0; i < line->getNumPoints(); i++) {
+  auto numPoints = line->getNumPoints();
+  for (int i = 0; i < numPoints; ++i) {
     osmium::Location location(line->getX(i), line->getY(i));
     auto osm_id = build_node(location);
-    osm_way_node_ids.push_back(loc_osmid_pair_type(location, osm_id));
+    osm_way_node_ids.emplace_back(location, osm_id);
   }
   return osm_way_node_ids;
 }
@@ -849,8 +843,9 @@ void build_admin_boundary_taglist(osmium::builder::RelationBuilder &builder,
     // p.947)
     if (!strcmp(field_name, AREA_ID)) {
       osmium::unsigned_object_id_type area_id = std::stoi(field_value);
-      if (g_mtd_area_map.find(area_id) != g_mtd_area_map.end()) {
-        auto d = g_mtd_area_map.at(area_id);
+      auto it = g_mtd_area_map.find(area_id);
+      if (it != g_mtd_area_map.end()) {
+        auto d = it->second;
         if (!d.admin_lvl.empty())
           tl_builder.add_tag("navteq_admin_level", d.admin_lvl);
 

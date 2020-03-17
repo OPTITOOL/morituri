@@ -99,21 +99,20 @@ uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
 }
 
 std::vector<std::string>
-get_hwy_vector(std::map<int, std::vector<std::string>> const HWY_TYPE_MAP,
+get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
                uint area_code_1) {
-  std::vector<std::string> hwy_route_type_vec;
-  if (HWY_TYPE_MAP.find(area_code_1) != HWY_TYPE_MAP.end()) {
-    hwy_route_type_vec = HWY_TYPE_MAP.at(area_code_1);
+  auto it = HWY_TYPE_MAP.find(area_code_1);
+  if (it != HWY_TYPE_MAP.end()) {
+    return it->second;
   } else {
     //		std::cerr << "could not find area_id " << area_code_1 << " use
     // default" << std::endl;
-    hwy_route_type_vec = HWY_TYPE_MAP.at(0);
+    return DEFAULT_HWY_ROUTE_TYPE;
   }
-  return hwy_route_type_vec;
 }
 
 std::string get_hwy_value(ushort route_type, uint area_code_1,
-                          std::string &ref_name) {
+                          const std::string &ref_name) {
   /* some exceptional cases for better route type parsing */
   if (area_code_1 == 5 && route_type == 3) { /*"BEL"*/
                                              /* N# and N## is like PRIMARY
@@ -146,27 +145,27 @@ std::string get_hwy_value(ushort route_type, uint area_code_1,
 }
 
 void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
-                     link_id_type link_id, ushort route_type, ushort func_class,
-                     mtd_area_map_type *mtd_area_map = nullptr,
-                     std::string ref_name = "") {
-  const char *highway = "highway";
+                     ushort route_type, ushort func_class,
+                     mtd_area_map_type *mtd_area_map,
+                     const std::string &ref_name) {
+
   bool paved = parse_bool(get_field_from_feature(f, PAVED));
   bool motorized_allowed = is_motorized_allowed(f);
 
   if (!paved) {
     if (!motorized_allowed) {
       // unpaved + non-motorized => path
-      builder->add_tag(highway, PATH);
+      builder->add_tag(HIGHWAY, PATH);
     } else {
       // unpaved + motorized allowed => track
-      builder->add_tag(highway, TRACK);
+      builder->add_tag(HIGHWAY, TRACK);
     }
   } else {
     if (!motorized_allowed) {
       // paved + non-motorized => footway
-      // it seems impossible to distinguish footways from cycle ways or
+      // it seems imposref_nameible to distinguish footways from cycle ways or
       // pedestrian zones
-      builder->add_tag(highway, FOOTWAY);
+      builder->add_tag(HIGHWAY, FOOTWAY);
     } else {
       // paved + motorized allowed
       bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
@@ -175,12 +174,12 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
 
       if (controlled_access) {
         // controlled_access => motorway
-        builder->add_tag(highway, MOTORWAY);
+        builder->add_tag(HIGHWAY, MOTORWAY);
       } else if (route_type) {
         std::string hwy_value =
             get_hwy_value(route_type, area_code_1, ref_name);
         if (!hwy_value.empty()) {
-          builder->add_tag(highway, hwy_value);
+          builder->add_tag(HIGHWAY, hwy_value);
         } else {
           std::cerr << "ignoring highway_level'" << std::to_string(route_type)
                     << "' for " << area_code_1 << std::endl;
@@ -192,7 +191,7 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
         if (apply_func_class > 4 && urban)
           apply_func_class++;
 
-        builder->add_tag(highway, hwy_func_class_vec.at(apply_func_class));
+        builder->add_tag(HIGHWAY, hwy_func_class_vec.at(apply_func_class));
       } else {
         std::cerr << " highway misses route_type and func_class! ";
       }
@@ -562,17 +561,15 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
 }
 
 void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
-                      link_id_type link_id, ushort route_type,
-                      mtd_area_map_type *mtd_area_map = nullptr,
-                      std::string ref_name = "") {
+                      ushort route_type, mtd_area_map_type *mtd_area_map,
+                      std::string ref_name) {
 
   ushort func_class = 0;
   std::string func_class_s = get_field_from_feature(f, FUNC_CLASS);
   if (!func_class_s.empty())
     func_class = get_uint_from_feature(f, FUNC_CLASS);
 
-  add_highway_tag(builder, f, link_id, route_type, func_class, mtd_area_map,
-                  ref_name);
+  add_highway_tag(builder, f, route_type, func_class, mtd_area_map, ref_name);
 
   add_one_way_tag(builder, get_field_from_feature(f, DIR_TRAVEL));
   add_access_tags(builder, f);
@@ -598,15 +595,14 @@ void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
  * \brief maps navteq tags for access, tunnel, bridge, etc. to osm tags
  * \return link id of processed feature.
  */
-link_id_type
-parse_street_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
-                  cdms_map_type *cdms_map = nullptr,
-                  cnd_mod_map_type *cnd_mod_map = nullptr,
-                  area_id_govt_code_map_type *area_govt_map = nullptr,
-                  cntry_ref_map_type *cntry_map = nullptr,
-                  mtd_area_map_type *mtd_area_map = nullptr,
-                  link_id_route_type_map *route_type_map = nullptr,
-                  link_id_to_names_map *names_map = nullptr) {
+link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
+                               OGRFeature *f, cdms_map_type *cdms_map,
+                               cnd_mod_map_type *cnd_mod_map,
+                               area_id_govt_code_map_type *area_govt_map,
+                               cntry_ref_map_type *cntry_map,
+                               mtd_area_map_type *mtd_area_map,
+                               link_id_route_type_map *route_type_map,
+                               link_id_to_names_map *names_map) {
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   link_id_type link_id = std::stoul(link_id_s);
@@ -615,9 +611,11 @@ parse_street_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
   ushort route_type = 0;
   if (!((std::string)get_field_from_feature(f, ROUTE)).empty())
     route_type = get_uint_from_feature(f, ROUTE);
-  if (route_type_map->find(link_id) != route_type_map->end() &&
-      (!route_type || route_type_map->at(link_id) < route_type))
-    route_type = route_type_map->at(link_id);
+
+  auto routeTypeIter = route_type_map->find(link_id);
+  if (routeTypeIter != route_type_map->end() &&
+      (!route_type || routeTypeIter->second < route_type))
+    route_type = routeTypeIter->second;
 
   // add tags for ref and int_ref to major highways
   std::string ref_name = add_highway_name_tags(builder, names_map, link_id);
@@ -625,11 +623,11 @@ parse_street_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
   std::string street_name =
       to_camel_case_with_spaces(get_field_from_feature(f, ST_NAME));
   if (!street_name.empty())
-    builder->add_tag("name", street_name.c_str());
+    builder->add_tag("name", street_name);
   if (is_ferry(get_field_from_feature(f, FERRY))) {
     add_ferry_tag(builder, f);
   } else { // usual highways
-    add_highway_tags(builder, f, link_id, route_type, mtd_area_map, ref_name);
+    add_highway_tags(builder, f, route_type, mtd_area_map, ref_name);
   }
 
   area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);

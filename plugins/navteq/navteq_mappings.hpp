@@ -177,13 +177,16 @@ const char *RESIDENTIAL = "residential";
 const char *TRACK = "track";
 const char *PATH = "path";
 const char *FOOTWAY = "footway";
+const char *HIGHWAY = "highway";
+
+const std::vector<std::string> DEFAULT_HWY_ROUTE_TYPE = {
+    "", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED};
 
 // if using OpenstreetMap Carto, highways are being rendered like here:
 // http://wiki.openstreetmap.org/wiki/Key:highway#Roads
 // TODO: Untested mapping. Add remaining countries and test.
 std::map<int, std::vector<std::string>> const HWY_ROUTE_TYPE_MAP = {
-    {0 /*"DEFAULT"*/,
-     {"", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED}},
+    {0 /*"DEFAULT"*/, DEFAULT_HWY_ROUTE_TYPE},
     {1 /*"ITA"*/, {"", TRUNK, TRUNK, PRIMARY, SECONDARY, "", ""}},
     {2 /*"FRA"*/,
      {"", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED}},
