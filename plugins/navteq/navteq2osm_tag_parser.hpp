@@ -39,7 +39,7 @@ bool fits_street_ref(const std::string &st_name) {
 }
 
 bool begins_with(const std::string &str, const char *start_str) {
-  return (strncmp(str.c_str(), start_str, strlen(start_str)) == 0);
+  return str.rfind(start_str) == 0;
 }
 
 uint get_number_after(const std::string &str, const char *start_str) {
@@ -84,18 +84,19 @@ bool is_motorized_allowed(OGRFeature *f) {
 
 uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
   area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
+
+  auto l_area = mtd_area_map->find(l_area_id);
+  if (l_area != mtd_area_map->end())
+    return l_area->second.area_code_1;
+
   area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
+  auto r_area = mtd_area_map->find(r_area_id);
+  if (r_area != mtd_area_map->end())
+    return r_area->second.area_code_1;
 
-  area_id_type area_id;
-  if (mtd_area_map->find(l_area_id) != mtd_area_map->end())
-    area_id = l_area_id;
-  else if (mtd_area_map->find(r_area_id) != mtd_area_map->end())
-    area_id = r_area_id;
-  else
-    std::cerr << "could not find area_id " << ++ctr << ", "
-              << mtd_area_map->size() << std::endl;
-
-  return mtd_area_map->at(area_id).area_code_1;
+  throw(out_of_range_exception("could not find area_id " +
+                               std::to_string(++ctr) + ", " +
+                               std::to_string(mtd_area_map->size())));
 }
 
 std::vector<std::string>
