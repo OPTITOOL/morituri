@@ -4,6 +4,7 @@
 
  */
 
+#include <boost/locale.hpp>
 #include <gdal/ogrsf_frmts.h>
 #include <getopt.h>
 #include <iostream>
@@ -66,6 +67,10 @@ void check_args_and_setup(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+
+  boost::locale::generator gen;
+  auto loc = gen("");
+  std::locale::global(loc);
 
   GDALAllRegister();
   check_args_and_setup(argc, argv);

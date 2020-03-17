@@ -11,6 +11,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/iostreams/device/null.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <boost/locale.hpp>
 #include <gdal/ogr_api.h>
 #include <gdal/ogrsf_frmts.h>
 #include <map>
@@ -23,8 +24,6 @@
 #include "../plugins/comm2osm_exceptions.hpp"
 #include "ogr_util.hpp"
 #include "readers.hpp"
-
-#include <unicode/unistr.h>
 
 const int INCH_BASE = 12;
 const int POUND_BASE = 2000;
@@ -206,12 +205,7 @@ std::string lbs_to_metric_ton(double lbs) {
  * \brief duplicate const char* value to change
  */
 std::string to_camel_case_with_spaces(const char *camel) {
-  icu::UnicodeString uniString(camel, "UTF-8");
-  uniString.toTitle(nullptr);
-
-  std::string response;
-  uniString.toUTF8String(response);
-  return response;
+  return boost::locale::to_title(camel);
 }
 
 /**
