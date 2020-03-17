@@ -55,7 +55,7 @@ bik|||Bikol|bikol
 bin|||Bini; Edo|bini; edo
 bis||bi|Bislama|bichlamar
 bla|||Siksika|blackfoot
-bnt|||Bantu (Other)|bantoues, autres langues
+bnt|||Bantu languages|bantou, langues
 bos||bs|Bosnian|bosniaque
 bra|||Braj|braj
 bre||br|Breton|breton
@@ -87,15 +87,16 @@ chu||cu|Church Slavic; Old Slavonic; Church Slavonic; Old Bulgarian; Old Church 
 chv||cv|Chuvash|tchouvache
 chy|||Cheyenne|cheyenne
 cmc|||Chamic languages|chames, langues
+cnr|||Montenegrin|monténégrin
 cop|||Coptic|copte
 cor||kw|Cornish|cornique
 cos||co|Corsican|corse
 cpe|||Creoles and pidgins, English based|créoles et pidgins basés sur l'anglais
-cpf|||Creoles and pidgins, French-based |créoles et pidgins basés sur le français
-cpp|||Creoles and pidgins, Portuguese-based |créoles et pidgins basés sur le portugais
+cpf|||Creoles and pidgins, French-based|créoles et pidgins basés sur le français
+cpp|||Creoles and pidgins, Portuguese-based|créoles et pidgins basés sur le portugais
 cre||cr|Cree|cree
 crh|||Crimean Tatar; Crimean Turkish|tatar de Crimé
-crp|||Creoles and pidgins |créoles et pidgins
+crp|||Creoles and pidgins|créoles et pidgins
 csb|||Kashubian|kachoube
 cus|||Cushitic languages|couchitiques, langues
 cze|ces|cs|Czech|tchèque
@@ -179,7 +180,6 @@ hit|||Hittite|hittite
 hmn|||Hmong; Mong|hmong
 hmo||ho|Hiri Motu|hiri motu
 hrv||hr|Croatian|croate
-scr||hr|Croatian|croate
 hsb|||Upper Sorbian|haut-sorabe
 hun||hu|Hungarian|hongrois
 hup|||Hupa|hupa
@@ -284,11 +284,9 @@ mkh|||Mon-Khmer languages|môn-khmer, langues
 mlg||mg|Malagasy|malgache
 mlt||mt|Maltese|maltais
 mnc|||Manchu|mandchou
-mne||me|Montenegrin|monténégrin
 mni|||Manipuri|manipuri
 mno|||Manobo languages|manobo, langues
 moh|||Mohawk|mohawk
-mol||mo|Moldavian; Moldavan|moldave
 mon||mn|Mongolian|mongol
 mos|||Mossi|moré
 mul|||Multiple languages|multilingue
@@ -326,7 +324,7 @@ nym|||Nyamwezi|nyamwezi
 nyn|||Nyankole|nyankolé
 nyo|||Nyoro|nyoro
 nzi|||Nzima|nzema
-oci||oc|Occitan (post 1500); Provençal|occitan (après 1500); provençal
+oci||oc|Occitan (post 1500)|occitan (après 1500)
 oji||oj|Ojibwa|ojibwa
 ori||or|Oriya|oriya
 orm||om|Oromo|galla
@@ -350,7 +348,7 @@ pol||pl|Polish|polonais
 pon|||Pohnpeian|pohnpei
 por||pt|Portuguese|portugais
 pra|||Prakrit languages|prâkrit, langues
-pro|||Provençal, Old (to 1500)|provençal ancien (jusqu'à 1500)
+pro|||Provençal, Old (to 1500); Occitan, Old (to 1500)|provençal ancien (jusqu'à 1500); occitan ancien (jusqu'à 1500)
 pus||ps|Pushto; Pashto|pachto
 qaa-qtz|||Reserved for local use|réservée à l'usage local
 que||qu|Quechua|quechua
@@ -367,7 +365,7 @@ rus||ru|Russian|russe
 sad|||Sandawe|sandawe
 sag||sg|Sango|sango
 sah|||Yakut|iakoute
-sai|||South American Indian (Other)|indiennes d'Amérique du Sud, autres langues
+sai|||South American Indian languages|sud-amérindiennes, langues
 sal|||Salishan languages|salishennes, langues
 sam|||Samaritan Aramaic|samaritain
 san||sa|Sanskrit|sanskrit
@@ -404,7 +402,6 @@ sot||st|Sotho, Southern|sotho du Sud
 spa||es|Spanish; Castilian|espagnol; castillan
 srd||sc|Sardinian|sarde
 srn|||Sranan Tongo|sranan tongo
-srb||sr|Serbian|serbe
 srp||sr|Serbian|serbe
 srr|||Serer|sérère
 ssa|||Nilo-Saharan languages|nilo-sahariennes, langues
@@ -464,7 +461,7 @@ vie||vi|Vietnamese|vietnamien
 vol||vo|Volapük|volapük
 vot|||Votic|vote
 wak|||Wakashan languages|wakashanes, langues
-wal|||Walamo|walamo
+wal|||Wolaitta; Wolaytta|wolaitta; wolaytta
 war|||Waray|waray
 was|||Washo|washo
 wel|cym|cy|Welsh|gallois
