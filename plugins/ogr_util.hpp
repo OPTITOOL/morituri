@@ -15,6 +15,7 @@
 #include <geos/io/WKBWriter.h>
 #include <shapefil.h>
 
+#include <geos/algorithm/CGAlgorithms.h>
 #include <geos/geom/CoordinateFilter.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
 #include <geos/geom/GeometryFactory.h>
@@ -141,12 +142,12 @@ void cut_back(double cut, geos::geom::CoordinateSequence *geos_cs) {
     geos_cs->setAt(move_point(moving_coord, reference_coord, cut), len - 1);
 }
 
-geos::geom::LineString *cut_caps(geos::geom::CoordinateSequence *cs,
-                                 double length) {
+geos::geom::LineString *cut_caps(geos::geom::CoordinateSequence *cs) {
   geos::geom::CoordinateSequence *geos_cs = cs->clone();
 
   double cut_ratio = 0.1;
   double max_cut = 0.00025;
+  double length = geos::algorithm::CGAlgorithms::length(geos_cs);
   double cut = std::min(max_cut, length * cut_ratio);
 
   cut_front(cut, geos_cs);
@@ -170,7 +171,7 @@ OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
   if (cs->front() == cs->back())
     cs->deleteAt(cs->size() - 1);
 
-  auto cut_caps_geos_ls = cut_caps(cs, convGeometry->getLength());
+  auto cut_caps_geos_ls = cut_caps(cs);
   auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls);
   delete cut_caps_geos_ls;
   delete convGeometry;
