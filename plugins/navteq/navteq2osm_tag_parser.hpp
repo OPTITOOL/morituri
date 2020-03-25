@@ -538,17 +538,18 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
                                   link_id_to_names_map *names_map,
                                   link_id_type link_id) {
   std::string ref_tag;
-  if (names_map->find(link_id) != names_map->end()) {
-    std::vector<std::string> &highway_names_vector = names_map->at(link_id);
+  auto it = names_map->find(link_id);
+  if (it != names_map->end()) {
+    std::vector<std::string> &highway_names_vector = it->second;
     std::string int_ref_tag;
 
-    for (auto it : highway_names_vector) {
+    for (auto highwayName : highway_names_vector) {
 
       if (ref_tag.empty() || !ref_tag.compare(0, 1, "E"))
-        ref_tag = it;
+        ref_tag = highwayName;
 
-      if (!it.compare(0, 1, "E"))
-        int_ref_tag = it;
+      if (!highwayName.compare(0, 1, "E"))
+        int_ref_tag = highwayName;
 
       // TODO add to int_ref if way is asian highway ("AH")
     }

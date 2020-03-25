@@ -14,13 +14,13 @@
 
 #include <gdal/ogrsf_frmts.h>
 
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
+#include <osmium/index/map/sparse_file_array.hpp>
 #include <osmium/osm/item_type.hpp>
 #include <osmium/osm/object.hpp>
 #include <osmium/osm/types.hpp>
-
-#include <boost/filesystem/operations.hpp>
-#include <boost/filesystem/path.hpp>
 
 #include "../comm2osm_exceptions.hpp"
 #include "../readers.hpp"
@@ -97,52 +97,48 @@ void add_common_node_as_via(
     osmium::builder::RelationMemberListBuilder &rml_builder) {
   assert(osm_ids.size() == 2);
 
-  const osmium::Way &from_way =
-      g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(osm_ids.at(0)));
+  const osmium::Way &from_way = g_way_buffer.get<const osmium::Way>(
+      g_way_offset_map.get(osm_ids.front()));
   auto from_way_front = from_way.nodes().front().location();
   auto from_way_back = from_way.nodes().back().location();
 
   const osmium::Way &to_way =
-      g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(osm_ids.at(1)));
+      g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(osm_ids.back()));
   auto to_way_front = to_way.nodes().front().location();
   auto to_way_back = to_way.nodes().back().location();
 
   if (from_way_front == to_way_front) {
-    if (g_way_end_points_map.find(from_way_front) ==
-        g_way_end_points_map.end()) {
+    auto it = g_way_end_points_map.find(from_way_front);
+    if (it == g_way_end_points_map.end()) {
       std::cerr << "Skipping via node: " << from_way_front
                 << " is not in g_way_end_points_map." << std::endl;
       return;
     }
-    rml_builder.add_member(osmium::item_type::node,
-                           g_way_end_points_map.at(from_way_front), "via");
+    rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else if (from_way_front == to_way_back) {
-    if (g_way_end_points_map.find(from_way_front) ==
-        g_way_end_points_map.end()) {
+    auto it = g_way_end_points_map.find(from_way_front);
+    if (it == g_way_end_points_map.end()) {
       std::cerr << "Skipping via node: " << from_way_front
                 << " is not in g_way_end_points_map." << std::endl;
       return;
     }
-    rml_builder.add_member(osmium::item_type::node,
-                           g_way_end_points_map.at(from_way_front), "via");
+    rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else if (from_way_back == to_way_front) {
-    if (g_way_end_points_map.find(from_way_back) ==
-        g_way_end_points_map.end()) {
+    auto it = g_way_end_points_map.find(from_way_back);
+    if (it == g_way_end_points_map.end()) {
       std::cerr << "Skipping via node: " << from_way_back
                 << " is not in g_way_end_points_map." << std::endl;
       return;
     }
-    rml_builder.add_member(osmium::item_type::node,
-                           g_way_end_points_map.at(from_way_back), "via");
+    rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else {
-    if (g_way_end_points_map.find(from_way_back) ==
-        g_way_end_points_map.end()) {
+    auto it = g_way_end_points_map.find(from_way_back);
+    if (it == g_way_end_points_map.end()) {
       std::cerr << "Skipping via node: " << from_way_back
                 << " is not in g_way_end_points_map." << std::endl;
       return;
     }
-    rml_builder.add_member(osmium::item_type::node,
-                           g_way_end_points_map.at(from_way_back), "via");
+    rml_builder.add_member(osmium::item_type::node, it->second, "via");
     assert(from_way_back == to_way_back);
   }
 }
@@ -1627,9 +1623,7 @@ void parse_highway_names(const boost::filesystem::path &dbf_file) {
     if (!fits_street_ref(hwy_name))
       continue;
 
-    if (g_hwys_ref_map.find(link_id) == g_hwys_ref_map.end())
-      g_hwys_ref_map.emplace(link_id, std::vector<std::string>());
-    g_hwys_ref_map.at(link_id).push_back(hwy_name);
+    g_hwys_ref_map[link_id].push_back(hwy_name);
   }
   DBFClose(maj_hwys_handle);
 }
@@ -1705,6 +1699,9 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
       process_way(feat, &z_level_map);
       OGRFeature::DestroyFeature(feat);
     }
+    std::cout << " Way Buffer " << g_way_buffer.committed() << " bytes \n";
+    std::cout << " Node Buffer " << g_node_buffer.committed() << " bytes \n";
+    std::cout << " Relation Buffer " << g_rel_buffer.committed() << " bytes \n";
     GDALClose(ds);
   }
 }
@@ -1726,7 +1723,7 @@ void process_alt_steets_route_types(
       ushort route_type = dbf_get_uint_by_field(alt_streets_handle, i, ROUTE);
 
       if (g_route_type_map.find(link_id) == g_route_type_map.end()) {
-        g_route_type_map.insert(std::make_pair(link_id, route_type));
+        g_route_type_map.emplace(link_id, route_type);
       } else if (g_route_type_map.at(link_id) > route_type) {
         // As link id's aren't unique in AltStreets.dbf
         // just store the lowest route type
