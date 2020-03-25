@@ -41,7 +41,6 @@ z_lvl_nodes_map_type g_z_lvl_nodes_map;
 // stores osm objects, grows if needed.
 osmium::memory::Buffer g_node_buffer(buffer_size);
 osmium::memory::Buffer g_way_buffer(buffer_size);
-osmium::memory::Buffer g_rel_buffer(buffer_size);
 
 // id counter for object creation
 osmium::unsigned_object_id_type g_osm_id = 1;
@@ -150,18 +149,19 @@ void add_common_node_as_via(
  * restriction \return Last number of committed bytes to m_buffer before this
  * commit.
  */
-size_t build_turn_restriction(const osm_id_vector_type &osm_ids) {
+size_t build_turn_restriction(const osm_id_vector_type &osm_ids,
+                              osmium::memory::Buffer &rel_buffer) {
 
   {
     // scope builder
-    osmium::builder::RelationBuilder builder(g_rel_buffer);
+    osmium::builder::RelationBuilder builder(rel_buffer);
     builder.object().set_id(std::to_string(g_osm_id++).c_str());
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
 
     {
       // scope rml_builder
-      osmium::builder::RelationMemberListBuilder rml_builder(g_rel_buffer,
+      osmium::builder::RelationMemberListBuilder rml_builder(rel_buffer,
                                                              &builder);
 
       assert(osm_ids.size() >= 2);
@@ -175,13 +175,13 @@ size_t build_turn_restriction(const osm_id_vector_type &osm_ids) {
     }
     {
       // scope tl_builder
-      osmium::builder::TagListBuilder tl_builder(g_rel_buffer, &builder);
+      osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
       // todo get the correct direction of the turn restriction
       tl_builder.add_tag("restriction", "no_straight_on");
       tl_builder.add_tag("type", "restriction");
     }
   }
-  return g_rel_buffer.commit();
+  return rel_buffer.commit();
 }
 
 /**
@@ -250,11 +250,12 @@ build_node(const osmium::Location &location,
  * \param location Location of Node being created.
  * \return id of found or created Node.
  */
-osmium::unsigned_object_id_type get_node(const osmium::Location &location) {
+osmium::unsigned_object_id_type get_node(const osmium::Location &location,
+                                         osmium::memory::Buffer &node_buffer) {
   auto it = g_way_end_points_map.find(location);
   if (it != g_way_end_points_map.end())
     return it->second;
-  return build_node(location);
+  return build_node(location, node_buffer);
 }
 
 /**
@@ -748,17 +749,21 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
 }
 
 // \brief writes way end node to way_end_points_map.
-void process_way_end_node(const osmium::Location &location) {
+void process_way_end_node(const osmium::Location &location,
+                          osmium::memory::Buffer &node_buffer) {
   if (g_way_end_points_map.find(location) == g_way_end_points_map.end())
-    g_way_end_points_map.emplace(location, get_node(location));
+    g_way_end_points_map.emplace(location, get_node(location, node_buffer));
 }
 
 // \brief gets end nodes of linestring and processes them.
-void process_way_end_nodes(OGRLineString *ogr_ls) {
-  process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)));
+void process_way_end_nodes(OGRLineString *ogr_ls,
+                           osmium::memory::Buffer &node_buffer) {
+  process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)),
+                       node_buffer);
   process_way_end_node(
       osmium::Location(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
-                       ogr_ls->getY(ogr_ls->getNumPoints() - 1)));
+                       ogr_ls->getY(ogr_ls->getNumPoints() - 1)),
+      node_buffer);
 }
 
 /**
@@ -1486,7 +1491,8 @@ void init_cdms_map(
  * \param handle DBF file handle to navteq manoeuvres.
  * */
 
-void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs) {
+void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs,
+                           osmium::io::Writer &writer) {
   // maps COND_ID to COND_TYPE
   std::map<osmium::unsigned_object_id_type, ushort> cdms_map;
   for (auto dir : dirs) {
@@ -1496,6 +1502,7 @@ void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs) {
   }
 
   for (auto dir : dirs) {
+    osmium::memory::Buffer rel_buffer(buffer_size);
     DBFHandle rdms_handle = read_dbf_file(dir / RDMS_DBF);
     for (int i = 0; i < DBFGetRecordCount(rdms_handle); i++) {
 
@@ -1518,8 +1525,10 @@ void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs) {
 
       // todo find out which direction turn restriction has and apply. For
       // now: always apply 'no_straight_on'
-      build_turn_restriction(via_manoeuvre_osm_id);
+      build_turn_restriction(via_manoeuvre_osm_id, rel_buffer);
     }
+    rel_buffer.commit();
+    writer(std::move(rel_buffer));
     DBFClose(rdms_handle);
   }
 }
@@ -1712,7 +1721,8 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
-                           z_lvl_map &z_level_map, std::ostream &out) {
+                           z_lvl_map &z_level_map, std::ostream &out,
+                           osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
     auto path = dir / STREETS_SHP;
     auto *ds = open_shape_file(path, out);
@@ -1721,6 +1731,8 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
 
+    osmium::memory::Buffer node_buffer(buffer_size);
+
     // get all nodes which may be a routable crossing
     while (auto feat = layer->GetNextFeature()) {
       link_id_type link_id = get_uint_from_feature(feat, LINK_ID);
@@ -1728,11 +1740,11 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
       // extra)
       if (z_level_map.find(link_id) == z_level_map.end())
         process_way_end_nodes(
-            static_cast<OGRLineString *>(feat->GetGeometryRef()));
+            static_cast<OGRLineString *>(feat->GetGeometryRef()), node_buffer);
       OGRFeature::DestroyFeature(feat);
     }
-    g_node_buffer.commit();
-    g_way_buffer.commit();
+    node_buffer.commit();
+    writer(std::move(node_buffer));
     GDALClose(ds);
   }
 }
@@ -1794,7 +1806,7 @@ void process_alt_steets_route_types(
  */
 
 void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
-                       bool test = false) {
+                       osmium::io::Writer &writer, bool test = false) {
 
   std::ostream &out = test ? cnull : std::cerr;
 
@@ -1802,7 +1814,7 @@ void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
   z_lvl_map z_level_map = process_z_levels(dirs, out);
 
   out << " processing way end points" << std::endl;
-  process_way_end_nodes(dirs, z_level_map, out);
+  process_way_end_nodes(dirs, z_level_map, out, writer);
 
   out << " processing ways" << std::endl;
   process_way(dirs, z_level_map, out);
@@ -1822,10 +1834,11 @@ void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
   g_route_type_map.clear();
 }
 
-void add_street_shapes(const boost::filesystem::path &dir, bool test = false) {
+void add_street_shapes(const boost::filesystem::path &dir,
+                       osmium::io::Writer &writer, bool test = false) {
   std::vector<boost::filesystem::path> dir_vector;
   dir_vector.push_back(dir);
-  add_street_shapes(dir_vector, test);
+  add_street_shapes(dir_vector, writer, test);
 }
 
 /**
@@ -1909,7 +1922,6 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
 void clear_all() {
   g_node_buffer.clear();
   g_way_buffer.clear();
-  g_rel_buffer.clear();
   g_osm_id = 1;
   g_link_id_map.clear();
   g_hwys_ref_map.clear();
@@ -1943,7 +1955,6 @@ void assert__node_locations_uniqueness() {
   node_map_type loc_z_lvl_map;
   assert__node_location_uniqueness(loc_z_lvl_map, g_node_buffer);
   assert__node_location_uniqueness(loc_z_lvl_map, g_way_buffer);
-  assert__node_location_uniqueness(loc_z_lvl_map, g_rel_buffer);
 }
 
 #endif /* NAVTEQ_HPP_ */

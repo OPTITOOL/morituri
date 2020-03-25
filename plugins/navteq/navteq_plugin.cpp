@@ -167,7 +167,6 @@ void navteq_plugin::execute() {
   if (output_path.empty())
     throw std::exception();
 
-  std::cout << "writing... " << output_path << std::endl;
   osmium::io::File outfile(output_path.string());
   osmium::io::Header hdr;
   hdr.set("generator", "osmium");
@@ -181,10 +180,10 @@ void navteq_plugin::execute() {
   process_alt_steets_route_types(dirs);
 
   std::cout << "Add street shapes" << std::endl;
-  add_street_shapes(dirs);
+  add_street_shapes(dirs, writer);
 
   std::cout << "Add turn restrictions" << std::endl;
-  add_turn_restrictions(dirs);
+  add_turn_restrictions(dirs, writer);
 
   std::cout << "Add administrative boundaries" << std::endl;
   add_administrative_boundaries(writer);
@@ -198,9 +197,8 @@ void navteq_plugin::execute() {
   std::cout << "Add city nodes" << std::endl;
   add_city_nodes(dirs, writer);
 
-  // writer(std::move(g_node_buffer));
-  // writer(std::move(g_way_buffer));
-  // writer(std::move(g_rel_buffer));
+  writer(std::move(g_node_buffer));
+  writer(std::move(g_way_buffer));
   writer.close();
 
   std::cout << std::endl << "fin" << std::endl;
