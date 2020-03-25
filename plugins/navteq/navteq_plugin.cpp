@@ -182,11 +182,9 @@ void navteq_plugin::execute() {
 
   std::cout << "Add street shapes" << std::endl;
   add_street_shapes(dirs);
-  assert__id_uniqueness();
 
   std::cout << "Add turn restrictions" << std::endl;
   add_turn_restrictions(dirs);
-  assert__id_uniqueness();
 
   std::cout << "Add administrative boundaries" << std::endl;
   add_administrative_boundaries(writer);

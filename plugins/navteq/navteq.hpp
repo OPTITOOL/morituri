@@ -57,9 +57,9 @@ link_id_route_type_map g_route_type_map;
 // g_hwys_ref_map maps navteq link_ids to a vector of highway names
 link_id_to_names_map g_hwys_ref_map;
 
-// Provides access to elements in g_way_buffer through offsets
-osmium::index::map::SparseMemArray<osmium::unsigned_object_id_type, size_t>
-    g_way_offset_map;
+std::map<osmium::unsigned_object_id_type,
+         std::pair<osmium::Location, osmium::Location>>
+    wayStartEndMap;
 
 // auxiliary map which maps datasets with tags for administrative boundaries
 mtd_area_map_type g_mtd_area_map;
@@ -97,15 +97,13 @@ void add_common_node_as_via(
     osmium::builder::RelationMemberListBuilder &rml_builder) {
   assert(osm_ids.size() == 2);
 
-  const osmium::Way &from_way = g_way_buffer.get<const osmium::Way>(
-      g_way_offset_map.get(osm_ids.front()));
-  auto from_way_front = from_way.nodes().front().location();
-  auto from_way_back = from_way.nodes().back().location();
+  const auto &from_way = wayStartEndMap.find(osm_ids.front());
+  auto from_way_front = from_way->second.first;
+  auto from_way_back = from_way->second.second;
 
-  const osmium::Way &to_way =
-      g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(osm_ids.back()));
-  auto to_way_front = to_way.nodes().front().location();
-  auto to_way_back = to_way.nodes().back().location();
+  const auto &to_way = wayStartEndMap.find(osm_ids.back());
+  auto to_way_front = to_way->second.first;
+  auto to_way_back = to_way->second.second;
 
   if (from_way_front == to_way_front) {
     auto it = g_way_end_points_map.find(from_way_front);
@@ -325,6 +323,11 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
       }
       add_way_node(location, wnl_builder, map_containing_node);
     }
+
+    osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
+    osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
+                         ogr_ls->getY(ogr_ls->getNumPoints() - 1));
+    wayStartEndMap.emplace(builder.object().id(), std::make_pair(start, end));
   }
 
   link_id_type link_id = build_tag_list(feat, &builder, g_way_buffer, z_lvl);
@@ -392,8 +395,6 @@ void build_sub_way_by_index(OGRFeature *feat, OGRLineString *ogr_ls,
       create_sublinestring_geometry(ogr_ls, start_index, end_index);
   osmium::unsigned_object_id_type way_id =
       build_way(feat, &subLineString, node_ref_map, true, z_lvl);
-
-  g_way_offset_map.set(way_id, g_way_buffer.commit());
 }
 
 /**
@@ -708,7 +709,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
   auto it = z_level_map->find(link_id);
   if (it == z_level_map->end()) {
     auto way_id = build_way(feat, ogr_ls, &node_ref_map);
-    g_way_offset_map.set(way_id, g_way_buffer.commit());
+
   } else {
     auto &index_z_lvl_vector = it->second;
 
@@ -1415,13 +1416,12 @@ osm_id_vector_type collect_via_manoeuvre_osm_ids(
 
     osm_id_vector_type &osm_id_vector = it->second;
     auto first_osm_id = osm_id_vector.front();
-    const auto &first_way =
-        g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(first_osm_id));
-    osmium::Location first_way_front = first_way.nodes().front().location();
+    const auto &first_way = wayStartEndMap.find(first_osm_id);
+
+    osmium::Location first_way_front = first_way->second.first;
     auto last_osm_id = osm_id_vector.back();
-    const auto &last_way =
-        g_way_buffer.get<const osmium::Way>(g_way_offset_map.get(last_osm_id));
-    osmium::Location last_way_back = last_way.nodes().back().location();
+    const auto &last_way = wayStartEndMap.find(last_osm_id);
+    osmium::Location last_way_back = last_way->second.second;
 
     // determine end_points
     if (ctr == 0) {
@@ -1751,9 +1751,6 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
       process_way(feat, &z_level_map);
       OGRFeature::DestroyFeature(feat);
     }
-    std::cout << " Way Buffer " << g_way_buffer.committed() << " bytes \n";
-    std::cout << " Node Buffer " << g_node_buffer.committed() << " bytes \n";
-    std::cout << " Relation Buffer " << g_rel_buffer.committed() << " bytes \n";
     GDALClose(ds);
   }
 }
@@ -1916,25 +1913,8 @@ void clear_all() {
   g_osm_id = 1;
   g_link_id_map.clear();
   g_hwys_ref_map.clear();
-  g_way_offset_map.clear();
+
   g_mtd_area_map.clear();
-}
-
-void add_buffer_ids(osm_id_vector_type &v, osmium::memory::Buffer &buf) {
-  for (auto &it : buf) {
-    v.push_back(static_cast<osmium::OSMObject *>(&it)->id());
-  }
-}
-
-void assert__id_uniqueness() {
-  osm_id_vector_type v;
-  add_buffer_ids(v, g_node_buffer);
-  add_buffer_ids(v, g_way_buffer);
-  add_buffer_ids(v, g_rel_buffer);
-
-  std::sort(v.begin(), v.end());
-  auto ptr = unique(v.begin(), v.end());
-  assert(ptr == v.end());
 }
 
 void assert__node_location_uniqueness(node_map_type &loc_z_lvl_map,
