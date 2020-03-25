@@ -23,6 +23,7 @@ static const boost::filesystem::path WATER_SEG_SHP = "WaterSeg.shp";
 static const boost::filesystem::path WATER_POLY_SHP = "WaterPoly.shp";
 static const boost::filesystem::path LAND_USE_A_SHP = "LandUseA.shp";
 static const boost::filesystem::path LAND_USE_B_SHP = "LandUseB.shp";
+static const boost::filesystem::path NAMED_PLC_SHP = "NamedPlc.shp";
 
 static const boost::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";
 static const boost::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
@@ -32,7 +33,7 @@ static const boost::filesystem::path CND_MOD_DBF = "CndMod.dbf";
 static const boost::filesystem::path ZLEVELS_DBF = "Zlevels.dbf";
 static const boost::filesystem::path MAJ_HWYS_DBF = "MajHwys.dbf";
 static const boost::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
-static const boost::filesystem::path NAMED_PLC_DBF = "NamedPlc.dbf";
+
 static const boost::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
 
 // STREETS columns

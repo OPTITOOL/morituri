@@ -13,15 +13,21 @@
 #include <boost/filesystem/path.hpp>
 #include <string>
 
+namespace osmium {
+namespace io {
+class Writer;
+}
+} // namespace osmium
+
 class navteq_plugin : public base_plugin {
 private:
   bool is_valid_format(std::string format);
   void recurse_dir(const boost::filesystem::path &dir);
   bool check_files(const boost::filesystem::path &dir);
   void write_output();
-  void add_administrative_boundaries();
-  void add_water();
-  void add_landuse();
+  void add_administrative_boundaries(osmium::io::Writer &writer);
+  void add_water(osmium::io::Writer &writer);
+  void add_landuse(osmium::io::Writer &writer);
 
   std::vector<boost::filesystem::path> dirs;
 

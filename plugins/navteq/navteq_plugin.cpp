@@ -10,6 +10,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <exception>
 #include <gdal/ogr_api.h>
 
 #include "navteq.hpp"
@@ -58,11 +59,11 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
     return false;
   if (!dbf_file_exists(dir / SEC_HWYS_DBF))
     return false;
-  if (!dbf_file_exists(dir / NAMED_PLC_DBF))
-    return false;
   if (!dbf_file_exists(dir / ALT_STREETS_DBF))
     return false;
 
+  if (!shp_file_exists(dir / NAMED_PLC_SHP))
+    std::cerr << "  named places are missing\n";
   if (!shp_file_exists(dir / ADMINBNDY_1_SHP))
     std::cerr << "  administrative boundaries level 1 are missing\n";
   if (!shp_file_exists(dir / ADMINBNDY_2_SHP))
@@ -124,56 +125,54 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
   return true;
 }
 
-void navteq_plugin::write_output() {
+void navteq_plugin::write_output() {}
+
+void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
+  // todo admin-levels only apply to the US => more generic for all countries
+
+  for (auto dir : dirs) {
+    if (shp_file_exists(dir / ADMINBNDY_1_SHP))
+      add_admin_shape(dir / ADMINBNDY_1_SHP, writer);
+    if (shp_file_exists(dir / ADMINBNDY_2_SHP))
+      add_admin_shape(dir / ADMINBNDY_2_SHP, writer);
+    if (shp_file_exists(dir / ADMINBNDY_3_SHP))
+      add_admin_shape(dir / ADMINBNDY_3_SHP, writer);
+    if (shp_file_exists(dir / ADMINBNDY_4_SHP))
+      add_admin_shape(dir / ADMINBNDY_4_SHP, writer);
+    if (shp_file_exists(dir / ADMINBNDY_5_SHP))
+      add_admin_shape(dir / ADMINBNDY_5_SHP, writer);
+  }
+  g_mtd_area_map.clear();
+}
+
+void navteq_plugin::add_water(osmium::io::Writer &writer) {
+  for (auto dir : dirs) {
+    if (shp_file_exists(dir / WATER_POLY_SHP))
+      add_water_shape(dir / WATER_POLY_SHP, writer);
+    if (shp_file_exists(dir / WATER_SEG_SHP))
+      add_water_shape(dir / WATER_SEG_SHP, writer);
+  }
+}
+
+void navteq_plugin::add_landuse(osmium::io::Writer &writer) {
+  for (auto dir : dirs) {
+    if (shp_file_exists(dir / LAND_USE_A_SHP))
+      add_landuse_shape(dir / LAND_USE_A_SHP, writer);
+    if (shp_file_exists(dir / LAND_USE_B_SHP))
+      add_landuse_shape(dir / LAND_USE_B_SHP, writer);
+  }
+}
+
+void navteq_plugin::execute() {
+  if (output_path.empty())
+    throw std::exception();
+
   std::cout << "writing... " << output_path << std::endl;
   osmium::io::File outfile(output_path.string());
   osmium::io::Header hdr;
   hdr.set("generator", "osmium");
   hdr.set("xml_josm_upload", "false");
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
-  writer(std::move(g_node_buffer));
-  writer(std::move(g_way_buffer));
-  writer(std::move(g_rel_buffer));
-  writer.close();
-}
-
-void navteq_plugin::add_administrative_boundaries() {
-  // todo admin-levels only apply to the US => more generic for all countries
-
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / ADMINBNDY_1_SHP))
-      add_admin_shape(dir / ADMINBNDY_1_SHP);
-    if (shp_file_exists(dir / ADMINBNDY_2_SHP))
-      add_admin_shape(dir / ADMINBNDY_2_SHP);
-    if (shp_file_exists(dir / ADMINBNDY_3_SHP))
-      add_admin_shape(dir / ADMINBNDY_3_SHP);
-    if (shp_file_exists(dir / ADMINBNDY_4_SHP))
-      add_admin_shape(dir / ADMINBNDY_4_SHP);
-    if (shp_file_exists(dir / ADMINBNDY_5_SHP))
-      add_admin_shape(dir / ADMINBNDY_5_SHP);
-  }
-  g_mtd_area_map.clear();
-}
-
-void navteq_plugin::add_water() {
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / WATER_POLY_SHP))
-      add_water_shape(dir / WATER_POLY_SHP);
-    if (shp_file_exists(dir / WATER_SEG_SHP))
-      add_water_shape(dir / WATER_SEG_SHP);
-  }
-}
-
-void navteq_plugin::add_landuse() {
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / LAND_USE_A_SHP))
-      add_landuse_shape(dir / LAND_USE_A_SHP);
-    if (shp_file_exists(dir / LAND_USE_B_SHP))
-      add_landuse_shape(dir / LAND_USE_B_SHP);
-  }
-}
-
-void navteq_plugin::execute() {
 
   std::cout << "Procesing Meta areas" << std::endl;
   preprocess_meta_areas(dirs);
@@ -190,19 +189,21 @@ void navteq_plugin::execute() {
   assert__id_uniqueness();
 
   std::cout << "Add administrative boundaries" << std::endl;
-  add_administrative_boundaries();
+  add_administrative_boundaries(writer);
 
   std::cout << "Add water" << std::endl;
-  add_water();
+  add_water(writer);
 
   std::cout << "Add landuse" << std::endl;
-  add_landuse();
+  add_landuse(writer);
 
   std::cout << "Add city nodes" << std::endl;
-  add_city_nodes(dirs);
+  add_city_nodes(dirs, writer);
 
-  if (!output_path.empty())
-    write_output();
+  // writer(std::move(g_node_buffer));
+  // writer(std::move(g_way_buffer));
+  // writer(std::move(g_rel_buffer));
+  writer.close();
 
   std::cout << std::endl << "fin" << std::endl;
 }
