@@ -16,8 +16,8 @@
                 "program": "${workspaceFolder}/build/comm2osm",
                 "MIMode": "gdb",
                 "args": [
-                    "~/iceland/iceland_shapefile_utf_slfc14_allpoints_distmark_trucks",
-                    "build/iceland.pbf"
+                    "~/dev/here/iceland",
+                    "build/iceland.osm.pbf"
                 ]
             },
             "setupCommands": [
