@@ -39,7 +39,6 @@ node_map_type g_way_end_points_map;
 z_lvl_nodes_map_type g_z_lvl_nodes_map;
 
 // stores osm objects, grows if needed.
-osmium::memory::Buffer g_node_buffer(buffer_size);
 osmium::memory::Buffer g_way_buffer(buffer_size);
 
 // id counter for object creation
@@ -221,16 +220,6 @@ build_node(const osmium::Location &location,
   builder->set_user(USER);
   builder->object().set_location(location);
   return builder->object().id();
-}
-
-/**
- * \brief creates Node and writes it to m_buffer.
- * \param location Location of Node being created.
- * \return id of created Node.
- */
-osmium::unsigned_object_id_type build_node(const osmium::Location &location) {
-  osmium::builder::NodeBuilder builder(g_node_buffer);
-  return build_node(location, &builder);
 }
 
 /**
@@ -541,9 +530,9 @@ void split_way_by_z_level(OGRFeature *feat, OGRLineString *ogr_ls,
  * created.
  */
 
-void process_end_point(bool first, ushort index, z_lvl_type z_lvl,
-                       OGRLineString *ogr_ls, z_lvl_map *z_level_map,
-                       node_map_type &node_ref_map) {
+void process_end_point(bool first, z_lvl_type z_lvl, OGRLineString *ogr_ls,
+                       node_map_type &node_ref_map,
+                       osmium::memory::Buffer &node_buffer) {
   ushort i = first ? 0 : ogr_ls->getNumPoints() - 1;
   osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
 
@@ -554,37 +543,39 @@ void process_end_point(bool first, ushort index, z_lvl_type z_lvl,
       osmium::unsigned_object_id_type osm_id = it->second;
       node_ref_map.emplace(location, osm_id);
     } else {
-      osmium::unsigned_object_id_type osm_id = build_node(location);
+      osmium::unsigned_object_id_type osm_id =
+          build_node(location, node_buffer);
       node_ref_map.emplace(location, osm_id);
       g_z_lvl_nodes_map.emplace(node_id, osm_id);
     }
   } else if (g_way_end_points_map.find(location) ==
              g_way_end_points_map.end()) {
     // adds all zero z-level end points to g_way_end_points_map
-    g_way_end_points_map.emplace(location, build_node(location));
+    g_way_end_points_map.emplace(location, build_node(location, node_buffer));
   }
 }
 
-void process_first_end_point(ushort index, z_lvl_type z_lvl,
-                             OGRLineString *ogr_ls, z_lvl_map *z_level_map,
-                             node_map_type &node_ref_map) {
-  process_end_point(true, index, z_lvl, ogr_ls, z_level_map, node_ref_map);
+void process_first_end_point(z_lvl_type z_lvl, OGRLineString *ogr_ls,
+                             node_map_type &node_ref_map,
+                             osmium::memory::Buffer &node_buffer) {
+  process_end_point(true, z_lvl, ogr_ls, node_ref_map, node_buffer);
 }
 
-void process_last_end_point(ushort index, z_lvl_type z_lvl,
-                            OGRLineString *ogr_ls, z_lvl_map *z_level_map,
-                            node_map_type &node_ref_map) {
-  process_end_point(false, index, z_lvl, ogr_ls, z_level_map, node_ref_map);
+void process_last_end_point(z_lvl_type z_lvl, OGRLineString *ogr_ls,
+                            node_map_type &node_ref_map,
+                            osmium::memory::Buffer &node_buffer) {
+  process_end_point(false, z_lvl, ogr_ls, node_ref_map, node_buffer);
 }
 
 void middle_points_preparation(OGRLineString *ogr_ls,
-                               node_map_type &node_ref_map) {
+                               node_map_type &node_ref_map,
+                               osmium::memory::Buffer &node_buffer) {
   // creates remaining nodes required for way
   for (int i = 1; i < ogr_ls->getNumPoints() - 1; ++i) {
     osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
-    node_ref_map.emplace(location, build_node(location));
+    node_ref_map.emplace(location, build_node(location, node_buffer));
   }
-  g_node_buffer.commit();
+  node_buffer.commit();
 }
 
 /**
@@ -612,7 +603,8 @@ void set_ferry_z_lvls_to_zero(OGRFeature *feat,
  * ogr_ls linestring which receives the interpolated house numbers \param left
  * specifies on which side of the linestring the house numbers will be applied
  */
-void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
+void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
+                          osmium::memory::Buffer &node_buffer) {
   const char *ref_addr = left ? L_REFADDR : R_REFADDR;
   const char *nref_addr = left ? L_NREFADDR : R_NREFADDR;
   const char *addr_schema = left ? L_ADDRSCH : R_ADDRSCH;
@@ -644,11 +636,11 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
                                   offset_ogr_ls->getY(i));
         {
           // scope node_builder
-          osmium::builder::NodeBuilder node_builder(g_node_buffer);
+          osmium::builder::NodeBuilder node_builder(node_buffer);
           auto node_id = build_node(location, &node_builder);
           {
             // scope tl_builder
-            osmium::builder::TagListBuilder tl_builder(g_node_buffer,
+            osmium::builder::TagListBuilder tl_builder(node_buffer,
                                                        &node_builder);
             if (i == 0 || i == offset_ogr_ls->getNumPoints() - 1) {
               if (i == 0) {
@@ -679,13 +671,14 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left) {
       tl_builder.add_tag("addr:interpolation", schema);
     }
   }
-  g_node_buffer.commit();
+  node_buffer.commit();
   g_way_buffer.commit();
 }
 
-void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls) {
-  create_house_numbers(feat, ogr_ls, true);
-  create_house_numbers(feat, ogr_ls, false);
+void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
+                          osmium::memory::Buffer &node_buffer) {
+  create_house_numbers(feat, ogr_ls, true, node_buffer);
+  create_house_numbers(feat, ogr_ls, false, node_buffer);
 }
 
 /**
@@ -694,14 +687,15 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls) {
  * \param ogr_ls linestring which provides the geometry.
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
-void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
+void process_way(OGRFeature *feat, z_lvl_map *z_level_map,
+                 osmium::memory::Buffer &node_buffer) {
 
   node_map_type node_ref_map;
 
   auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
 
   // creates remaining nodes required for way
-  middle_points_preparation(ogr_ls, node_ref_map);
+  middle_points_preparation(ogr_ls, node_ref_map, node_buffer);
   if (ogr_ls->getNumPoints() > 2)
     assert(node_ref_map.size() > 0);
 
@@ -709,8 +703,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
 
   auto it = z_level_map->find(link_id);
   if (it == z_level_map->end()) {
-    auto way_id = build_way(feat, ogr_ls, &node_ref_map);
-
+    build_way(feat, ogr_ls, &node_ref_map);
   } else {
     auto &index_z_lvl_vector = it->second;
 
@@ -721,8 +714,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
     if (first_point_with_different_z_lvl.first == first_index)
       first_z_lvl = first_point_with_different_z_lvl.second;
 
-    process_first_end_point(first_index, first_z_lvl, ogr_ls, z_level_map,
-                            node_ref_map);
+    process_first_end_point(first_z_lvl, ogr_ls, node_ref_map, node_buffer);
 
     auto &last_point_with_different_z_lvl = index_z_lvl_vector.back();
     auto last_index = ogr_ls->getNumPoints() - 1;
@@ -730,8 +722,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
     if (last_point_with_different_z_lvl.first == last_index)
       last_z_lvl = last_point_with_different_z_lvl.second;
 
-    process_last_end_point(last_index, last_z_lvl, ogr_ls, z_level_map,
-                           node_ref_map);
+    process_last_end_point(last_z_lvl, ogr_ls, node_ref_map, node_buffer);
 
     g_way_buffer.commit();
 
@@ -744,7 +735,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map) {
   }
 
   if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
-    create_house_numbers(feat, ogr_ls);
+    create_house_numbers(feat, ogr_ls, node_buffer);
   }
 }
 
@@ -1750,7 +1741,8 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void process_way(const std::vector<boost::filesystem::path> &dirs,
-                 z_lvl_map &z_level_map, std::ostream &out) {
+                 z_lvl_map &z_level_map, std::ostream &out,
+                 osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
     auto path = dir / STREETS_SHP;
     auto *ds = open_shape_file(path, out);
@@ -1759,10 +1751,16 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
 
+    osmium::memory::Buffer node_buffer(buffer_size);
+
     while (auto feat = layer->GetNextFeature()) {
-      process_way(feat, &z_level_map);
+      process_way(feat, &z_level_map, node_buffer);
       OGRFeature::DestroyFeature(feat);
     }
+
+    node_buffer.commit();
+    writer(std::move(node_buffer));
+
     GDALClose(ds);
   }
 }
@@ -1817,7 +1815,7 @@ void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
   process_way_end_nodes(dirs, z_level_map, out, writer);
 
   out << " processing ways" << std::endl;
-  process_way(dirs, z_level_map, out);
+  process_way(dirs, z_level_map, out, writer);
 
   out << " clean" << std::endl;
   for (auto elem : z_level_map)
@@ -1920,41 +1918,12 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
  */
 
 void clear_all() {
-  g_node_buffer.clear();
   g_way_buffer.clear();
   g_osm_id = 1;
   g_link_id_map.clear();
   g_hwys_ref_map.clear();
 
   g_mtd_area_map.clear();
-}
-
-void assert__node_location_uniqueness(node_map_type &loc_z_lvl_map,
-                                      osmium::memory::Buffer &buffer) {
-  for (auto &it : buffer) {
-    osmium::OSMObject *obj = static_cast<osmium::OSMObject *>(&it);
-    if (obj->type() == osmium::item_type::node) {
-      osmium::Node *node = static_cast<osmium::Node *>(obj);
-      osmium::Location l = node->location();
-      //			std::cout << node->id() << " - "<< l <<
-      // std::endl;
-      if (loc_z_lvl_map.find(l) == loc_z_lvl_map.end())
-        loc_z_lvl_map.insert(std::make_pair(node->location(), node->id()));
-      else {
-        // todo read Zlevels.DBF and check if the level differs
-        std::cout << "testing double node:";
-        std::cout << " 1st: " << node->id();
-        std::cout << ", 2nd: " << loc_z_lvl_map.at(l) << " with location " << l;
-        std::cout << std::endl;
-      }
-    }
-  }
-}
-
-void assert__node_locations_uniqueness() {
-  node_map_type loc_z_lvl_map;
-  assert__node_location_uniqueness(loc_z_lvl_map, g_node_buffer);
-  assert__node_location_uniqueness(loc_z_lvl_map, g_way_buffer);
 }
 
 #endif /* NAVTEQ_HPP_ */
