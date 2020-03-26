@@ -1728,9 +1728,11 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
 
     osmium::memory::Buffer node_buffer(buffer_size);
 
+    int linkIDField = layer->FindFieldIndex(LINK_ID, true);
+
     // get all nodes which may be a routable crossing
     while (auto feat = layer->GetNextFeature()) {
-      link_id_type link_id = get_uint_from_feature(feat, LINK_ID);
+      link_id_type link_id = feat->GetFieldAsInteger(linkIDField);
       // omit way end nodes with different z-levels (they have to be handled
       // extra)
       if (z_level_map.find(link_id) == z_level_map.end())

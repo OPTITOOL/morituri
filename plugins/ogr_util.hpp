@@ -111,47 +111,66 @@ geos::geom::Coordinate move_point(const geos::geom::Coordinate &moving_coord,
                                 moving_coord.y + move_y);
 }
 
-void cut_front(double cut, geos::geom::CoordinateSequence *geos_cs) {
-  double node_distance = std::abs(geos_cs->front().distance(geos_cs->getAt(1)));
-  while (cut >= node_distance) {
-    geos_cs->deleteAt(0);
-    cut -= node_distance;
-    node_distance = std::abs(geos_cs->front().distance(geos_cs->getAt(1)));
+geos::geom::CoordinateSequence *
+trimAndCloneCoordinateSequence(double cut,
+                               const geos::geom::CoordinateSequence *geos_cs) {
+  geos::geom::Coordinate::Vect *coordVector =
+      new geos::geom::Coordinate::Vect();
+
+  const auto &frontC = geos_cs->front();
+  const auto &backC = geos_cs->back();
+  int size = geos_cs->getSize();
+
+  bool lastFrontSkipped = false;
+  bool frontFinished = false;
+
+  double lastFrontCut = 0.0;
+
+  for (int i = 0; i < size; ++i) {
+    auto &currentC = geos_cs->getAt(i);
+
+    // trim front
+    if (!frontFinished && frontC.distance(currentC) < cut) {
+      lastFrontCut = cut - frontC.distance(currentC);
+      lastFrontSkipped = true;
+      continue;
+    } else if (lastFrontSkipped) {
+      // create a new point in front at cut distance
+      if (lastFrontCut > 0)
+        coordVector->push_back(
+            move_point(geos_cs->getAt(i - 1), currentC, lastFrontCut));
+
+      lastFrontSkipped = false;
+      frontFinished = true;
+    }
+
+    // trim back
+    double cutBackDistance = backC.distance(currentC);
+    if (cutBackDistance < cut) {
+      // create a new point in back at cut distance
+      double backCut = cut - cutBackDistance;
+      if (backCut > 0)
+        coordVector->push_back(
+            move_point(currentC, coordVector->back(), backCut));
+      break;
+    }
+
+    // insert copy
+    coordVector->push_back(currentC);
   }
-  assert(cut >= 0);
-  if (cut > 0)
-    geos_cs->setAt(move_point(geos_cs->front(), geos_cs->getAt(1), cut), 0);
+
+  return geos_factory->getCoordinateSequenceFactory()->create(coordVector);
 }
 
-void cut_back(double cut, geos::geom::CoordinateSequence *geos_cs) {
-  auto len = geos_cs->getSize();
-  assert(len >= 2);
-  auto moving_coord = geos_cs->back();
-  auto reference_coord = geos_cs->getAt(len - 2);
-  double node_distance = std::abs(moving_coord.distance(reference_coord));
-  while (cut >= node_distance) {
-    geos_cs->deleteAt(geos_cs->getSize() - 1);
-    cut -= node_distance;
-    len = geos_cs->getSize();
-    moving_coord = geos_cs->back();
-    reference_coord = geos_cs->getAt(len - 2);
-    node_distance = std::abs(moving_coord.distance(reference_coord));
-  }
-  assert(cut >= 0);
-  if (cut > 0)
-    geos_cs->setAt(move_point(moving_coord, reference_coord, cut), len - 1);
-}
-
-geos::geom::LineString *cut_caps(geos::geom::CoordinateSequence *cs) {
-  geos::geom::CoordinateSequence *geos_cs = cs->clone();
+geos::geom::LineString *cut_caps(const geos::geom::CoordinateSequence *cs) {
 
   double cut_ratio = 0.1;
   double max_cut = 0.00025;
-  double length = geos::algorithm::CGAlgorithms::length(geos_cs);
+  double length = geos::algorithm::CGAlgorithms::length(cs);
   double cut = std::min(max_cut, length * cut_ratio);
 
-  cut_front(cut, geos_cs);
-  cut_back(cut, geos_cs);
+  geos::geom::CoordinateSequence *geos_cs =
+      trimAndCloneCoordinateSequence(cut, cs);
 
   return geos_factory->createLineString(geos_cs);
 }
