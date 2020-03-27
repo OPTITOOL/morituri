@@ -1048,9 +1048,17 @@ void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
         // FEAT_TYPE 'AMUSEMENT PARK'
         tl_builder.add_tag("leisure", "park");
         tl_builder.add_tag("tourism", "theme_park");
-      } // Not implemented so far due to missing sample in data:
-        // "ANIMAL PARK" (2000461), MILITARY BASE (900108), NATIVE AMERICAN
-        // RESERVATION (900107), RAILYARD (9997007)
+      } else if (!strcmp(field_value, "908002")) {
+        // FEAT_TYPE 'Neighbourhood'
+        tl_builder.add_tag("place", "neighbourhood");
+      } else if (!strcmp(field_value, "2000461")) {
+        // FEAT_TYPE 'ANIMAL PARK'
+        tl_builder.add_tag("tourism", "zoo");
+      }
+
+      // Not implemented so far due to missing sample in data:
+      // MILITARY BASE (900108), NATIVE AMERICAN
+      // RESERVATION (900107), RAILYARD (9997007)
       // Land Use B types
       else if (!strcmp(field_value, "900158")) {
         // FEAT_TYPE 'PEDESTRIAN ZONE'
