@@ -690,6 +690,28 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
   create_house_numbers(feat, ogr_ls, false, node_buffer, way_buffer);
 }
 
+void create_premium_house_numbers(
+    OGRFeature *feat,
+    const std::vector<std::pair<osmium::Location, std::string>> &addressList,
+    osmium::memory::Buffer &node_buffer) {
+
+  for (auto &address : addressList) {
+
+    // scope node_builder
+    osmium::builder::NodeBuilder node_builder(node_buffer);
+    build_node(address.first, &node_builder);
+    {
+      // scope tl_builder
+      osmium::builder::TagListBuilder tl_builder(node_buffer, &node_builder);
+      tl_builder.add_tag("addr:housenumber", address.second);
+      tl_builder.add_tag(
+          "addr:street",
+          to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME))
+              .c_str());
+    }
+  }
+}
+
 /**
  * \brief creates Way from linestring.
  * 		  creates missing Nodes needed for Way and Way itself.
@@ -743,9 +765,30 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map,
     split_way_by_z_level(feat, ogr_ls, index_z_lvl_vector, &node_ref_map,
                          link_id, way_buffer);
   }
+}
 
-  if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
-    create_house_numbers(feat, ogr_ls, node_buffer, way_buffer);
+/**
+ * \brief creates Way from linestring.
+ * 		  creates missing Nodes needed for Way and Way itself.
+ * \param ogr_ls linestring which provides the geometry.
+ * \param z_level_map holds z_levels to Nodes of Ways.
+ */
+void process_house_numbers(
+    OGRFeature *feat,
+    std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
+        *pointAddresses,
+    int linkId, osmium::memory::Buffer &node_buffer,
+    osmium::memory::Buffer &way_buffer) {
+
+  auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
+
+  auto it = pointAddresses->find(linkId);
+  if (it != pointAddresses->end()) {
+    create_premium_house_numbers(feat, it->second, node_buffer);
+  } else {
+    if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
+      create_house_numbers(feat, ogr_ls, node_buffer, way_buffer);
+    }
   }
 }
 
@@ -1762,6 +1805,7 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
                  z_lvl_map &z_level_map, std::ostream &out,
                  osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
+
     auto path = dir / STREETS_SHP;
     auto *ds = open_shape_file(path, out);
 
@@ -1783,6 +1827,69 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     writer(std::move(node_buffer));
     writer(std::move(way_buffer));
 
+    GDALClose(ds);
+  }
+}
+
+auto createPointAddressMapList(const boost::filesystem::path dir) {
+
+  auto pointAddressMap =
+      new std::map<uint64_t,
+                   std::vector<std::pair<osmium::Location, std::string>>>();
+
+  if (dbf_file_exists(dir / POINT_ADDRESS_DBF)) {
+    DBFHandle houseNumberHandle = read_dbf_file(dir / POINT_ADDRESS_DBF);
+
+    int latField = DBFGetFieldIndex(houseNumberHandle, "DISP_LAT");
+    int lonField = DBFGetFieldIndex(houseNumberHandle, "DISP_LON");
+    int addressField = DBFGetFieldIndex(houseNumberHandle, "ADDRESS");
+    int linkIdField = DBFGetFieldIndex(houseNumberHandle, LINK_ID);
+
+    for (int i = 0; i < DBFGetRecordCount(houseNumberHandle); i++) {
+      auto linkId = DBFReadIntegerAttribute(houseNumberHandle, i, linkIdField);
+      auto houseNumber = std::string(
+          DBFReadStringAttribute(houseNumberHandle, i, addressField));
+      auto lon = DBFReadDoubleAttribute(houseNumberHandle, i, lonField);
+      auto lat = DBFReadDoubleAttribute(houseNumberHandle, i, latField);
+
+      (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
+                                              houseNumber);
+    }
+    DBFClose(houseNumberHandle);
+  }
+
+  return pointAddressMap;
+}
+
+void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
+                           std::ostream &out, osmium::io::Writer &writer) {
+  for (auto &dir : dirs) {
+    auto pointMap = createPointAddressMapList(dir);
+    auto path = dir / STREETS_SHP;
+    auto *ds = open_shape_file(path, out);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(path.string()));
+    boost::progress_display progress(layer->GetFeatureCount());
+
+    osmium::memory::Buffer node_buffer(buffer_size);
+    osmium::memory::Buffer way_buffer(buffer_size);
+
+    int linkIdField = layer->FindFieldIndex(LINK_ID, true);
+
+    while (auto feat = layer->GetNextFeature()) {
+      int linkId = feat->GetFieldAsInteger(linkIdField);
+      process_house_numbers(feat, pointMap, linkId, node_buffer, way_buffer);
+      ++progress;
+      OGRFeature::DestroyFeature(feat);
+    }
+
+    node_buffer.commit();
+    way_buffer.commit();
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+    delete pointMap;
     GDALClose(ds);
   }
 }
@@ -1840,6 +1947,10 @@ void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
 
   out << " processing ways" << std::endl;
   process_way(dirs, z_level_map, out, writer);
+
+  // create house numbers
+  out << " processing house numbers" << std::endl;
+  process_house_numbers(dirs, out, writer);
 
   out << " clean" << std::endl;
   for (auto elem : z_level_map)

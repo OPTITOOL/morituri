@@ -61,6 +61,8 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
     return false;
   if (!dbf_file_exists(dir / ALT_STREETS_DBF))
     return false;
+  if (!dbf_file_exists(dir / POINT_ADDRESS_DBF))
+    std::cerr << "  point addresses are missing\n";
 
   if (!shp_file_exists(dir / NAMED_PLC_SHP))
     std::cerr << "  named places are missing\n";
