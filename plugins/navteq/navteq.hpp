@@ -16,6 +16,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/progress.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/index/map/sparse_file_array.hpp>
 #include <osmium/osm/item_type.hpp>
@@ -66,6 +67,8 @@ cnd_mod_map_type g_cnd_mod_map;
 cdms_map_type g_cdms_map;
 std::map<area_id_type, govt_code_type> g_area_to_govt_code_map;
 cntry_ref_map_type g_cntry_ref_map;
+
+bool withTurnRestrictions = false;
 
 /**
  * \brief Dummy attributes enable josm to read output xml files.
@@ -312,17 +315,21 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
       add_way_node(location, wnl_builder, map_containing_node);
     }
 
-    osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
-    osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
-                         ogr_ls->getY(ogr_ls->getNumPoints() - 1));
-    wayStartEndMap.emplace(builder.object().id(), std::make_pair(start, end));
+    if (withTurnRestrictions) {
+
+      osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
+      osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
+                           ogr_ls->getY(ogr_ls->getNumPoints() - 1));
+      wayStartEndMap.emplace(builder.object().id(), std::make_pair(start, end));
+    }
   }
 
   link_id_type link_id = build_tag_list(feat, &builder, way_buffer, z_lvl);
   assert(link_id != 0);
 
-  g_link_id_map[link_id].emplace_back(builder.object().id());
-
+  if (withTurnRestrictions) {
+    g_link_id_map[link_id].emplace_back(builder.object().id());
+  }
   return builder.object().id();
 }
 
@@ -550,8 +557,7 @@ void process_end_point(bool first, z_lvl_type z_lvl, OGRLineString *ogr_ls,
       node_ref_map.emplace(location, osm_id);
       g_z_lvl_nodes_map.emplace(node_id, osm_id);
     }
-  } else if (g_way_end_points_map.find(location) ==
-             g_way_end_points_map.end()) {
+  } else {
     // adds all zero z-level end points to g_way_end_points_map
     g_way_end_points_map.emplace(location, build_node(location, node_buffer));
   }
@@ -746,8 +752,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map,
 // \brief writes way end node to way_end_points_map.
 void process_way_end_node(const osmium::Location &location,
                           osmium::memory::Buffer &node_buffer) {
-  if (g_way_end_points_map.find(location) == g_way_end_points_map.end())
-    g_way_end_points_map.emplace(location, get_node(location, node_buffer));
+  g_way_end_points_map.emplace(location, get_node(location, node_buffer));
 }
 
 // \brief gets end nodes of linestring and processes them.
@@ -1626,13 +1631,12 @@ void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
   // open dbf
   DBFHandle handle = read_dbf_file(dir / ZLEVELS_DBF, out);
 
-  link_id_type last_link_id;
+  link_id_type last_link_id = 0;
   index_z_lvl_vector_type v;
 
   for (int i = 0; i < DBFGetRecordCount(handle); i++) {
     link_id_type link_id = dbf_get_uint_by_field(handle, i, LINK_ID);
     ushort point_num = dbf_get_uint_by_field(handle, i, POINT_NUM) - 1;
-    assert(point_num >= 0);
     short z_level = dbf_get_uint_by_field(handle, i, Z_LEVEL);
 
     if (i > 0 && last_link_id != link_id && !v.empty()) {
@@ -1756,11 +1760,13 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
+    boost::progress_display progress(layer->GetFeatureCount());
 
     osmium::memory::Buffer node_buffer(buffer_size);
     osmium::memory::Buffer way_buffer(buffer_size);
     while (auto feat = layer->GetNextFeature()) {
       process_way(feat, &z_level_map, node_buffer, way_buffer);
+      ++progress;
       OGRFeature::DestroyFeature(feat);
     }
 
@@ -1789,12 +1795,14 @@ void process_alt_steets_route_types(
           dbf_get_uint_by_field(alt_streets_handle, i, LINK_ID);
       ushort route_type = dbf_get_uint_by_field(alt_streets_handle, i, ROUTE);
 
-      if (g_route_type_map.find(link_id) == g_route_type_map.end()) {
-        g_route_type_map.emplace(link_id, route_type);
-      } else if (g_route_type_map.at(link_id) > route_type) {
+      // try to emplace <link_id, route_type> pair
+      auto insertion = g_route_type_map.emplace(link_id, route_type);
+
+      // if its already exists update routetype
+      if (!insertion.second && insertion.first->second > route_type) {
         // As link id's aren't unique in AltStreets.dbf
         // just store the lowest route type
-        g_route_type_map[link_id] = route_type;
+        insertion.first->second = route_type;
       }
     }
     DBFClose(alt_streets_handle);

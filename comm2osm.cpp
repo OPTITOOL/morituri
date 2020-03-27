@@ -16,6 +16,7 @@
 #include "plugins/navteq/navteq_plugin.hpp"
 
 boost::filesystem::path input_path, output_file;
+bool withTrunRestrictions = false;
 
 void print_help() {
   std::cout << "comm2osm [OPTIONS] [INFILE [OUTFILE]]\n\n"
@@ -31,15 +32,19 @@ void print_help() {
             << "  bz2        compressed with bzip2\n"
             << "\nOptions:\n"
             << "  -h, --help                This help message\n"
-            << "  -t, --to-format=FORMAT    Output format\n";
+            << "  -t, --to-format=FORMAT    Output format\n"
+            << "  -r, --turn-restrictions   Convert turn restrictions\n";
 }
 
 void check_args_and_setup(int argc, char *argv[]) {
   // options
-  static struct option long_options[] = {{"help", no_argument, 0, 'h'}, {0, 0}};
+  static struct option long_options[] = {
+      {"help", no_argument, 0, 'h'},
+      {"turn-restrictions", no_argument, 0, 'r'},
+      {0, 0}};
 
   while (true) {
-    int c = getopt_long(argc, argv, "dhf:t:", long_options, 0);
+    int c = getopt_long(argc, argv, "dhf:t:r:", long_options, 0);
     if (c == -1) {
       break;
     }
@@ -48,6 +53,8 @@ void check_args_and_setup(int argc, char *argv[]) {
     case 'h':
       print_help();
       exit(0);
+    case 'r':
+      withTrunRestrictions = true;
     default:
       exit(1);
     }
@@ -84,6 +91,7 @@ int main(int argc, char *argv[]) {
 
   for (auto &plugin : plugins) {
     if (plugin->check_input(input_path, output_file)) {
+      plugin->setWithTurnRestrictions(withTrunRestrictions);
       std::cout << "executing plugin " << plugin->get_name() << std::endl;
       plugin->execute();
     }

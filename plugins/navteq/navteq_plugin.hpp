@@ -39,6 +39,8 @@ public:
       const boost::filesystem::path &input_path,
       const boost::filesystem::path &output_path = boost::filesystem::path());
   void execute();
+
+  void setWithTurnRestrictions(bool withTurnRestrictions);
 };
 
 #endif /* NAVTEQPLUGIN_HPP_ */

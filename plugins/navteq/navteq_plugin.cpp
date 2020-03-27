@@ -182,8 +182,10 @@ void navteq_plugin::execute() {
   std::cout << "Add street shapes" << std::endl;
   add_street_shapes(dirs, writer);
 
-  std::cout << "Add turn restrictions" << std::endl;
-  add_turn_restrictions(dirs, writer);
+  if (withTurnRestrictions) {
+    std::cout << "Add turn restrictions" << std::endl;
+    add_turn_restrictions(dirs, writer);
+  }
 
   std::cout << "Add administrative boundaries" << std::endl;
   add_administrative_boundaries(writer);
@@ -200,4 +202,8 @@ void navteq_plugin::execute() {
   writer.close();
 
   std::cout << std::endl << "fin" << std::endl;
+}
+
+void navteq_plugin::setWithTurnRestrictions(bool _withTurnRestrictions) {
+  withTurnRestrictions = _withTurnRestrictions;
 }

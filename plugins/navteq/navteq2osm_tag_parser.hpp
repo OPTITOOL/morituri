@@ -712,8 +712,10 @@ std::string parse_lang_code(std::string lang_code) {
                  ::tolower);
   if (g_lang_code_map.empty())
     parse_lang_code_file();
-  if (g_lang_code_map.find(lang_code) != g_lang_code_map.end())
-    return g_lang_code_map.at(lang_code);
+
+  auto it = g_lang_code_map.find(lang_code);
+  if (it != g_lang_code_map.end())
+    return it->second;
   std::cerr << lang_code << " not found!" << std::endl;
   throw std::runtime_error("Language code '" + lang_code + "' not found");
 }

@@ -85,6 +85,11 @@ public:
    *by every plugin. It does the actual conversion to the OSM-format.
    * */
   virtual void execute() = 0;
+
+  /**
+   * \brief	Also convert turn restrictions
+   * */
+  virtual void setWithTurnRestrictions(bool withTurnRestrictions) = 0;
 };
 
 #endif /* BASEPLUGIN_HPP_ */
