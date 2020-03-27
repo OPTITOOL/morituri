@@ -16,7 +16,7 @@
 #include "plugins/navteq/navteq_plugin.hpp"
 
 boost::filesystem::path input_path, output_file;
-bool withTrunRestrictions = false;
+static int withTrunRestrictions = 0;
 
 void print_help() {
   std::cout << "comm2osm [OPTIONS] [INFILE [OUTFILE]]\n\n"
@@ -33,28 +33,28 @@ void print_help() {
             << "\nOptions:\n"
             << "  -h, --help                This help message\n"
             << "  -t, --to-format=FORMAT    Output format\n"
-            << "  -r, --turn-restrictions   Convert turn restrictions\n";
+            << "  --turn-restrictions   Convert turn restrictions\n";
 }
 
 void check_args_and_setup(int argc, char *argv[]) {
   // options
   static struct option long_options[] = {
+      {"turn-restrictions", no_argument, &withTrunRestrictions, 1},
       {"help", no_argument, 0, 'h'},
-      {"turn-restrictions", no_argument, 0, 'r'},
       {0, 0}};
 
   while (true) {
-    int c = getopt_long(argc, argv, "dhf:t:r:", long_options, 0);
+    int c = getopt_long(argc, argv, "dhf:t:", long_options, 0);
     if (c == -1) {
       break;
     }
 
     switch (c) {
+    case 0:
+      break;
     case 'h':
       print_help();
       exit(0);
-    case 'r':
-      withTrunRestrictions = true;
     default:
       exit(1);
     }
