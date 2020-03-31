@@ -1344,7 +1344,7 @@ void process_landuse(OGRLayer *layer, OGRFeature *feat,
 }
 
 /**
- * \brief adds landuse polygons as Relations to m_buffer
+ * \brief adds cities to the node buffer
  */
 void process_city(OGRLayer *layer, OGRFeature *feat,
                   osmium::memory::Buffer &node_buffer) {
@@ -1376,6 +1376,38 @@ void process_city(OGRLayer *layer, OGRFeature *feat,
       tl_builder.add_tag("population", std::to_string(population));
     uint capital = feat->GetFieldAsInteger(CAPITAL);
     tl_builder.add_tag("place", get_place_value(population, capital));
+  }
+  node_buffer.commit();
+}
+
+/**
+ * \brief adds hamlets to the node_buffer
+ */
+void process_hamlets(OGRLayer *layer, OGRFeature *feat,
+                     osmium::memory::Buffer &node_buffer) {
+
+  auto geom = feat->GetGeometryRef();
+  auto geom_type = geom->getGeometryType();
+
+  osm_id_vector_type exterior_way_ids, interior_way_ids;
+  if (geom_type != wkbPoint) {
+    throw(std::runtime_error(
+        "Hamlet item with geometry=" + std::string(geom->getGeometryName()) +
+        " is not yet supported."));
+  }
+
+  auto point = static_cast<OGRPoint *>(geom);
+  osmium::Location location(point->getX(), point->getY());
+  {
+    // scope node_builder
+    // Add new node
+    osmium::builder::NodeBuilder node_builder(node_buffer);
+    build_node(location, &node_builder);
+    osmium::builder::TagListBuilder tl_builder(node_buffer, &node_builder);
+
+    std::string name = feat->GetFieldAsString(POI_NAME);
+    tl_builder.add_tag("name", to_camel_case_with_spaces(name));
+    tl_builder.add_tag("place", "hamlet");
   }
   node_buffer.commit();
 }
@@ -1613,6 +1645,47 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
       }
 
       process_city(layer, feat, node_buffer);
+      OGRFeature::DestroyFeature(feat);
+    }
+    writer(std::move(node_buffer));
+    GDALClose(ds);
+  }
+}
+
+void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
+                      osmium::io::Writer &writer) {
+
+  for (auto dir : dirs) {
+
+    // hamlets are optional
+    if (!shp_file_exists(dir / HAMLET_SHP))
+      continue;
+
+    auto ds = open_shape_file(dir / HAMLET_SHP);
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(dir.string()));
+
+    osmium::memory::Buffer node_buffer(buffer_size);
+
+    int facTypeField = layer->FindFieldIndex(FAC_TYPE, true);
+    int poiNmTypeField = layer->FindFieldIndex(POI_NMTYPE, true);
+
+    while (auto feat = layer->GetNextFeature()) {
+      uint fac_type = feat->GetFieldAsInteger(facTypeField);
+      if (fac_type != 9998) {
+        std::cerr << "Skipping hamlet node because of wrong POI type"
+                  << std::endl;
+        continue;
+      }
+
+      std::string name_type = feat->GetFieldAsString(poiNmTypeField);
+      if (name_type != "B") {
+        // Skip this entry as it's just a translated namePlc of former one
+        continue;
+      }
+
+      process_hamlets(layer, feat, node_buffer);
       OGRFeature::DestroyFeature(feat);
     }
     writer(std::move(node_buffer));
@@ -1864,7 +1937,9 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
 void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
                            std::ostream &out, osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
+    // create point addresses from PointAddress.dbf
     auto pointMap = createPointAddressMapList(dir);
+
     auto path = dir / STREETS_SHP;
     auto *ds = open_shape_file(path, out);
 

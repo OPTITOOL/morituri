@@ -201,6 +201,8 @@ void navteq_plugin::execute() {
   std::cout << "Add city nodes" << std::endl;
   add_city_nodes(dirs, writer);
 
+  std::cout << "Add hamlet nodes" << std::endl;
+  add_hamlet_nodes(dirs, writer);
   writer.close();
 
   std::cout << std::endl << "fin" << std::endl;
