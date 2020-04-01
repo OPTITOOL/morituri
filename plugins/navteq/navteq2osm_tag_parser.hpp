@@ -700,8 +700,7 @@ void parse_lang_code_file() {
       }
       std::string iso_639_2 = lv.at(0);
       std::string iso_639_1 = lv.at(2);
-      if (!iso_639_1.empty())
-        g_lang_code_map.insert(std::make_pair(iso_639_2, iso_639_1));
+      g_lang_code_map.insert(std::make_pair(iso_639_2, iso_639_1));
     }
     file.close();
   }
@@ -713,9 +712,13 @@ std::string parse_lang_code(std::string lang_code) {
   if (g_lang_code_map.empty())
     parse_lang_code_file();
 
-  auto it = g_lang_code_map.find(lang_code);
-  if (it != g_lang_code_map.end())
-    return it->second;
+  auto lc = g_lang_code_map.find(lang_code);
+  if (lc != g_lang_code_map.end()) {
+    if (!lc->second.empty())
+      return lc->second;
+    else
+      return lang_code; // fallback
+  }
   std::cerr << lang_code << " not found!" << std::endl;
   throw std::runtime_error("Language code '" + lang_code + "' not found");
 }
