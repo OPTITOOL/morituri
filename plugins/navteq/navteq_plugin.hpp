@@ -28,6 +28,7 @@ private:
   void add_administrative_boundaries(osmium::io::Writer &writer);
   void add_water(osmium::io::Writer &writer);
   void add_landuse(osmium::io::Writer &writer);
+  void add_railways(osmium::io::Writer &writer);
 
   std::vector<boost::filesystem::path> dirs;
 

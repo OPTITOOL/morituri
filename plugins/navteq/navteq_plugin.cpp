@@ -156,6 +156,13 @@ void navteq_plugin::add_water(osmium::io::Writer &writer) {
   }
 }
 
+void navteq_plugin::add_railways(osmium::io::Writer &writer) {
+  for (auto dir : dirs) {
+    if (shp_file_exists(dir / RAILWAYS_POLY_SHP))
+      add_railways_shape(dir / RAILWAYS_POLY_SHP, writer);
+  }
+}
+
 void navteq_plugin::add_landuse(osmium::io::Writer &writer) {
   for (auto dir : dirs) {
     if (shp_file_exists(dir / LAND_USE_A_SHP))
@@ -203,6 +210,10 @@ void navteq_plugin::execute() {
 
   std::cout << "Add hamlet nodes" << std::endl;
   add_hamlet_nodes(dirs, writer);
+
+  std::cout << "Add railways" << std::endl;
+  add_railways(writer);
+
   writer.close();
 
   std::cout << std::endl << "fin" << std::endl;

@@ -1314,6 +1314,32 @@ void process_water(OGRLayer *layer, OGRFeature *feat,
   rel_buffer.commit();
 }
 
+void process_railways(OGRLayer *layer, OGRFeature *feat,
+                      osmium::memory::Buffer &node_buffer,
+                      osmium::memory::Buffer &way_buffer) {
+
+  OGRLineString *line = static_cast<OGRLineString *>(feat->GetGeometryRef());
+
+  node_vector_type osm_way_node_ids = create_open_way_nodes(line, node_buffer);
+
+  osmium::builder::WayBuilder builder(way_buffer);
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
+  builder.set_user(USER);
+  {
+    osmium::builder::TagListBuilder tl_builder(way_buffer, &builder);
+    tl_builder.add_tag("railway", "rail");
+  }
+  build_water_way_taglist(builder, layer, feat, way_buffer);
+  osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
+  for (auto osm_way_node_id : osm_way_node_ids) {
+    wnl_builder.add_node_ref(osm_way_node_id.second, osm_way_node_id.first);
+  }
+
+  node_buffer.commit();
+  way_buffer.commit();
+}
+
 /**
  * \brief adds landuse polygons as Relations to m_buffer
  */
@@ -2097,6 +2123,25 @@ void add_water_shape(boost::filesystem::path water_shape_file,
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
+  GDALClose(ds);
+}
+
+void add_railways_shape(boost::filesystem::path water_shape_file,
+                        osmium::io::Writer &writer) {
+  auto ds = open_shape_file(water_shape_file);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(water_shape_file.string()));
+  assert(layer->GetGeomType() == wkbPolygon ||
+         layer->GetGeomType() == wkbLineString);
+  osmium::memory::Buffer node_buffer(buffer_size);
+  osmium::memory::Buffer way_buffer(buffer_size);
+  while (auto feat = layer->GetNextFeature()) {
+    process_railways(layer, feat, node_buffer, way_buffer);
+    OGRFeature::DestroyFeature(feat);
+  }
+  writer(std::move(node_buffer));
+  writer(std::move(way_buffer));
   GDALClose(ds);
 }
 
