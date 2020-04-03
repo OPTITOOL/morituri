@@ -1073,8 +1073,7 @@ void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
         tl_builder.add_tag("building", "retail");
       } else if (!strcmp(field_value, "2000200")) {
         // FEAT_TYPE 'INDUSTRIAL COMPLEX'
-        // Could also be landuse=commercial
-        tl_builder.add_tag("landuse", "industrial");
+        tl_builder.add_tag("landuse", "commercial");
       } else if (!strcmp(field_value, "2000403")) {
         // FEAT_TYPE 'UNIVERSITY/COLLEGE'
         tl_builder.add_tag("amenity", "university");
