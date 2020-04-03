@@ -134,15 +134,15 @@ void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
 
   for (auto dir : dirs) {
     if (shp_file_exists(dir / ADMINBNDY_1_SHP))
-      add_admin_shape(dir / ADMINBNDY_1_SHP, writer);
+      add_admin_shape(dir / ADMINBNDY_1_SHP, writer, true);
     if (shp_file_exists(dir / ADMINBNDY_2_SHP))
-      add_admin_shape(dir / ADMINBNDY_2_SHP, writer);
+      add_admin_shape(dir / ADMINBNDY_2_SHP, writer, true);
     if (shp_file_exists(dir / ADMINBNDY_3_SHP))
-      add_admin_shape(dir / ADMINBNDY_3_SHP, writer);
+      add_admin_shape(dir / ADMINBNDY_3_SHP, writer, true);
     if (shp_file_exists(dir / ADMINBNDY_4_SHP))
-      add_admin_shape(dir / ADMINBNDY_4_SHP, writer);
+      add_admin_shape(dir / ADMINBNDY_4_SHP, writer, true);
     if (shp_file_exists(dir / ADMINBNDY_5_SHP))
-      add_admin_shape(dir / ADMINBNDY_5_SHP, writer);
+      add_admin_shape(dir / ADMINBNDY_5_SHP, writer, false);
   }
   g_mtd_area_map.clear();
 }

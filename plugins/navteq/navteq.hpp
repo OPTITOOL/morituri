@@ -881,7 +881,8 @@ osm_id_vector_type build_closed_ways(OGRLinearRing *ring,
  */
 void build_admin_boundary_taglist(osmium::builder::RelationBuilder &builder,
                                   OGRLayer *layer, OGRFeature *feat,
-                                  osmium::memory::Buffer &rel_buffer) {
+                                  osmium::memory::Buffer &rel_buffer,
+                                  bool withName) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
   tl_builder.add_tag("type", "multipolygon");
@@ -904,11 +905,11 @@ void build_admin_boundary_taglist(osmium::builder::RelationBuilder &builder,
           tl_builder.add_tag("admin_level",
                              navteq_2_osm_admin_lvl(d.admin_lvl).c_str());
 
-        for (auto it : d.lang_code_2_area_name)
-          tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
-                             it.second);
-        //                    if (!d.area_name_tr.empty())
-        //                    tl_builder.add_tag("int_name", d.area_name_tr);
+        if (withName) {
+          for (auto it : d.lang_code_2_area_name)
+            tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
+                               it.second);
+        }
       } else {
         std::cerr << "Skipping unknown navteq_admin_level" << std::endl;
       }
@@ -1172,12 +1173,13 @@ void build_relation_members(osmium::builder::RelationBuilder &builder,
 
 osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
     OGRLayer *layer, OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
-    osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
+    osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer,
+    bool withName) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
-  build_admin_boundary_taglist(builder, layer, feat, rel_buffer);
+  build_admin_boundary_taglist(builder, layer, feat, rel_buffer, withName);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids, rel_buffer);
   return builder.object().id();
 }
@@ -1253,7 +1255,7 @@ void create_polygon(OGRPolygon *poly, osm_id_vector_type &exterior_way_ids,
 void process_admin_boundary(OGRLayer *layer, OGRFeature *feat,
                             osmium::memory::Buffer &node_buffer,
                             osmium::memory::Buffer &way_buffer,
-                            osmium::memory::Buffer &rel_buffer) {
+                            osmium::memory::Buffer &rel_buffer, bool withName) {
   auto geom = feat->GetGeometryRef();
 
   osm_id_vector_type exterior_way_ids, interior_way_ids;
@@ -1268,8 +1270,8 @@ void process_admin_boundary(OGRLayer *layer, OGRFeature *feat,
                              std::string(geom->getGeometryName()) +
                              " are not yet supported."));
   }
-  build_admin_boundary_relation_with_tags(layer, feat, exterior_way_ids,
-                                          interior_way_ids, rel_buffer);
+  build_admin_boundary_relation_with_tags(
+      layer, feat, exterior_way_ids, interior_way_ids, rel_buffer, withName);
 
   node_buffer.commit();
   way_buffer.commit();
@@ -2055,7 +2057,7 @@ void add_street_shapes(const boost::filesystem::path &dir,
  */
 
 void add_admin_shape(boost::filesystem::path admin_shape_file,
-                     osmium::io::Writer &writer) {
+                     osmium::io::Writer &writer, bool withName) {
 
   auto ds = open_shape_file(admin_shape_file);
   auto layer = ds->GetLayer(0);
@@ -2067,7 +2069,8 @@ void add_admin_shape(boost::filesystem::path admin_shape_file,
   osmium::memory::Buffer rel_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
 
-    process_admin_boundary(layer, feat, node_buffer, way_buffer, rel_buffer);
+    process_admin_boundary(layer, feat, node_buffer, way_buffer, rel_buffer,
+                           withName);
     OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
