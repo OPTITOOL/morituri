@@ -230,8 +230,13 @@ void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
   //    builder->add_tag("hov",  NO);
   if (!parse_bool(get_field_from_feature(f, AR_PEDESTRIANS)))
     builder->add_tag("foot", NO);
-  if (!parse_bool(get_field_from_feature(f, AR_TRUCKS)))
-    builder->add_tag("hgv", NO);
+  if (!parse_bool(get_field_from_feature(f, AR_TRUCKS))) {
+    if (!parse_bool(get_field_from_feature(f, AR_DELIV))) {
+      builder->add_tag("hgv", NO);
+    } else {
+      builder->add_tag("hgv", "delivery");
+    }
+  }
   if (!parse_bool(get_field_from_feature(f, AR_EMERVEH)))
     builder->add_tag("emergency", NO);
   if (!parse_bool(get_field_from_feature(f, AR_MOTORCYCLES)))
