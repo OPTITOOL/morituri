@@ -14,6 +14,7 @@
 namespace {
 
 static const boost::filesystem::path STREETS_SHP = "Streets.shp";
+static const boost::filesystem::path ADMINLINE_1_SHP = "AdminLine1.shp";
 static const boost::filesystem::path ADMINBNDY_1_SHP = "Adminbndy1.shp";
 static const boost::filesystem::path ADMINBNDY_2_SHP = "Adminbndy2.shp";
 static const boost::filesystem::path ADMINBNDY_3_SHP = "Adminbndy3.shp";
@@ -131,6 +132,7 @@ const char *POLYGON_NM = "POLYGON_NM";
 const char *FEAT_COD = "FEAT_COD";
 
 // condition types (CT)
+#define CT_RESTRICTED_DRIVING_MANOEUVRE 7
 #define CT_TRANSPORT_ACCESS_RESTRICTION 23
 #define CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE 26
 
@@ -194,7 +196,8 @@ std::map<int, std::vector<std::string>> const HWY_ROUTE_TYPE_MAP = {
     {0 /*"DEFAULT"*/, DEFAULT_HWY_ROUTE_TYPE},
     {1 /*"ITA"*/, {"", TRUNK, TRUNK, PRIMARY, SECONDARY, "", ""}},
     {2 /*"FRA"*/,
-     {"", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED}},
+     {"", TRUNK, TRUNK, TRUNK, SECONDARY, TERTIARY,
+      UNCLASSIFIED}}, // exceptional handling for type 4
     {3 /*"GER"*/,
      {"", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED}}, // tested
     {5 /*"BEL"*/,

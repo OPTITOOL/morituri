@@ -80,10 +80,7 @@ struct mtd_area_dataset {
 typedef std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
     mtd_area_map_type;
 
-typedef std::unordered_map<cond_id_type, mod_group_type> cnd_mod_map_type;
-
 typedef uint64_t link_id_type;
-typedef std::multimap<link_id_type, cond_id_type> cdms_map_type;
 
 // vector of osm_ids
 typedef std::vector<osmium::unsigned_object_id_type> osm_id_vector_type;
@@ -122,4 +119,10 @@ typedef std::pair<osmium::Location, z_lvl_type> node_id_type;
 typedef std::map<node_id_type, osmium::unsigned_object_id_type>
     z_lvl_nodes_map_type;
 
+typedef uint64_t cond_type_type;
+typedef std::pair<cond_id_type, cond_type_type> cond_pair_type;
+typedef std::vector<mod_group_type> mod_group_vector_type;
+typedef std::unordered_map<cond_id_type, mod_group_vector_type>
+    cnd_mod_map_type;
+typedef std::multimap<link_id_type, cond_pair_type> cdms_map_type;
 #endif /* PLUGINS_NAVTEQ_NAVTEQ_TYPES_HPP_ */

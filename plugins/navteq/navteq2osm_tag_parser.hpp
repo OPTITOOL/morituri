@@ -74,6 +74,8 @@ bool is_motorized_allowed(OGRFeature *f) {
     return true;
   if (parse_bool(get_field_from_feature(f, AR_TRUCKS)))
     return true;
+  if (parse_bool(get_field_from_feature(f, AR_DELIV)))
+    return true;
   if (parse_bool(get_field_from_feature(f, AR_EMERVEH)))
     return true;
   if (parse_bool(get_field_from_feature(f, AR_MOTORCYCLES)))
@@ -82,14 +84,13 @@ bool is_motorized_allowed(OGRFeature *f) {
   return false;
 }
 
-uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
-  area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
+uint get_area_code_l(area_id_type l_area_id, area_id_type r_area_id,
+                     mtd_area_map_type *mtd_area_map) {
 
   auto l_area = mtd_area_map->find(l_area_id);
   if (l_area != mtd_area_map->end())
     return l_area->second.area_code_1;
 
-  area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
   auto r_area = mtd_area_map->find(r_area_id);
   if (r_area != mtd_area_map->end())
     return r_area->second.area_code_1;
@@ -97,6 +98,13 @@ uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
   throw(out_of_range_exception("could not find area_id " +
                                std::to_string(++ctr) + ", " +
                                std::to_string(mtd_area_map->size())));
+}
+
+uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
+  area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
+  area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
+
+  return get_area_code_l(l_area_id, r_area_id, mtd_area_map);
 }
 
 std::vector<std::string>
@@ -112,13 +120,22 @@ get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
   }
 }
 
-std::string get_hwy_value(ushort route_type, uint area_code_1,
-                          const std::string &ref_name) {
+std::string get_hwy_value(ushort route_type, ushort func_class,
+                          uint area_code_1, const std::string &ref_name) {
   /* some exceptional cases for better route type parsing */
-  if (area_code_1 == 5 && route_type == 3) { /*"BEL"*/
-                                             /* N# and N## is like PRIMARY
-                                              * N### SECONDARY
-                                              * N#### TERTIARY */
+  if (area_code_1 == 2 && route_type == 4) { /*"FRA"*/
+    /* Too many different highways have route type 4
+     * so we also take functional class into consideration */
+    if (func_class == 2)
+      return PRIMARY;
+    else if (func_class == 3)
+      return SECONDARY;
+    else if (func_class > 3)
+      return TERTIARY;
+  } else if (area_code_1 == 5 && route_type == 3) { /*"BEL"*/
+    /* N# and N## is like PRIMARY
+     * N### SECONDARY
+     * N#### TERTIARY */
     uint hwy_num = get_number_after(ref_name, "N");
     if (hwy_num > 999)
       return TERTIARY;
@@ -139,6 +156,17 @@ std::string get_hwy_value(ushort route_type, uint area_code_1,
     uint hwy_num = get_number_after(ref_name, "N");
     if (hwy_num > 0 && hwy_num < 50)
       return TRUNK;
+  } else if (area_code_1 == 109 ||
+             area_code_1 == 110 /*UK - Wales*/ /*UK - England*/
+             || area_code_1 == 112 ||
+             area_code_1 == 22) { /*UK - Scotland*/ /*UK - Northern Ireland*/
+    /* Differ between white and green shield A-Roads */
+    if (route_type == 2) {
+      if (func_class == 2 || func_class == 1)
+        return TRUNK;
+      else
+        return PRIMARY;
+    }
   }
 
   /* default case */
@@ -178,7 +206,7 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
         builder->add_tag(HIGHWAY, MOTORWAY);
       } else if (route_type) {
         std::string hwy_value =
-            get_hwy_value(route_type, area_code_1, ref_name);
+            get_hwy_value(route_type, func_class, area_code_1, ref_name);
         if (!hwy_value.empty()) {
           builder->add_tag(HIGHWAY, hwy_value);
         } else {
@@ -194,7 +222,7 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
 
         builder->add_tag(HIGHWAY, hwy_func_class_vec.at(apply_func_class));
       } else {
-        std::cerr << " highway misses route_type and func_class! ";
+        std::cerr << " highway misses route_type and func_class! " << std::endl;
       }
     }
   }
@@ -220,7 +248,8 @@ void add_one_way_tag(osmium::builder::TagListBuilder *builder,
 }
 
 void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
-  if (!parse_bool(get_field_from_feature(f, AR_AUTO)))
+  bool automobile_allowed = parse_bool(get_field_from_feature(f, AR_AUTO));
+  if (!automobile_allowed)
     builder->add_tag("motorcar", NO);
   if (!parse_bool(get_field_from_feature(f, AR_BUS)))
     builder->add_tag("bus", NO);
@@ -231,11 +260,17 @@ void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
   if (!parse_bool(get_field_from_feature(f, AR_PEDESTRIANS)))
     builder->add_tag("foot", NO);
   if (!parse_bool(get_field_from_feature(f, AR_TRUCKS))) {
-    if (!parse_bool(get_field_from_feature(f, AR_DELIV))) {
-      builder->add_tag("hgv", NO);
-    } else {
-      builder->add_tag("hgv", "delivery");
-    }
+    // truck access handling:
+    if (!parse_bool(get_field_from_feature(f, AR_DELIV)))
+      builder->add_tag("hgv",
+                       NO); // no truck + no delivery => hgv not allowed at all
+    else if (!automobile_allowed)
+      builder->add_tag("access",
+                       "delivery"); // no automobile + no truck but delivery =>
+                                    // general access is 'delivery'
+    else if (automobile_allowed)
+      builder->add_tag("hgv", "delivery"); // automobile generally allowed =>
+                                           // only truck is 'delivery'
   }
   if (!parse_bool(get_field_from_feature(f, AR_EMERVEH)))
     builder->add_tag("emergency", NO);
@@ -393,13 +428,11 @@ void add_hazmat_tag(osmium::builder::TagListBuilder *builder,
 /**
  * \brief adds maxheight, maxwidth, maxlength, maxweight and maxaxleload tags.
  */
-void add_additional_restrictions(osmium::builder::TagListBuilder *builder,
-                                 link_id_type link_id, area_id_type l_area_id,
-                                 area_id_type r_area_id,
-                                 cdms_map_type *cdms_map,
-                                 cnd_mod_map_type *cnd_mod_map,
-                                 area_id_govt_code_map_type *area_govt_map,
-                                 cntry_ref_map_type *cntry_map) {
+void add_additional_restrictions(
+    osmium::builder::TagListBuilder *builder, link_id_type link_id,
+    area_id_type l_area_id, area_id_type r_area_id, cdms_map_type *cdms_map,
+    cnd_mod_map_type *cnd_mod_map, area_id_govt_code_map_type *area_govt_map,
+    cntry_ref_map_type *cntry_map, mtd_area_map_type *mtd_area_map) {
   if (!cdms_map || !cnd_mod_map)
     return;
 
@@ -416,11 +449,16 @@ void add_additional_restrictions(osmium::builder::TagListBuilder *builder,
   std::vector<mod_group_type> mod_group_vector;
   auto range = cdms_map->equal_range(link_id);
   for (auto it = range.first; it != range.second; ++it) {
-    cond_id_type cond_id = it->second;
-    auto it2 = cnd_mod_map->find(cond_id);
+    cond_pair_type cond = it->second;
+    if (cond.second == CT_RESTRICTED_DRIVING_MANOEUVRE ||
+        cond.second == CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE)
+      continue; // TODO RESTRICTED_DRIVING_MANOEUVRE should apply as conditional
+                // turn restriction but not for current link id
+    auto it2 = cnd_mod_map->find(cond.first);
     if (it2 != cnd_mod_map->end()) {
-      auto mod_group = it2->second;
-      mod_group_vector.push_back(mod_group);
+      for (auto mod_group : it2->second) {
+        mod_group_vector.push_back(mod_group);
+      }
     }
   }
 
@@ -444,6 +482,21 @@ void add_additional_restrictions(osmium::builder::TagListBuilder *builder,
         max_axleload = mod_val;
     } else if (mod_type == MT_HAZARDOUS_RESTRICTION) {
       add_hazmat_tag(builder, mod_val);
+    }
+  }
+
+  if (get_area_code_l(l_area_id, r_area_id, mtd_area_map) == 107) {
+    /** exceptional handling for Sweden as there are BK Roads
+     *
+     * HERE tags these roads with the most conservative values,
+     * which would make it unroutable for nearly every truck.
+     * Therefore we use the highest value and add a marker for BK2 / BK3 */
+    if (max_weight == 16000 && max_axleload == 10000) {
+      builder->add_tag("maxweight:class", "BK2");
+      max_weight = 51400;
+    } else if (max_weight == 12000 && max_axleload == 8000) {
+      builder->add_tag("maxweight:class", "BK3");
+      max_weight = 37000;
     }
   }
 
@@ -642,7 +695,8 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
   area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
   // tags which apply to highways and ferry routes
   add_additional_restrictions(builder, link_id, l_area_id, r_area_id, cdms_map,
-                              cnd_mod_map, area_govt_map, cntry_map);
+                              cnd_mod_map, area_govt_map, cntry_map,
+                              mtd_area_map);
   add_here_speed_cat_tag(builder, f);
   if (parse_bool(get_field_from_feature(f, TOLLWAY)))
     builder->add_tag("here:tollway", YES);
@@ -728,18 +782,21 @@ std::string parse_lang_code(std::string lang_code) {
   throw std::runtime_error("Language code '" + lang_code + "' not found");
 }
 
+std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
+  if (!is_in_range(navteq_admin_lvl_int, (uint)NAVTEQ_ADMIN_LVL_MIN,
+                   (uint)NAVTEQ_ADMIN_LVL_MAX))
+    throw std::runtime_error("invalid admin level. admin level '" +
+                             std::to_string(navteq_admin_lvl_int) +
+                             "' is out of range.");
+
+  return std::to_string(2 * navteq_admin_lvl_int).c_str();
+}
+
 std::string navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {
   if (string_is_not_unsigned_integer(navteq_admin_lvl))
     throw std::runtime_error("admin level contains invalid character");
 
-  int navteq_admin_lvl_int = stoi(navteq_admin_lvl);
-
-  if (!is_in_range(navteq_admin_lvl_int, NAVTEQ_ADMIN_LVL_MIN,
-                   NAVTEQ_ADMIN_LVL_MAX))
-    throw std::runtime_error("invalid admin level. admin level '" +
-                             std::to_string(navteq_admin_lvl_int) +
-                             "' is out of range.");
-  return std::to_string(2 * std::stoi(navteq_admin_lvl)).c_str();
+  return navteq_2_osm_admin_lvl(stoi(navteq_admin_lvl));
 }
 
 const char *parse_house_number_schema(const char *schema) {
