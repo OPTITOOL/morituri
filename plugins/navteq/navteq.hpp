@@ -885,11 +885,13 @@ void build_admin_boundary_taglist(osmium::builder::TagListBuilder &tl_builder,
                                   uint level) {
   // Mind tl_builder scope in calling method!
   if (level == 5) {
+    // only landuse residential
     tl_builder.add_tag("type", "multipolygon");
   } else {
     tl_builder.add_tag("type", "boundary");
+    tl_builder.add_tag("boundary", "administrative");
   }
-  tl_builder.add_tag("boundary", "administrative");
+
   for (int i = 0; i < layer->GetLayerDefn()->GetFieldCount(); i++) {
     OGRFieldDefn *po_field_defn = layer->GetLayerDefn()->GetFieldDefn(i);
     const char *field_name = po_field_defn->GetNameRef();
@@ -908,7 +910,7 @@ void build_admin_boundary_taglist(osmium::builder::TagListBuilder &tl_builder,
           tl_builder.add_tag("admin_level",
                              navteq_2_osm_admin_lvl(d.admin_lvl).c_str());
 
-        if (level == 5) {
+        if (level != 5) {
           for (auto it : d.lang_code_2_area_name)
             tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
                                it.second);
