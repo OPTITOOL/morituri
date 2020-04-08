@@ -121,7 +121,8 @@ get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
 }
 
 std::string get_hwy_value(ushort route_type, ushort func_class,
-                          uint area_code_1, const std::string &ref_name) {
+                          uint area_code_1, const std::string &ref_name,
+                          bool urban, bool ramp) {
   /* some exceptional cases for better route type parsing */
   if (area_code_1 == 2 && route_type == 4) { /*"FRA"*/
     /* Too many different highways have route type 4
@@ -167,10 +168,26 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
       else
         return PRIMARY;
     }
+  } else if (area_code_1 == 3) {
+    if (ramp && func_class == 2) {
+      return MOTORWAY_LINK;
+    } else if (ramp && func_class == 3) {
+      return PRIMARY_LINK;
+    } else if (ramp && func_class == 4) {
+      return SECONDARY_LINK;
+    }
   }
 
+  uint apply_func_class = func_class;
+  if (apply_func_class > 4 && urban) {
+    apply_func_class++;
+  } else if (func_class == 2 && route_type == 3) {
+    apply_func_class = 2; // primary
+  } else if (apply_func_class < 5) {
+    apply_func_class++;
+  }
   /* default case */
-  return get_hwy_vector(HWY_ROUTE_TYPE_MAP, area_code_1).at(route_type);
+  return get_hwy_vector(HWY_FUNC_CLASS_MAP, area_code_1).at(apply_func_class);
 }
 
 void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
@@ -199,28 +216,23 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
       // paved + motorized allowed
       bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
       bool urban = parse_bool(get_field_from_feature(f, URBAN));
+      bool ramp = parse_bool(get_field_from_feature(f, RAMP));
       uint area_code_1 = get_area_code_l(f, mtd_area_map);
-
       if (controlled_access) {
         // controlled_access => motorway
-        builder->add_tag(HIGHWAY, MOTORWAY);
-      } else if (route_type) {
-        std::string hwy_value =
-            get_hwy_value(route_type, func_class, area_code_1, ref_name);
+        if (ramp)
+          builder->add_tag(HIGHWAY, MOTORWAY_LINK);
+        else
+          builder->add_tag(HIGHWAY, MOTORWAY);
+      } else if (func_class || route_type) {
+        std::string hwy_value = get_hwy_value(
+            route_type, func_class, area_code_1, ref_name, urban, ramp);
         if (!hwy_value.empty()) {
           builder->add_tag(HIGHWAY, hwy_value);
         } else {
           std::cerr << "ignoring highway_level'" << std::to_string(route_type)
                     << "' for " << area_code_1 << std::endl;
         }
-      } else if (func_class) {
-        std::vector<std::string> hwy_func_class_vec =
-            get_hwy_vector(HWY_FUNC_CLASS_MAP, area_code_1);
-        uint apply_func_class = func_class;
-        if (apply_func_class > 4 && urban)
-          apply_func_class++;
-
-        builder->add_tag(HIGHWAY, hwy_func_class_vec.at(apply_func_class));
       } else {
         std::cerr << " highway misses route_type and func_class! " << std::endl;
       }
@@ -266,8 +278,8 @@ void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
                        NO); // no truck + no delivery => hgv not allowed at all
     else if (!automobile_allowed)
       builder->add_tag("access",
-                       "delivery"); // no automobile + no truck but delivery =>
-                                    // general access is 'delivery'
+                       "delivery"); // no automobile + no truck but delivery
+                                    // => general access is 'delivery'
     else if (automobile_allowed)
       builder->add_tag("hgv", "delivery"); // automobile generally allowed =>
                                            // only truck is 'delivery'
@@ -321,13 +333,6 @@ void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
     builder->add_tag("maxspeed", to);
   }
 
-  if (from_speed_limit > 130 && from_speed_limit < 999)
-    std::cerr << "Warning: Found speed limit > 130 (from_speed_limit): "
-              << from_speed_limit << std::endl;
-  if (to_speed_limit > 130 && to_speed_limit < 999)
-    std::cerr << "Warning: Found speed limit > 130 (to_speed_limit): "
-              << to_speed_limit << std::endl;
-
   free(from_speed_limit_s);
   free(to_speed_limit_s);
 }
@@ -348,11 +353,10 @@ void add_here_speed_cat_tag(osmium::builder::TagListBuilder *builder,
 
 /**
  * \brief check if unit is imperial. area_id(Streets.dbf) ->
- * govt_id(MtdArea.dbf) -> unit_measure(MtdCntryRef.dbf) \param area_id area_id
- * \param area_govt_map maps area_ids to govt_codes
- * \param cntry_map maps govt_codes to cntry_ref_types
- * \return returns false if any of the areas contain metric units or if its
- * unclear
+ * govt_id(MtdArea.dbf) -> unit_measure(MtdCntryRef.dbf) \param area_id
+ * area_id \param area_govt_map maps area_ids to govt_codes \param cntry_map
+ * maps govt_codes to cntry_ref_types \return returns false if any of the
+ * areas contain metric units or if its unclear
  */
 bool is_imperial(area_id_type area_id,
                  area_id_govt_code_map_type *area_govt_map,
@@ -377,8 +381,8 @@ bool is_imperial(area_id_type area_id,
  * govt_id(MtdArea.dbf) -> unit_measure(MtdCntryRef.dbf) \param l_area_id
  * area_id on the left side of the link \param r_area_id area_id on the right
  * side of the link \param area_govt_map maps area_ids to govt_codes \param
- * cntry_map maps govt_codes to cntry_ref_types \return returns false if any of
- * the areas contain metric units or if its unclear
+ * cntry_map maps govt_codes to cntry_ref_types \return returns false if any
+ * of the areas contain metric units or if its unclear
  */
 bool is_imperial(area_id_type l_area_id, area_id_type r_area_id,
                  area_id_govt_code_map_type *area_govt_map,
@@ -452,8 +456,8 @@ void add_additional_restrictions(
     cond_pair_type cond = it->second;
     if (cond.second == CT_RESTRICTED_DRIVING_MANOEUVRE ||
         cond.second == CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE)
-      continue; // TODO RESTRICTED_DRIVING_MANOEUVRE should apply as conditional
-                // turn restriction but not for current link id
+      continue; // TODO RESTRICTED_DRIVING_MANOEUVRE should apply as
+                // conditional turn restriction but not for current link id
     auto it2 = cnd_mod_map->find(cond.first);
     if (it2 != cnd_mod_map->end()) {
       for (auto mod_group : it2->second) {
@@ -596,26 +600,38 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
                                   link_id_to_names_map *names_map,
                                   link_id_type link_id) {
   std::string ref_tag;
+
   auto it = names_map->find(link_id);
   if (it != names_map->end()) {
-    std::vector<std::string> &highway_names_vector = it->second;
+    auto &highway_names_vector = it->second;
+    std::string street_name;
     std::string int_ref_tag;
 
     for (auto highwayName : highway_names_vector) {
 
-      if (ref_tag.empty() || !ref_tag.compare(0, 1, "E"))
-        ref_tag = highwayName;
+      // if (ref_tag.empty() || !ref_tag.compare(0, 1, "E"))
+      //   ref_tag = highwayName;
 
-      if (!highwayName.compare(0, 1, "E"))
-        int_ref_tag = highwayName;
+      // if (!highwayName.compare(0, 1, "E"))
+      //   int_ref_tag = highwayName;
 
       // TODO add to int_ref if way is asian highway ("AH")
+
+      if (highwayName.first == 0) {
+        street_name = highwayName.second;
+      } else if (highwayName.first == 1) {
+        int_ref_tag = highwayName.second;
+      } else {
+        ref_tag = highwayName.second;
+      }
     }
 
-    if (!ref_tag.empty())
-      builder->add_tag("ref", ref_tag.c_str());
-    if (!int_ref_tag.empty())
-      builder->add_tag("int_ref", int_ref_tag.c_str());
+    if (!street_name.empty())
+      builder->add_tag("name", to_camel_case_with_spaces(street_name));
+    if (!ref_tag.empty()) // national ref (Autobahn)
+      builder->add_tag("ref", ref_tag);
+    if (!int_ref_tag.empty()) // international ref (European street)
+      builder->add_tag("int_ref", int_ref_tag);
   }
 
   return ref_tag;
@@ -623,7 +639,7 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
 
 void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
                       ushort route_type, mtd_area_map_type *mtd_area_map,
-                      std::string ref_name) {
+                      const std::string &ref_name) {
 
   ushort func_class = 0;
   std::string func_class_s = get_field_from_feature(f, FUNC_CLASS);
@@ -681,10 +697,6 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
   // add tags for ref and int_ref to major highways
   std::string ref_name = add_highway_name_tags(builder, names_map, link_id);
 
-  std::string street_name =
-      to_camel_case_with_spaces(get_field_from_feature(f, ST_NAME));
-  if (!street_name.empty())
-    builder->add_tag("name", street_name);
   if (is_ferry(get_field_from_feature(f, FERRY))) {
     add_ferry_tag(builder, f);
   } else { // usual highways

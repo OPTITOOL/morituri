@@ -190,8 +190,10 @@ size_t build_turn_restriction(const osm_id_vector_type &osm_ids,
  * \return link id of parsed feature.
  */
 
-link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
-                            osmium::memory::Buffer &buf, short z_level = -5) {
+link_id_type
+build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
+               osmium::memory::Buffer &buf, short z_level,
+               std::pair<osmium::Location, osmium::Location> &startEnd) {
   osmium::builder::TagListBuilder tl_builder(buf, builder);
 
   link_id_type link_id = parse_street_tags(
@@ -288,6 +290,11 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
 
+  osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
+  osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
+                       ogr_ls->getY(ogr_ls->getNumPoints() - 1));
+  auto startEnd = std::make_pair(start, end);
+
   builder.set_user(USER);
   {
     osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
@@ -316,16 +323,12 @@ build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
     }
 
     if (withTurnRestrictions) {
-
-      osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
-      osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
-                           ogr_ls->getY(ogr_ls->getNumPoints() - 1));
-      wayStartEndMap.emplace(builder.object().id(), std::make_pair(start, end));
+      wayStartEndMap.emplace(builder.object().id(), startEnd);
     }
   }
 
-  link_id_type link_id = build_tag_list(feat, &builder, way_buffer, z_lvl);
-  assert(link_id != 0);
+  link_id_type link_id =
+      build_tag_list(feat, &builder, way_buffer, z_lvl, startEnd);
 
   if (withTurnRestrictions) {
     g_link_id_map[link_id].emplace_back(builder.object().id());
@@ -1848,19 +1851,21 @@ void init_country_reference(const boost::filesystem::path &dir,
 }
 
 void parse_highway_names(const boost::filesystem::path &dbf_file) {
-  DBFHandle maj_hwys_handle = read_dbf_file(dbf_file);
-  for (int i = 0; i < DBFGetRecordCount(maj_hwys_handle); i++) {
+  DBFHandle hwys_handle = read_dbf_file(dbf_file);
+  for (int i = 0; i < DBFGetRecordCount(hwys_handle); i++) {
 
-    link_id_type link_id = dbf_get_uint_by_field(maj_hwys_handle, i, LINK_ID);
-    std::string hwy_name =
-        dbf_get_string_by_field(maj_hwys_handle, i, HIGHWAY_NM);
+    link_id_type link_id = dbf_get_uint_by_field(hwys_handle, i, LINK_ID);
+    std::string hwy_name;
+    if (DBFGetFieldIndex(hwys_handle, HIGHWAY_NM) == -1)
+      hwy_name = dbf_get_string_by_field(hwys_handle, i, ST_NAME);
+    else
+      hwy_name = dbf_get_string_by_field(hwys_handle, i, HIGHWAY_NM);
 
-    if (!fits_street_ref(hwy_name))
-      continue;
+    uint routeType = dbf_get_uint_by_field(hwys_handle, i, ROUTE);
 
-    g_hwys_ref_map[link_id].push_back(hwy_name);
+    g_hwys_ref_map[link_id].push_back(std::make_pair(routeType, hwy_name));
   }
-  DBFClose(maj_hwys_handle);
+  DBFClose(hwys_handle);
 }
 
 void init_highway_names(const boost::filesystem::path &dir) {
@@ -1868,6 +1873,10 @@ void init_highway_names(const boost::filesystem::path &dir) {
     parse_highway_names(dir / MAJ_HWYS_DBF);
   if (dbf_file_exists(dir / SEC_HWYS_DBF))
     parse_highway_names(dir / SEC_HWYS_DBF);
+  if (dbf_file_exists(dir / ALT_STREETS_DBF))
+    parse_highway_names(dir / ALT_STREETS_DBF);
+  if (dbf_file_exists(dir / STREETS_DBF))
+    parse_highway_names(dir / STREETS_DBF);
 }
 
 z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
@@ -1887,7 +1896,6 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
     init_z_level_map(dir, out, z_level_map);
     init_conditional_driving_manoeuvres(dir, out);
     init_country_reference(dir, out);
-    init_highway_names(dir);
 
     GDALClose(ds);
   }
@@ -1930,6 +1938,9 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
                  osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
 
+    // parse highway names and refs
+    init_highway_names(dir);
+
     auto path = dir / STREETS_SHP;
     auto *ds = open_shape_file(path, out);
 
@@ -1950,6 +1961,8 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     way_buffer.commit();
     writer(std::move(node_buffer));
     writer(std::move(way_buffer));
+
+    g_hwys_ref_map.clear();
 
     GDALClose(ds);
   }

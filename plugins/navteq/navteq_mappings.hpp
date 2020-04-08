@@ -39,6 +39,7 @@ static const boost::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
 static const boost::filesystem::path POINT_ADDRESS_DBF = "PointAddress.dbf";
 
 static const boost::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
+static const boost::filesystem::path STREETS_DBF = "Streets.dbf";
 
 // STREETS columns
 const char *LINK_ID = "LINK_ID";
@@ -86,6 +87,7 @@ const char *L_AREA_ID = "L_AREA_ID";
 const char *R_AREA_ID = "R_AREA_ID";
 const char *L_POSTCODE = "L_POSTCODE";
 const char *R_POSTCODE = "R_POSTCODE";
+const char *RAMP = "RAMP";
 
 const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
 
@@ -175,9 +177,12 @@ static const char *speed_cat_metric[] = {
 
 // highway OSM tags
 const char *MOTORWAY = "motorway";
+const char *MOTORWAY_LINK = "motorway_link";
 const char *TRUNK = "trunk";
 const char *PRIMARY = "primary";
+const char *PRIMARY_LINK = "primary_link";
 const char *SECONDARY = "secondary";
+const char *SECONDARY_LINK = "secondary_link";
 const char *TERTIARY = "tertiary";
 const char *UNCLASSIFIED = "unclassified";
 const char *RESIDENTIAL = "residential";
@@ -244,9 +249,9 @@ std::map<int, std::vector<std::string>> const HWY_FUNC_CLASS_MAP = {
      *                         1,       2,         3,        4,        5 +
      * rural,    5 + urban */
     {0 /*"DEFAULT"*/,
-     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+     {"", TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {3 /*"GER"*/,
-     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+     {"", TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {8 /*"CHE"*/,
      {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {108 /*"DEN"*/,
