@@ -100,7 +100,7 @@ typedef std::map<link_id_type, osm_id_vector_type> link_id_map_type;
 
 typedef std::vector<link_id_type> link_id_vector_type;
 
-typedef std::map<link_id_type, std::vector<std::pair<uint, std::string>>>
+typedef std::map<link_id_type, std::map<uint, std::string>>
     link_id_to_names_map;
 
 typedef std::map<link_id_type, ushort> link_id_route_type_map;

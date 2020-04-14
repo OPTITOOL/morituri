@@ -168,24 +168,15 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
       else
         return PRIMARY;
     }
-  } else if (area_code_1 == 3) {
-    if (ramp && func_class == 2) {
-      return MOTORWAY_LINK;
-    } else if (ramp && func_class == 3) {
-      return PRIMARY_LINK;
-    } else if (ramp && func_class == 4) {
-      return SECONDARY_LINK;
-    }
   }
 
   uint apply_func_class = func_class;
   if (apply_func_class > 4 && urban) {
     apply_func_class++;
   } else if (func_class == 2 && route_type == 3) {
-    apply_func_class = 2; // primary
-  } else if (apply_func_class < 5) {
-    apply_func_class++;
+    apply_func_class = 1; // primary
   }
+
   /* default case */
   return get_hwy_vector(HWY_FUNC_CLASS_MAP, area_code_1).at(apply_func_class);
 }
@@ -598,7 +589,7 @@ void add_postcode_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
 
 std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
                                   link_id_to_names_map *names_map,
-                                  link_id_type link_id) {
+                                  link_id_type link_id, bool ramp) {
   std::string ref_tag;
 
   auto it = names_map->find(link_id);
@@ -608,15 +599,6 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
     std::string int_ref_tag;
 
     for (auto highwayName : highway_names_vector) {
-
-      // if (ref_tag.empty() || !ref_tag.compare(0, 1, "E"))
-      //   ref_tag = highwayName;
-
-      // if (!highwayName.compare(0, 1, "E"))
-      //   int_ref_tag = highwayName;
-
-      // TODO add to int_ref if way is asian highway ("AH")
-
       if (highwayName.first == 0) {
         street_name = highwayName.second;
       } else if (highwayName.first == 1) {
@@ -626,7 +608,7 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
       }
     }
 
-    if (!street_name.empty())
+    if (!street_name.empty() && !ramp)
       builder->add_tag("name", to_camel_case_with_spaces(street_name));
     if (!ref_tag.empty()) // national ref (Autobahn)
       builder->add_tag("ref", ref_tag);
@@ -685,6 +667,8 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
   link_id_type link_id = std::stoul(link_id_s);
   builder->add_tag(LINK_ID, link_id_s); // tag for debug purpose
 
+  bool ramp = parse_bool(get_field_from_feature(f, RAMP));
+
   ushort route_type = 0;
   if (!((std::string)get_field_from_feature(f, ROUTE)).empty())
     route_type = get_uint_from_feature(f, ROUTE);
@@ -695,7 +679,8 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
     route_type = routeTypeIter->second;
 
   // add tags for ref and int_ref to major highways
-  std::string ref_name = add_highway_name_tags(builder, names_map, link_id);
+  std::string ref_name =
+      add_highway_name_tags(builder, names_map, link_id, ramp);
 
   if (is_ferry(get_field_from_feature(f, FERRY))) {
     add_ferry_tag(builder, f);

@@ -44,6 +44,7 @@ static const boost::filesystem::path STREETS_DBF = "Streets.dbf";
 // STREETS columns
 const char *LINK_ID = "LINK_ID";
 const char *ST_NAME = "ST_NAME";
+const char *ST_NM_BASE = "ST_NM_BASE";
 
 const char *ADDR_TYPE = "ADDR_TYPE";
 const char *L_REFADDR = "L_REFADDR";
@@ -88,6 +89,8 @@ const char *R_AREA_ID = "R_AREA_ID";
 const char *L_POSTCODE = "L_POSTCODE";
 const char *R_POSTCODE = "R_POSTCODE";
 const char *RAMP = "RAMP";
+const char *EXITNAME = "EXITNAME";
+const char *JUNCTIONNM = "JUNCTIONNM";
 
 const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
 
@@ -249,11 +252,11 @@ std::map<int, std::vector<std::string>> const HWY_FUNC_CLASS_MAP = {
      *                         1,       2,         3,        4,        5 +
      * rural,    5 + urban */
     {0 /*"DEFAULT"*/,
-     {"", TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {3 /*"GER"*/,
-     {"", TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {8 /*"CHE"*/,
-     {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {108 /*"DEN"*/,
      {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {107 /*"SWE"*/,
