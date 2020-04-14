@@ -816,7 +816,7 @@ void process_way_end_node(const osmium::Location &location, link_id_type linkId,
       if (ramp != g_ramps_ref_map.end()) {
         tglBuilder.add_tag(HIGHWAY, "motorway_junction");
         tglBuilder.add_tag("ref", ramp->second[0]);
-        tglBuilder.add_tag("name", ramp->second[1]);
+        tglBuilder.add_tag("name", to_camel_case_with_spaces(ramp->second[1]));
       }
     }
   }
