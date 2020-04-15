@@ -54,7 +54,7 @@ link_id_route_type_map g_route_type_map;
 link_id_to_names_map g_hwys_ref_map;
 
 // g_ramps_ref_map maps navteq link_ids to a vector of ramp names
-link_id_to_names_map g_ramps_ref_map;
+std::map<osmium::Location, std::map<uint, std::string>> g_ramps_ref_map;
 
 std::map<osmium::unsigned_object_id_type,
          std::pair<osmium::Location, osmium::Location>>
@@ -796,50 +796,40 @@ void process_house_numbers(
 }
 
 // \brief writes way end node to way_end_points_map.
-void process_way_end_node(const osmium::Location &location, link_id_type linkId,
-                          osmium::memory::Buffer &node_buffer,
-                          bool isWayStartPoint) {
-
-  osmium::unsigned_object_id_type osm_id = 0;
+void process_way_end_node(const osmium::Location &location,
+                          osmium::memory::Buffer &node_buffer) {
 
   auto it = g_way_end_points_map.find(location);
   if (it != g_way_end_points_map.end())
-    osm_id = it->second;
-  else {
-    osmium::builder::NodeBuilder builder(node_buffer);
-    osm_id = build_node(location, &builder);
+    return;
 
-    if (isWayStartPoint) {
+  osmium::builder::NodeBuilder builder(node_buffer);
+  osmium::unsigned_object_id_type osm_id = build_node(location, &builder);
+  // add ramp tags
+  auto ramp = g_ramps_ref_map.find(location);
+  if (ramp != g_ramps_ref_map.end()) {
+    if (ramp->second.find(0) != ramp->second.end()) {
       osmium::builder::TagListBuilder tglBuilder(builder);
-      // add ramp tags
-      auto ramp = g_ramps_ref_map.find(linkId);
-      if (ramp != g_ramps_ref_map.end()) {
-        tglBuilder.add_tag(HIGHWAY, "motorway_junction");
-        tglBuilder.add_tag("ref", ramp->second[0]);
-        tglBuilder.add_tag("name", to_camel_case_with_spaces(ramp->second[1]));
-      }
+      tglBuilder.add_tag(HIGHWAY, "motorway_junction");
+      tglBuilder.add_tag("ref", ramp->second[0]);
+      tglBuilder.add_tag("name", to_camel_case_with_spaces(ramp->second[1]));
     }
   }
-
   g_way_end_points_map.emplace(location, osm_id);
 }
 
 // \brief gets end nodes of linestring and processes them.
-void process_way_end_nodes(OGRFeature *feat, link_id_type linkId,
+void process_way_end_nodes(OGRFeature *feat,
                            osmium::memory::Buffer &node_buffer) {
 
   auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
 
-  bool isWayStartPoint = true;
-  if (!strcmp(feat->GetFieldAsString(DIR_TRAVEL), "T"))
-    isWayStartPoint = false;
-
   process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)),
-                       linkId, node_buffer, isWayStartPoint);
+                       node_buffer);
   process_way_end_node(
       osmium::Location(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
                        ogr_ls->getY(ogr_ls->getNumPoints() - 1)),
-      linkId, node_buffer, !isWayStartPoint);
+      node_buffer);
 }
 
 /**
@@ -1910,35 +1900,74 @@ void init_highway_names(const boost::filesystem::path &dir) {
     parse_highway_names(dir / STREETS_DBF, true);
 }
 
-void parse_ramp_names(const boost::filesystem::path &dbf_file, bool initRamps) {
+void parse_ramp_names(
+    const boost::filesystem::path &shp_file,
+    const std::map<link_id_type, std::string> &junctionNames) {
+
+  auto ds = open_shape_file(shp_file);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(shp_file.string()));
+
+  int exitNameField = layer->FindFieldIndex(EXITNAME, true);
+  int linkIdField = layer->FindFieldIndex(LINK_ID, true);
+  int baseNameField = layer->FindFieldIndex(ST_NM_BASE, true);
+  int directionField = layer->FindFieldIndex(DIR_TRAVEL, true);
+  int rampField = layer->FindFieldIndex(RAMP, true);
+
+  while (auto feat = layer->GetNextFeature()) {
+
+    if (!parse_bool(feat->GetFieldAsString(rampField)))
+      continue;
+
+    auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
+
+    auto location = osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0));
+    if (!strcmp(feat->GetFieldAsString(directionField), "T"))
+      location = osmium::Location(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
+                                  ogr_ls->getY(ogr_ls->getNumPoints() - 1));
+
+    if (parse_bool(feat->GetFieldAsString(exitNameField))) {
+      std::string exitName = feat->GetFieldAsString(baseNameField);
+
+      // add exit name
+      g_ramps_ref_map[location].emplace(0, exitName);
+
+      // add junction name
+      auto it = junctionNames.find(feat->GetFieldAsInteger(linkIdField));
+      if (it != junctionNames.end()) {
+        g_ramps_ref_map[location].emplace(1, it->second);
+      }
+    }
+
+    OGRFeature::DestroyFeature(feat);
+  }
+
+  GDALClose(ds);
+}
+
+std::map<link_id_type, std::string>
+read_junction_names(const boost::filesystem::path &dbf_file) {
   DBFHandle hwys_handle = read_dbf_file(dbf_file);
+  std::map<link_id_type, std::string> junctionNames;
   for (int i = 0; i < DBFGetRecordCount(hwys_handle); i++) {
 
     link_id_type link_id = dbf_get_uint_by_field(hwys_handle, i, LINK_ID);
     std::string ramp_name = dbf_get_string_by_field(hwys_handle, i, ST_NM_BASE);
-    if (initRamps) {
-      if (!parse_bool(dbf_get_string_by_field(hwys_handle, i, RAMP).c_str()))
-        continue; // no  ramp
-    } else if (g_ramps_ref_map.find(link_id) == g_ramps_ref_map.end())
-      continue; // no ramp was created in first run
 
-    if (!parse_bool(
+    if (parse_bool(
             dbf_get_string_by_field(hwys_handle, i, JUNCTIONNM).c_str())) {
-      g_ramps_ref_map[link_id].emplace(0, ramp_name);
-    }
-    if (!parse_bool(
-            dbf_get_string_by_field(hwys_handle, i, EXITNAME).c_str())) {
-      g_ramps_ref_map[link_id].emplace(1, ramp_name);
+      junctionNames[link_id] = ramp_name;
     }
   }
   DBFClose(hwys_handle);
+
+  return junctionNames;
 }
 
 void init_ramp_names(const boost::filesystem::path &dir) {
-  if (dbf_file_exists(dir / STREETS_DBF))
-    parse_ramp_names(dir / STREETS_DBF, true);
-  if (dbf_file_exists(dir / ALT_STREETS_DBF))
-    parse_ramp_names(dir / ALT_STREETS_DBF, false);
+  auto junctionMap = read_junction_names(dir / ALT_STREETS_DBF);
+  parse_ramp_names(dir / STREETS_SHP, junctionMap);
 }
 
 z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
@@ -1989,7 +2018,7 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
       // omit way end nodes with different z-levels (they have to be handled
       // extra)
       if (z_level_map.find(link_id) == z_level_map.end())
-        process_way_end_nodes(feat, link_id, node_buffer);
+        process_way_end_nodes(feat, node_buffer);
       OGRFeature::DestroyFeature(feat);
     }
     node_buffer.commit();
