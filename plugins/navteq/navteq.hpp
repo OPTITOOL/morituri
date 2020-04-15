@@ -630,10 +630,35 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
   if (!strcmp(get_field_from_feature(feat, addr_schema), "M"))
     return;
 
+  std::string startNumber =
+      get_field_from_feature(feat, left ? ref_addr : nref_addr);
+
+  std::string endNumber =
+      get_field_from_feature(feat, left ? nref_addr : ref_addr);
+
   std::unique_ptr<OGRLineString> offset_ogr_ls(
       create_offset_curve(ogr_ls, HOUSENUMBER_CURVE_OFFSET, left));
-  {
-    // scope way_builder
+  if (startNumber == endNumber) {
+    // no interpolation for signel addresses
+    OGRPoint midPoint;
+    offset_ogr_ls->Centroid(&midPoint);
+    {
+      osmium::Location location(midPoint.getX(), midPoint.getY());
+      // scope node_builder
+      osmium::builder::NodeBuilder node_builder(node_buffer);
+      build_node(location, &node_builder);
+      {
+        // scope tl_builder
+        osmium::builder::TagListBuilder tl_builder(node_builder);
+        tl_builder.add_tag("addr:housenumber", startNumber);
+        tl_builder.add_tag(
+            "addr:street",
+            to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME))
+                .c_str());
+      }
+    }
+  } else {
+    // osm address interpolation
     osmium::builder::WayBuilder way_builder(way_buffer);
     way_builder.object().set_id(g_osm_id++);
     set_dummy_osm_object_attributes(way_builder.object());
@@ -655,13 +680,9 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
                                                        &node_builder);
             if (i == 0 || i == offset_ogr_ls->getNumPoints() - 1) {
               if (i == 0) {
-                tl_builder.add_tag(
-                    "addr:housenumber",
-                    get_field_from_feature(feat, left ? ref_addr : nref_addr));
+                tl_builder.add_tag("addr:housenumber", startNumber);
               } else if (i == offset_ogr_ls->getNumPoints() - 1) {
-                tl_builder.add_tag(
-                    "addr:housenumber",
-                    get_field_from_feature(feat, left ? nref_addr : ref_addr));
+                tl_builder.add_tag("addr:housenumber", endNumber);
               }
               tl_builder.add_tag("addr:street",
                                  to_camel_case_with_spaces(
@@ -1966,7 +1987,10 @@ read_junction_names(const boost::filesystem::path &dbf_file) {
 }
 
 void init_ramp_names(const boost::filesystem::path &dir) {
+  // read junction names from alt_streets
   auto junctionMap = read_junction_names(dir / ALT_STREETS_DBF);
+
+  // create location ramps map
   parse_ramp_names(dir / STREETS_SHP, junctionMap);
 }
 
