@@ -1726,7 +1726,8 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
       std::string langCode = feat->GetFieldAsString(poiLangCodeField);
       std::string locName = feat->GetFieldAsString(poiNameField);
 
-      translations[poiId].emplace(parse_lang_code(langCode), locName);
+      translations[poiId].emplace(parse_lang_code(langCode),
+                                  to_camel_case_with_spaces(locName));
 
       OGRFeature::DestroyFeature(feat);
     }
