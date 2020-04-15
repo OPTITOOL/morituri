@@ -238,20 +238,6 @@ build_node(const osmium::Location &location,
 }
 
 /**
- * \brief gets id from Node with location. creates Node if missing.
- * \param location Location of Node being created.
- * \return id of found or created Node.
- */
-osmium::unsigned_object_id_type get_node(const osmium::Location &location,
-                                         osmium::memory::Buffer &node_buffer) {
-  auto it = g_way_end_points_map.find(location);
-  if (it != g_way_end_points_map.end())
-    return it->second;
-  osmium::builder::NodeBuilder builder(node_buffer);
-  return build_node(location, &builder);
-}
-
-/**
  * \brief adds WayNode to Way.
  * \param location Location of WayNode
  * \param wnl_builder Builder to create WayNode
@@ -1426,8 +1412,9 @@ void process_landuse(OGRLayer *layer, OGRFeature *feat,
 /**
  * \brief adds cities to the node buffer
  */
-void process_city(OGRLayer *layer, OGRFeature *feat, uint fac_type,
-                  osmium::memory::Buffer &node_buffer) {
+void process_city(OGRFeature *feat, uint fac_type,
+                  osmium::memory::Buffer &node_buffer,
+                  const std::map<std::string, std::string> &translations) {
 
   auto geom = feat->GetGeometryRef();
   auto geom_type = geom->getGeometryType();
@@ -1458,6 +1445,11 @@ void process_city(OGRLayer *layer, OGRFeature *feat, uint fac_type,
       tl_builder.add_tag("population", std::to_string(population));
       uint capital = feat->GetFieldAsInteger(CAPITAL);
       tl_builder.add_tag("place", get_place_value(population, capital));
+    }
+
+    // add translation tags
+    for (auto loc : translations) {
+      tl_builder.add_tag("name:" + loc.first, loc.second);
     }
   }
   node_buffer.commit();
@@ -1712,6 +1704,34 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
 
     int facTypeField = layer->FindFieldIndex(FAC_TYPE, true);
     int poiNmTypeField = layer->FindFieldIndex(POI_NMTYPE, true);
+    int poiLangCodeField = layer->FindFieldIndex(POI_LANGCD, true);
+    int poiIdField = layer->FindFieldIndex(POI_ID, true);
+    int poiNameField = layer->FindFieldIndex(POI_NAME, true);
+
+    std::map<uint64_t, std::map<std::string, std::string>> translations;
+    // read translations
+    while (auto feat = layer->GetNextFeature()) {
+      uint fac_type = feat->GetFieldAsInteger(facTypeField);
+      if (fac_type != 4444 && fac_type != 9709) {
+        std::cerr << "Skipping city node because of wrong POI type"
+                  << std::endl;
+        continue;
+      }
+      std::string name_type = feat->GetFieldAsString(poiNmTypeField);
+      if (name_type == "B") {
+        // Skip this entry as it's just a translated namePlc of former one
+        continue;
+      }
+      int poiId = feat->GetFieldAsInteger(poiIdField);
+      std::string langCode = feat->GetFieldAsString(poiLangCodeField);
+      std::string locName = feat->GetFieldAsString(poiNameField);
+
+      translations[poiId].emplace(parse_lang_code(langCode), locName);
+
+      OGRFeature::DestroyFeature(feat);
+    }
+
+    layer->ResetReading();
 
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
@@ -1726,8 +1746,9 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
         // Skip this entry as it's just a translated namePlc of former one
         continue;
       }
+      int poiId = feat->GetFieldAsInteger(poiIdField);
 
-      process_city(layer, feat, fac_type, node_buffer);
+      process_city(feat, fac_type, node_buffer, translations[poiId]);
       OGRFeature::DestroyFeature(feat);
     }
     writer(std::move(node_buffer));

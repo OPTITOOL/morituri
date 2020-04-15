@@ -127,6 +127,8 @@ const char *HIGHWAY_NM = "HIGHWAY_NM";
 // NAMED_PLC columns
 // const char* LINK_ID = "LINK_ID";
 const char *POI_NAME = "POI_NAME";
+const char *POI_LANGCD = "POI_LANGCD";
+const char *POI_ID = "POI_ID";
 const char *FAC_TYPE = "FAC_TYPE";
 const char *POI_NMTYPE = "POI_NMTYPE";
 const char *POPULATION = "POPULATION";
