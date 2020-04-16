@@ -2427,6 +2427,8 @@ void add_admin_lines(boost::filesystem::path admin_line_shape_file,
     build_admin_line(layer, feat, node_buffer, way_buffer);
     OGRFeature::DestroyFeature(feat);
   }
+  node_buffer.commit();
+  way_buffer.commit();
 
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
