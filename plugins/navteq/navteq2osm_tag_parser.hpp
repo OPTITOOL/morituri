@@ -122,7 +122,7 @@ get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
 
 std::string get_hwy_value(ushort route_type, ushort func_class,
                           uint area_code_1, const std::string &ref_name,
-                          bool urban, bool ramp) {
+                          bool urban, uint lanes) {
   /* some exceptional cases for better route type parsing */
   if (area_code_1 == 2 && route_type == 4) { /*"FRA"*/
     /* Too many different highways have route type 4
@@ -173,8 +173,8 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
   uint apply_func_class = func_class;
   if (apply_func_class > 4 && urban) {
     apply_func_class++;
-  } else if (func_class == 2 && route_type == 3) {
-    apply_func_class = 1; // primary
+  } else if (func_class == 2 && (route_type == 3 || route_type == 2)) {
+    return PRIMARY; // primary
   }
 
   /* default case */
@@ -215,7 +215,10 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
       bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
       bool urban = parse_bool(get_field_from_feature(f, URBAN));
       bool ramp = parse_bool(get_field_from_feature(f, RAMP));
+      uint lanes = std::max(get_uint_from_feature(f, "FROM_LANES"),
+                            get_uint_from_feature(f, "TO_LANES"));
       uint area_code_1 = get_area_code_l(f, mtd_area_map);
+
       if (controlled_access) {
         // controlled_access => motorway
         if (ramp)
@@ -224,7 +227,7 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
           builder->add_tag(highwayTagName, MOTORWAY);
       } else if (func_class || route_type) {
         std::string hwy_value = get_hwy_value(
-            route_type, func_class, area_code_1, ref_name, urban, ramp);
+            route_type, func_class, area_code_1, ref_name, urban, lanes);
         if (!hwy_value.empty()) {
           builder->add_tag(highwayTagName, hwy_value);
         } else {
@@ -604,16 +607,22 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
     auto &highway_names_vector = it->second;
     std::string street_name;
     std::string int_ref_tag;
+    std::string nat_ref_tag;
 
     for (auto highwayName : highway_names_vector) {
       if (highwayName.first == 0) {
         street_name = highwayName.second;
       } else if (highwayName.first == 1) {
         int_ref_tag = highwayName.second;
-      } else {
-        ref_tag = highwayName.second;
+      } else if (highwayName.first > 1) {
+        nat_ref_tag = highwayName.second;
       }
     }
+
+    if (!nat_ref_tag.empty())
+      ref_tag = nat_ref_tag;
+    else
+      ref_tag = int_ref_tag;
 
     if (!street_name.empty() && !ramp)
       builder->add_tag("name", to_camel_case_with_spaces(street_name));
@@ -621,6 +630,8 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
       builder->add_tag("ref", ref_tag);
     if (!int_ref_tag.empty()) // international ref (European street)
       builder->add_tag("int_ref", int_ref_tag);
+    if (!nat_ref_tag.empty()) // national ref (European street)
+      builder->add_tag("nat_ref", nat_ref_tag);
   }
 
   return ref_tag;
@@ -789,7 +800,7 @@ std::string parse_lang_code(std::string lang_code) {
       return lang_code; // fallback
   }
   std::cerr << lang_code << " not found!" << std::endl;
-  throw std::runtime_error("Language code '" + lang_code + "' not found");
+  return lang_code; // fallback
 }
 
 std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
