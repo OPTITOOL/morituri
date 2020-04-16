@@ -195,6 +195,7 @@ const char *TRACK = "track";
 const char *PATH = "path";
 const char *FOOTWAY = "footway";
 const char *HIGHWAY = "highway";
+const char *CONSTRUCTION = "construction";
 
 const std::vector<std::string> DEFAULT_HWY_ROUTE_TYPE = {
     "", TRUNK, TRUNK, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED};

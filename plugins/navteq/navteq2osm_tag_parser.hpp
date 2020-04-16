@@ -184,25 +184,32 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
 void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
                      ushort route_type, ushort func_class,
                      mtd_area_map_type *mtd_area_map,
-                     const std::string &ref_name) {
+                     const std::string &ref_name, bool underConstruction) {
 
   bool paved = parse_bool(get_field_from_feature(f, PAVED));
   bool motorized_allowed = is_motorized_allowed(f);
 
+  std::string highwayTagName = HIGHWAY;
+
+  if (underConstruction) {
+    builder->add_tag(HIGHWAY, CONSTRUCTION);
+    highwayTagName = CONSTRUCTION;
+  }
+
   if (!paved) {
     if (!motorized_allowed) {
       // unpaved + non-motorized => path
-      builder->add_tag(HIGHWAY, PATH);
+      builder->add_tag(highwayTagName, PATH);
     } else {
       // unpaved + motorized allowed => track
-      builder->add_tag(HIGHWAY, TRACK);
+      builder->add_tag(highwayTagName, TRACK);
     }
   } else {
     if (!motorized_allowed) {
       // paved + non-motorized => footway
       // it seems imposref_nameible to distinguish footways from cycle ways or
       // pedestrian zones
-      builder->add_tag(HIGHWAY, FOOTWAY);
+      builder->add_tag(highwayTagName, FOOTWAY);
     } else {
       // paved + motorized allowed
       bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
@@ -212,14 +219,14 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
       if (controlled_access) {
         // controlled_access => motorway
         if (ramp)
-          builder->add_tag(HIGHWAY, MOTORWAY_LINK);
+          builder->add_tag(highwayTagName, MOTORWAY_LINK);
         else
-          builder->add_tag(HIGHWAY, MOTORWAY);
+          builder->add_tag(highwayTagName, MOTORWAY);
       } else if (func_class || route_type) {
         std::string hwy_value = get_hwy_value(
             route_type, func_class, area_code_1, ref_name, urban, ramp);
         if (!hwy_value.empty()) {
-          builder->add_tag(HIGHWAY, hwy_value);
+          builder->add_tag(highwayTagName, hwy_value);
         } else {
           std::cerr << "ignoring highway_level'" << std::to_string(route_type)
                     << "' for " << area_code_1 << std::endl;
@@ -621,14 +628,15 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
 
 void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
                       ushort route_type, mtd_area_map_type *mtd_area_map,
-                      const std::string &ref_name) {
+                      const std::string &ref_name, bool underConstruction) {
 
   ushort func_class = 0;
   std::string func_class_s = get_field_from_feature(f, FUNC_CLASS);
   if (!func_class_s.empty())
     func_class = get_uint_from_feature(f, FUNC_CLASS);
 
-  add_highway_tag(builder, f, route_type, func_class, mtd_area_map, ref_name);
+  add_highway_tag(builder, f, route_type, func_class, mtd_area_map, ref_name,
+                  underConstruction);
 
   add_one_way_tag(builder, get_field_from_feature(f, DIR_TRAVEL));
   add_access_tags(builder, f);
@@ -661,7 +669,8 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
                                cntry_ref_map_type *cntry_map,
                                mtd_area_map_type *mtd_area_map,
                                link_id_route_type_map *route_type_map,
-                               link_id_to_names_map *names_map) {
+                               link_id_to_names_map *names_map,
+                               const std::set<link_id_type> &construction_set) {
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   link_id_type link_id = std::stoul(link_id_s);
@@ -682,10 +691,14 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
   std::string ref_name =
       add_highway_name_tags(builder, names_map, link_id, ramp);
 
+  bool underConstruction =
+      (construction_set.find(link_id) != construction_set.end());
+
   if (is_ferry(get_field_from_feature(f, FERRY))) {
     add_ferry_tag(builder, f);
   } else { // usual highways
-    add_highway_tags(builder, f, route_type, mtd_area_map, ref_name);
+    add_highway_tags(builder, f, route_type, mtd_area_map, ref_name,
+                     underConstruction);
   }
 
   area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);

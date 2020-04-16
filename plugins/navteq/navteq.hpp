@@ -53,6 +53,9 @@ link_id_route_type_map g_route_type_map;
 // g_hwys_ref_map maps navteq link_ids to a vector of highway names
 link_id_to_names_map g_hwys_ref_map;
 
+// g_hwys_ref_map maps navteq link_ids to a vector of highway names
+std::set<link_id_type> g_construction_set;
+
 // g_ramps_ref_map maps navteq link_ids to a vector of ramp names
 std::map<osmium::Location, std::map<uint, std::string>> g_ramps_ref_map;
 
@@ -199,7 +202,8 @@ link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
 
   link_id_type link_id = parse_street_tags(
       &tl_builder, feat, &g_cdms_map, &g_cnd_mod_map, &g_area_to_govt_code_map,
-      &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map);
+      &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map,
+      g_construction_set);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -1913,6 +1917,21 @@ void init_country_reference(const boost::filesystem::path &dir,
   }
 }
 
+void init_under_construction(const boost::filesystem::path &dir) {
+  if (!dbf_file_exists(dir / CDMS_DBF))
+    return;
+
+  DBFHandle cond = read_dbf_file(dir / CDMS_DBF);
+  for (int i = 0; i < DBFGetRecordCount(cond); i++) {
+    link_id_type link_id = dbf_get_uint_by_field(cond, i, LINK_ID);
+    uint condType = dbf_get_uint_by_field(cond, i, COND_TYPE);
+
+    if (condType == 3)
+      g_construction_set.emplace(link_id);
+  }
+  DBFClose(cond);
+}
+
 void parse_highway_names(const boost::filesystem::path &dbf_file,
                          bool isStreetLayer) {
   DBFHandle hwys_handle = read_dbf_file(dbf_file);
@@ -2080,6 +2099,9 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
   for (auto &dir : dirs) {
     // parse highway names and refs
     init_highway_names(dir);
+
+    // parse conditionals
+    init_under_construction(dir);
 
     auto path = dir / STREETS_SHP;
     auto *ds = open_shape_file(path, out);
