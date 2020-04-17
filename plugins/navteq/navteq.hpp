@@ -707,7 +707,7 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
 void create_premium_house_numbers(
     OGRFeature *feat,
     const std::vector<std::pair<osmium::Location, std::string>> &addressList,
-    osmium::memory::Buffer &node_buffer) {
+    int linkId, osmium::memory::Buffer &node_buffer) {
 
   for (auto &address : addressList) {
 
@@ -798,7 +798,7 @@ void process_house_numbers(
 
   auto it = pointAddresses->find(linkId);
   if (it != pointAddresses->end()) {
-    create_premium_house_numbers(feat, it->second, node_buffer);
+    create_premium_house_numbers(feat, it->second, linkId, node_buffer);
   } else {
     if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
       create_house_numbers(feat, ogr_ls, node_buffer, way_buffer);
@@ -2135,28 +2135,40 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
   auto pointAddressMap =
       new std::map<uint64_t,
                    std::vector<std::pair<osmium::Location, std::string>>>();
+  if (shp_file_exists(dir / POINT_ADDRESS_SHP)) {
+    auto *ds = open_shape_file(dir / POINT_ADDRESS_SHP);
 
-  if (dbf_file_exists(dir / POINT_ADDRESS_DBF)) {
-    DBFHandle houseNumberHandle = read_dbf_file(dir / POINT_ADDRESS_DBF);
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error((dir / POINT_ADDRESS_SHP).string()));
 
-    int latField = DBFGetFieldIndex(houseNumberHandle, "DISP_LAT");
-    int lonField = DBFGetFieldIndex(houseNumberHandle, "DISP_LON");
-    int addressField = DBFGetFieldIndex(houseNumberHandle, "ADDRESS");
-    int linkIdField = DBFGetFieldIndex(houseNumberHandle, LINK_ID);
+    int linkIdField = layer->FindFieldIndex(LINK_ID, true);
+    int latField = layer->FindFieldIndex("DISP_LAT", true);
+    int lonField = layer->FindFieldIndex("DISP_LON", true);
+    int addressField = layer->FindFieldIndex("ADDRESS", true);
 
-    for (int i = 0; i < DBFGetRecordCount(houseNumberHandle); i++) {
-      auto linkId = DBFReadIntegerAttribute(houseNumberHandle, i, linkIdField);
-      auto houseNumber = std::string(
-          DBFReadStringAttribute(houseNumberHandle, i, addressField));
-      auto lon = DBFReadDoubleAttribute(houseNumberHandle, i, lonField);
-      auto lat = DBFReadDoubleAttribute(houseNumberHandle, i, latField);
+    while (auto feat = layer->GetNextFeature()) {
+      int linkId = feat->GetFieldAsInteger(linkIdField);
+      auto houseNumber = std::string(feat->GetFieldAsString(addressField));
+
+      double lat = 0.0;
+      double lon = 0.0;
+
+      if (feat->IsFieldNull(lonField) && feat->IsFieldNull(latField)) {
+        auto point = static_cast<OGRPoint *>(feat->GetGeometryRef());
+        lat = point->getY();
+        lon = point->getX();
+      } else {
+        lon = feat->GetFieldAsDouble(lonField);
+        lat = feat->GetFieldAsDouble(latField);
+      }
 
       (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
                                               houseNumber);
-    }
-    DBFClose(houseNumberHandle);
-  }
 
+      OGRFeature::DestroyFeature(feat);
+    }
+  }
   return pointAddressMap;
 }
 

@@ -61,7 +61,7 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
     return false;
   if (!dbf_file_exists(dir / ALT_STREETS_DBF))
     return false;
-  if (!dbf_file_exists(dir / POINT_ADDRESS_DBF))
+  if (!shp_file_exists(dir / POINT_ADDRESS_SHP))
     std::cerr << "  point addresses are missing\n";
 
   if (!shp_file_exists(dir / NAMED_PLC_SHP))
@@ -135,8 +135,15 @@ void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
   // todo admin-levels only apply to the US => more generic for all countries
 
   for (auto dir : dirs) {
+
     if (shp_file_exists(dir / ADMINBNDY_1_SHP))
       add_admin_shape(dir / ADMINBNDY_1_SHP, writer, 1);
+
+    // for some countries the Adminbndy1.shp doesn't contain the whole country
+    // border therefore we additionally add the links from AdminLine1.shp
+    if (shp_file_exists(dir / ADMINLINE_1_SHP))
+      add_admin_lines(dir / ADMINLINE_1_SHP, writer);
+
     if (shp_file_exists(dir / ADMINBNDY_2_SHP))
       add_admin_shape(dir / ADMINBNDY_2_SHP, writer, 2);
     if (shp_file_exists(dir / ADMINBNDY_3_SHP))
@@ -145,10 +152,6 @@ void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
       add_admin_shape(dir / ADMINBNDY_4_SHP, writer, 4);
     if (shp_file_exists(dir / ADMINBNDY_5_SHP))
       add_admin_shape(dir / ADMINBNDY_5_SHP, writer, 5);
-    // for some countries the Adminbndy1.shp doesn't contain the whole country
-    // border therefore we additionally add the links from AdminLine1.shp
-    if (shp_file_exists(dir / ADMINLINE_1_SHP))
-      add_admin_lines(dir / ADMINLINE_1_SHP, writer);
   }
   g_mtd_area_map.clear();
 }
