@@ -1507,12 +1507,9 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
     osmium::unsigned_object_id_type area_id =
         dbf_get_uint_by_field(handle, i, AREA_ID);
 
-    mtd_area_dataset data;
+    // find or create a new area data set
+    mtd_area_dataset &data = g_mtd_area_map[area_id];
 
-    auto it = g_mtd_area_map.find(area_id);
-    if (it != g_mtd_area_map.end()) {
-      data = it->second;
-    }
     data.area_id = area_id;
 
     std::string admin_lvl =
@@ -1530,8 +1527,6 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
     data.lang_code_2_area_name.emplace_back(
         lang_code, to_camel_case_with_spaces(area_name));
     data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
-
-    g_mtd_area_map.emplace(area_id, data);
   }
   DBFClose(handle);
 }
