@@ -114,9 +114,7 @@ get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
   if (it != HWY_TYPE_MAP.end()) {
     return it->second;
   } else {
-    //		std::cerr << "could not find area_id " << area_code_1 << " use
-    // default" << std::endl;
-    return DEFAULT_HWY_ROUTE_TYPE;
+    return DEFAULT_HWY_FUNC_TYPE;
   }
 }
 

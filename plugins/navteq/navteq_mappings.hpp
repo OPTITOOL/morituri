@@ -251,12 +251,14 @@ std::map<int, std::vector<std::string>> const HWY_ROUTE_TYPE_MAP = {
      {"", TRUNK, PRIMARY, SECONDARY, TERTIARY, "", "", ""}},
     {130 /*"UKR"*/, {"", TRUNK, TRUNK, PRIMARY, PRIMARY, SECONDARY, ""}}};
 
+const std::vector<std::string> DEFAULT_HWY_FUNC_TYPE = {
+    "", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL};
+
 std::map<int, std::vector<std::string>> const HWY_FUNC_CLASS_MAP = {
     /* Applied with functional classes:
      *                         1,       2,         3,        4,        5 +
      * rural,    5 + urban */
-    {0 /*"DEFAULT"*/,
-     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+    {0 /*"DEFAULT"*/, DEFAULT_HWY_FUNC_TYPE},
     {3 /*"GER"*/,
      {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {8 /*"CHE"*/,
