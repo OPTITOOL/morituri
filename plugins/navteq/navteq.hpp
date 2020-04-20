@@ -993,26 +993,16 @@ void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
   }
 }
 
-void build_building_poly_taglist(osmium::builder::RelationBuilder &builder,
-                                 OGRLayer *layer, OGRFeature *feat,
-                                 osmium::memory::Buffer &rel_buffer) {
+void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
+                                 OGRFeature *feat) {
   // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
+  osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("building", "yes");
 
-  for (int i = 0; i < layer->GetLayerDefn()->GetFieldCount(); i++) {
-    OGRFieldDefn *po_field_defn = layer->GetLayerDefn()->GetFieldDefn(i);
-    const char *field_name = po_field_defn->GetNameRef();
-    const char *field_value = feat->GetFieldAsString(i);
-
-    if (!strcmp(field_name, POLYGON_NM)) {
-      if (field_value && field_value[0]) {
-        std::string waters_name = to_camel_case_with_spaces(field_value);
-        if (!waters_name.empty())
-          tl_builder.add_tag("name", waters_name);
-      }
-    }
-  }
+  std::string name = feat->GetFieldAsString(POLYGON_NM);
+  std::string building_name = to_camel_case_with_spaces(name);
+  if (!building_name.empty())
+    tl_builder.add_tag("name", building_name);
 }
 
 /**
@@ -1249,18 +1239,6 @@ osmium::unsigned_object_id_type build_water_relation_with_tags(
   return builder.object().id();
 }
 
-osmium::unsigned_object_id_type build_building_relation_with_tags(
-    OGRLayer *layer, OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
-    osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
-  osmium::builder::RelationBuilder builder(rel_buffer);
-  builder.object().set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(builder.object());
-  builder.set_user(USER);
-  build_building_poly_taglist(builder, layer, feat, rel_buffer);
-  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids, rel_buffer);
-  return builder.object().id();
-}
-
 osmium::unsigned_object_id_type build_landuse_relation_with_tags(
     OGRLayer *layer, OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
     osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
@@ -1385,35 +1363,36 @@ void process_water(OGRLayer *layer, OGRFeature *feat,
 /**
  * \brief adds water polygons as Relations to m_buffer
  */
-void process_building(OGRLayer *layer, OGRFeature *feat,
-                      osmium::memory::Buffer &node_buffer,
-                      osmium::memory::Buffer &way_buffer,
-                      osmium::memory::Buffer &rel_buffer) {
+void process_building(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
+                      osmium::memory::Buffer &way_buffer) {
   auto geom = feat->GetGeometryRef();
-  auto geom_type = geom->getGeometryType();
 
-  osm_id_vector_type exterior_way_ids, interior_way_ids;
-  if (geom_type == wkbMultiPolygon) {
-    create_multi_polygon(static_cast<OGRMultiPolygon *>(geom), exterior_way_ids,
-                         interior_way_ids, node_buffer, way_buffer);
-  } else if (geom_type == wkbPolygon) {
-    create_polygon(static_cast<OGRPolygon *>(geom), exterior_way_ids,
-                   interior_way_ids, node_buffer, way_buffer);
-  } else {
-    throw(std::runtime_error(
-        "Building item with geometry=" + std::string(geom->getGeometryName()) +
-        " is not yet supported."));
-  }
-  build_building_relation_with_tags(layer, feat, exterior_way_ids,
-                                    interior_way_ids, rel_buffer);
+  node_vector_type osm_way_node_ids = create_closed_way_nodes(
+      static_cast<OGRPolygon *>(geom)->getExteriorRing(), node_buffer);
 
+  osm_id_vector_type osm_way_ids;
+  size_t i = 0;
+  do {
+    osmium::builder::WayBuilder builder(way_buffer);
+    builder.object().set_id(g_osm_id++);
+    set_dummy_osm_object_attributes(builder.object());
+    builder.set_user(USER);
+    {
+      osmium::builder::WayNodeListBuilder wnl_builder(builder);
+      for (size_t j = i;
+           j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
+        wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
+                                 osm_way_node_ids.at(j).first);
+    }
+    osm_way_ids.push_back(builder.object().id());
+    i += OSM_MAX_WAY_NODES - 1;
+    build_building_poly_taglist(builder, feat);
+  } while (i < osm_way_node_ids.size());
   node_buffer.commit();
   way_buffer.commit();
-  rel_buffer.commit();
 }
 
-void process_railways(OGRLayer *layer, OGRFeature *feat,
-                      osmium::memory::Buffer &node_buffer,
+void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
                       osmium::memory::Buffer &way_buffer) {
 
   OGRLineString *line = static_cast<OGRLineString *>(feat->GetGeometryRef());
@@ -1427,13 +1406,6 @@ void process_railways(OGRLayer *layer, OGRFeature *feat,
     {
       osmium::builder::TagListBuilder tl_builder(way_buffer, &builder);
       tl_builder.add_tag("railway", "rail");
-    }
-    build_water_way_taglist(builder, layer, feat, way_buffer);
-    {
-      osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
-      for (auto osm_way_node_id : osm_way_node_ids) {
-        wnl_builder.add_node_ref(osm_way_node_id.second, osm_way_node_id.first);
-      }
     }
   }
   node_buffer.commit();
@@ -2403,16 +2375,14 @@ void add_building_shape(boost::filesystem::path landmark_shape_file,
          layer->GetGeomType() == wkbLineString);
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
-  osmium::memory::Buffer rel_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
     if (!strcmp(feat->GetFieldAsString(FEAT_COD), "2005999")) {
-      process_building(layer, feat, node_buffer, way_buffer, rel_buffer);
+      process_building(feat, node_buffer, way_buffer);
     }
     OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  writer(std::move(rel_buffer));
   GDALClose(ds);
 }
 
@@ -2427,7 +2397,7 @@ void add_railways_shape(boost::filesystem::path water_shape_file,
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
-    process_railways(layer, feat, node_buffer, way_buffer);
+    process_railways(feat, node_buffer, way_buffer);
     OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
