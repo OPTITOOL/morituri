@@ -100,7 +100,7 @@ geos::geom::Coordinate move_point(const geos::geom::Coordinate &moving_coord,
                                   double move_distance) {
 
   double distance = moving_coord.distance(reference_coord);
-  assert(move_distance < distance);
+  // assert(move_distance < distance);
 
   // intercept theorem
   double ratio = move_distance / distance;

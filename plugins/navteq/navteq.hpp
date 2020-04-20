@@ -1406,6 +1406,19 @@ void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
     {
       osmium::builder::TagListBuilder tl_builder(way_buffer, &builder);
       tl_builder.add_tag("railway", "rail");
+      tl_builder.add_tag("usage", "main");
+
+      if (parse_bool(feat->GetFieldAsString(BRIDGE)))
+        tl_builder.add_tag("bridge", YES);
+
+      if (parse_bool(feat->GetFieldAsString(TUNNEL)))
+        tl_builder.add_tag("tunnel", YES);
+    }
+    {
+      osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
+      for (auto osm_way_node_id : osm_way_node_ids) {
+        wnl_builder.add_node_ref(osm_way_node_id.second, osm_way_node_id.first);
+      }
     }
   }
   node_buffer.commit();
