@@ -50,11 +50,11 @@ const char *ADDR_TYPE = "ADDR_TYPE";
 const char *L_REFADDR = "L_REFADDR";
 const char *L_NREFADDR = "L_NREFADDR";
 const char *L_ADDRSCH = "L_ADDRSCH";
-const char *L_ADDRFORM = "L_ADDRFORM";
+// const char *L_ADDRFORM = "L_ADDRFORM";
 const char *R_REFADDR = "R_REFADDR";
 const char *R_NREFADDR = "R_NREFADDR";
 const char *R_ADDRSCH = "R_ADDRSCH";
-const char *R_ADDRFORM = "R_ADDRFORM";
+// const char *R_ADDRFORM = "R_ADDRFORM";
 
 const char *FUNC_CLASS = "FUNC_CLASS";
 const char *SPEED_CAT = "SPEED_CAT";
@@ -64,7 +64,7 @@ const char *DIR_TRAVEL = "DIR_TRAVEL";
 const char *AR_AUTO = "AR_AUTO";
 const char *AR_BUS = "AR_BUS";
 const char *AR_TAXIS = "AR_TAXIS";
-const char *AR_CARPOOL = "AR_CARPOOL";
+// const char *AR_CARPOOL = "AR_CARPOOL";
 const char *AR_PEDESTRIANS = "AR_PEDEST";
 const char *AR_TRUCKS = "AR_TRUCKS";
 const char *AR_DELIV = "AR_DELIV";
@@ -92,7 +92,7 @@ const char *RAMP = "RAMP";
 const char *EXITNAME = "EXITNAME";
 const char *JUNCTIONNM = "JUNCTIONNM";
 
-const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
+// const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
 
 // MTD_AREA_DBF columns
 const char *AREA_ID = "AREA_ID";
@@ -115,10 +115,10 @@ const char *MAN_LINKID = "MAN_LINKID";
 
 // CDMS_DBF columns
 const char *COND_TYPE = "COND_TYPE";
-const char *COND_VAL1 = "COND_VAL1";
-const char *COND_VAL2 = "COND_VAL2";
-const char *COND_VAL3 = "COND_VAL3";
-const char *COND_VAL4 = "COND_VAL4";
+// const char *COND_VAL1 = "COND_VAL1";
+// const char *COND_VAL2 = "COND_VAL2";
+// const char *COND_VAL3 = "COND_VAL3";
+// const char *COND_VAL4 = "COND_VAL4";
 
 // MAJ_HWYS columns
 // const char* LINK_ID = "LINK_ID";
@@ -263,7 +263,7 @@ std::map<int, std::vector<std::string>> const HWY_FUNC_CLASS_MAP = {
     {108 /*"DEN"*/,
      {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
     {107 /*"SWE"*/,
-     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}}};
+     {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}}};
 
 const double HOUSENUMBER_CURVE_OFFSET = 0.00005;
 

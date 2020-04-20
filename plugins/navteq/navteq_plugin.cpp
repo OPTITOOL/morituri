@@ -10,6 +10,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/range/algorithm/copy.hpp>
 #include <exception>
 #include <gdal/ogr_api.h>
 
@@ -134,25 +135,20 @@ void navteq_plugin::write_output() {}
 void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
   // todo admin-levels only apply to the US => more generic for all countries
 
+  addLevel1Boundaries(dirs, writer);
+
   for (auto dir : dirs) {
-
-    if (shp_file_exists(dir / ADMINBNDY_1_SHP))
-      add_admin_shape(dir / ADMINBNDY_1_SHP, writer, 1);
-
-    // for some countries the Adminbndy1.shp doesn't contain the whole country
-    // border therefore we additionally add the links from AdminLine1.shp
-    if (shp_file_exists(dir / ADMINLINE_1_SHP))
-      add_admin_lines(dir / ADMINLINE_1_SHP, writer);
-
     if (shp_file_exists(dir / ADMINBNDY_2_SHP))
-      add_admin_shape(dir / ADMINBNDY_2_SHP, writer, 2);
+      addLevelNBoundaries(dir / ADMINBNDY_2_SHP, writer, 2);
     if (shp_file_exists(dir / ADMINBNDY_3_SHP))
-      add_admin_shape(dir / ADMINBNDY_3_SHP, writer, 3);
+      addLevelNBoundaries(dir / ADMINBNDY_3_SHP, writer, 3);
     if (shp_file_exists(dir / ADMINBNDY_4_SHP))
-      add_admin_shape(dir / ADMINBNDY_4_SHP, writer, 4);
+      addLevelNBoundaries(dir / ADMINBNDY_4_SHP, writer, 4);
     if (shp_file_exists(dir / ADMINBNDY_5_SHP))
-      add_admin_shape(dir / ADMINBNDY_5_SHP, writer, 5);
+      addLevelNBoundaries(dir / ADMINBNDY_5_SHP, writer, 5);
   }
+
+  // build relations for the admin line
   g_mtd_area_map.clear();
 }
 

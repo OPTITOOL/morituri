@@ -122,7 +122,7 @@ get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
 
 std::string get_hwy_value(ushort route_type, ushort func_class,
                           uint area_code_1, const std::string &ref_name,
-                          bool urban, uint lanes) {
+                          bool urban) {
   /* some exceptional cases for better route type parsing */
   if (area_code_1 == 2 && route_type == 4) { /*"FRA"*/
     /* Too many different highways have route type 4
@@ -168,6 +168,9 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
       else
         return PRIMARY;
     }
+  } else if (area_code_1 == 107) { // SWE
+    if (func_class == 1 && route_type == 1)
+      return TRUNK; // func_class 1 und not controlled
   }
 
   uint apply_func_class = func_class;
@@ -215,8 +218,6 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
       bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
       bool urban = parse_bool(get_field_from_feature(f, URBAN));
       bool ramp = parse_bool(get_field_from_feature(f, RAMP));
-      uint lanes = std::max(get_uint_from_feature(f, "FROM_LANES"),
-                            get_uint_from_feature(f, "TO_LANES"));
       uint area_code_1 = get_area_code_l(f, mtd_area_map);
 
       if (controlled_access) {
@@ -226,8 +227,8 @@ void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
         else
           builder->add_tag(highwayTagName, MOTORWAY);
       } else if (func_class || route_type) {
-        std::string hwy_value = get_hwy_value(
-            route_type, func_class, area_code_1, ref_name, urban, lanes);
+        std::string hwy_value =
+            get_hwy_value(route_type, func_class, area_code_1, ref_name, urban);
         if (!hwy_value.empty()) {
           builder->add_tag(highwayTagName, hwy_value);
         } else {
