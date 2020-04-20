@@ -941,11 +941,13 @@ void build_admin_boundary_taglist(osmium::builder::TagListBuilder &tl_builder,
       for (auto it : d.lang_code_2_area_name)
         tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
                            it.second);
-    } else {
-      tl_builder.add_tag("landuse", "residential");
     }
   } else {
     std::cerr << "Skipping unknown navteq_admin_level" << std::endl;
+  }
+
+  if (level == 5) {
+    tl_builder.add_tag("landuse", "residential");
   }
 }
 
@@ -2563,11 +2565,11 @@ void addLevelNBoundaries(boost::filesystem::path dir,
 
   // bild boundary relation
   osmium::memory::Buffer rel_buffer(buffer_size);
-  for (auto &admin1Boundary : map) {
+  for (auto &adminBoundary : map) {
 
     build_admin_boundary_relation_with_tags(
-        admin1Boundary.first, admin1Boundary.second.first,
-        admin1Boundary.second.second, rel_buffer, level);
+        adminBoundary.first, adminBoundary.second.first,
+        adminBoundary.second.second, rel_buffer, level);
   }
   rel_buffer.commit();
   writer(std::move(rel_buffer));
