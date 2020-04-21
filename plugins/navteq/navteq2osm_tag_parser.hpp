@@ -142,13 +142,9 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
       return SECONDARY;
   } else if (area_code_1 == 9) { /*"AUT"*/
     if (route_type == 4) {
-      // Type 4 streets named B### are primary otherwise secondary
-      if (!begins_with(ref_name, "B"))
-        return SECONDARY;
+      return PRIMARY; // bundesstrasse
     } else if (route_type == 5) {
-      // Type 5 streets named L### are secondary otherwise tertiary
-      if (begins_with(ref_name, "L"))
-        return SECONDARY;
+      return SECONDARY; // landesstrasse
     }
   } else if (area_code_1 == 23 && route_type == 2) { /*"IRL"*/
     /* N## is TRUNK if ## smaller 50 otherwise PRIMARY */
@@ -165,6 +161,8 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
         return TRUNK;
       else
         return PRIMARY;
+    } else if (route_type == 3 && func_class == 4) {
+      return SECONDARY;
     }
   } else if (area_code_1 == 107) { // SWE
     if (func_class == 1 && route_type == 1)

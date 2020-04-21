@@ -229,6 +229,9 @@ void navteq_plugin::execute() {
   std::cout << "Add buildings" << std::endl;
   add_buildings(writer);
 
+  std::cout << "Add rest areas" << std::endl;
+  add_rest_area_nodes(dirs, writer);
+
   writer.close();
 
   std::cout << std::endl << "fin" << std::endl;

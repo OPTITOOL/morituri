@@ -29,6 +29,7 @@ static const boost::filesystem::path NAMED_PLC_SHP = "NamedPlc.shp";
 static const boost::filesystem::path HAMLET_SHP = "Hamlet.shp";
 static const boost::filesystem::path POINT_ADDRESS_SHP = "PointAddress.shp";
 static const boost::filesystem::path LANDMARK_SHP = "Landmark.shp";
+static const boost::filesystem::path TRAVDEST_SHP = "TravDest.shp";
 
 static const boost::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";
 static const boost::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
