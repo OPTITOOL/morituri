@@ -1765,11 +1765,13 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
       if (fac_type != 4444 && fac_type != 9709) {
         std::cerr << "Skipping city node because of wrong POI type"
                   << std::endl;
+        OGRFeature::DestroyFeature(feat);
         continue;
       }
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type == "B") {
         // Skip this entry as it's just a translated namePlc of former one
+        OGRFeature::DestroyFeature(feat);
         continue;
       }
       int poiId = feat->GetFieldAsInteger(poiIdField);
@@ -1789,12 +1791,14 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
       if (fac_type != 4444 && fac_type != 9709) {
         std::cerr << "Skipping city node because of wrong POI type"
                   << std::endl;
+        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type != "B") {
         // Skip this entry as it's just a translated namePlc of former one
+        OGRFeature::DestroyFeature(feat);
         continue;
       }
       int poiId = feat->GetFieldAsInteger(poiIdField);
@@ -1831,12 +1835,14 @@ void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
       if (fac_type != 9998) {
         std::cerr << "Skipping hamlet node because of wrong POI type"
                   << std::endl;
+        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type != "B") {
         // Skip this entry as it's just a translated namePlc of former one
+        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
@@ -2025,8 +2031,10 @@ void parse_ramp_names(
 
   while (auto feat = layer->GetNextFeature()) {
 
-    if (!parse_bool(feat->GetFieldAsString(rampField)))
+    if (!parse_bool(feat->GetFieldAsString(rampField))) {
+      OGRFeature::DestroyFeature(feat);
       continue;
+    }
 
     auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
 
