@@ -1832,6 +1832,7 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
       process_city(feat, fac_type, node_buffer, translations[poiId]);
       OGRFeature::DestroyFeature(feat);
     }
+    node_buffer.commit();
     writer(std::move(node_buffer));
     GDALClose(ds);
   }
@@ -1902,8 +1903,6 @@ void add_rest_area_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 7897) {
-        std::cerr << "Skipping hamlet node because of wrong POI type"
-                  << std::endl;
         OGRFeature::DestroyFeature(feat);
         continue;
       }

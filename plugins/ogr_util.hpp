@@ -31,12 +31,17 @@ boost::iostreams::stream<boost::iostreams::null_sink>
 geos::geom::GeometryFactory::unique_ptr geos_factory =
     geos::geom::GeometryFactory::create();
 
+geos::operation::buffer::BufferParameters
+    ocb(geos::operation::buffer::BufferParameters::DEFAULT_QUADRANT_SEGMENTS,
+        geos::operation::buffer::BufferParameters::EndCapStyle::CAP_FLAT,
+        geos::operation::buffer::BufferParameters::JoinStyle::JOIN_MITRE,
+        geos::operation::buffer::BufferParameters::DEFAULT_MITRE_LIMIT);
+
 // create static buffer operation
 std::unique_ptr<geos::operation::buffer::OffsetCurveBuilder>
     offset_curve_builder =
         std::make_unique<geos::operation::buffer::OffsetCurveBuilder>(
-            geos_factory->getPrecisionModel(),
-            geos::operation::buffer::BufferParameters());
+            geos_factory->getPrecisionModel(), ocb);
 
 /**
  * Following functions convert OGRGeometry to geos::geom::Geometry and vice
