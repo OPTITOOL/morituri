@@ -34,7 +34,7 @@ geos::geom::GeometryFactory::unique_ptr geos_factory =
 geos::operation::buffer::BufferParameters
     ocb(geos::operation::buffer::BufferParameters::DEFAULT_QUADRANT_SEGMENTS,
         geos::operation::buffer::BufferParameters::EndCapStyle::CAP_FLAT,
-        geos::operation::buffer::BufferParameters::JoinStyle::JOIN_MITRE,
+        geos::operation::buffer::BufferParameters::JoinStyle::JOIN_BEVEL,
         geos::operation::buffer::BufferParameters::DEFAULT_MITRE_LIMIT);
 
 // create static buffer operation
