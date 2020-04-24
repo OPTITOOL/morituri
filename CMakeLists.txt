@@ -9,6 +9,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 # set c++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ADD_DEFINITIONS(-DBOOST_LOG_DYN_LINK)
 
 message(STATUS "Build ${CMAKE_BUILD_TYPE}")
 
@@ -18,11 +19,11 @@ IF(CMAKE_BUILD_TYPE MATCHES Debug)
 ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
   add_definitions(-DNDEBUG)
   # LTO produces slow binary (maybe libgeos)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -pedantic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -Wall -Wextra -pedantic")
 ENDIF()
 
 set(Boost_NO_BOOST_CMAKE ON)
-find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem locale)
+find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem locale log)
 find_package(GDAL REQUIRED)
 find_package(GEOS REQUIRED)
 find_package(Osmium)

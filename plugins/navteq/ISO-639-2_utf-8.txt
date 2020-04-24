@@ -485,3 +485,8 @@ zul||zu|Zulu|zoulou
 zun|||Zuni|zuni
 zxx|||No linguistic content; Not applicable|pas de contenu linguistique; non applicable
 zza|||Zaza; Dimili; Dimli; Kirdki; Kirmanjki; Zazaki|zaza; dimili; dimli; kirdki; kirmanjki; zazaki
+cht|zho|zh|Chinese (Traditional)|chinois
+scr||hr|Croatian|croate
+mne||me|Montenegrin|monténégrin
+mol||mo|Moldavian; Moldavan|moldave
+srb||sr|Serbian|serbe

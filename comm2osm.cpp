@@ -5,6 +5,7 @@
  */
 
 #include <boost/locale.hpp>
+#include <boost/log/trivial.hpp>
 #include <gdal/ogrsf_frmts.h>
 #include <getopt.h>
 #include <iostream>
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]) {
   for (auto &plugin : plugins) {
     if (plugin->check_input(input_path, output_file)) {
       plugin->setWithTurnRestrictions(withTrunRestrictions);
-      std::cout << "executing plugin " << plugin->get_name() << std::endl;
+      BOOST_LOG_TRIVIAL(info) << "executing plugin " << plugin->get_name();
       plugin->execute();
     }
   }

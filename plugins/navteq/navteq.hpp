@@ -855,8 +855,16 @@ node_vector_type create_closed_way_nodes(OGRLinearRing *ring,
   auto numOfPoints = ring->getNumPoints();
   for (int i = 0; i < numOfPoints - 1; ++i) {
     osmium::Location location(ring->getX(i), ring->getY(i));
-    osm_way_node_ids.emplace_back(location, build_node(location, node_buffer));
+    auto it = g_way_end_points_map.find(location);
+    if (it != g_way_end_points_map.end()) {
+      osm_way_node_ids.emplace_back(location, it->second);
+    } else {
+      auto osm_id = build_node(location, node_buffer);
+      osm_way_node_ids.emplace_back(location, osm_id);
+      g_way_end_points_map.emplace(location, osm_id);
+    }
   }
+
   // first and last node are the same in rings, hence add first node_id and
   // skip last node.
   osmium::Location last_location(ring->getX(numOfPoints - 1),
@@ -876,11 +884,19 @@ node_vector_type create_open_way_nodes(OGRLineString *line,
                                        osmium::memory::Buffer &node_buffer) {
   node_vector_type osm_way_node_ids;
   auto numPoints = line->getNumPoints();
+
   for (int i = 0; i < numPoints; ++i) {
     osmium::Location location(line->getX(i), line->getY(i));
-    auto osm_id = build_node(location, node_buffer);
-    osm_way_node_ids.emplace_back(location, osm_id);
+    auto it = g_way_end_points_map.find(location);
+    if (it != g_way_end_points_map.end()) {
+      osm_way_node_ids.emplace_back(location, it->second);
+    } else {
+      auto osm_id = build_node(location, node_buffer);
+      osm_way_node_ids.emplace_back(location, osm_id);
+      g_way_end_points_map.emplace(location, osm_id);
+    }
   }
+
   return osm_way_node_ids;
 }
 
@@ -915,9 +931,10 @@ osm_id_vector_type build_closed_ways(OGRLinearRing *ring,
 /**
  * \brief adds navteq administrative boundary tags to Relation
  */
-void build_admin_boundary_taglist(osmium::builder::TagListBuilder &tl_builder,
+void build_admin_boundary_taglist(osmium::builder::Builder &builder,
                                   osmium::unsigned_object_id_type area_id,
                                   uint level) {
+  osmium::builder::TagListBuilder tl_builder(builder);
   // Mind tl_builder scope in calling method!
   if (level == 5) {
     // only landuse residential
@@ -936,7 +953,8 @@ void build_admin_boundary_taglist(osmium::builder::TagListBuilder &tl_builder,
     if (!d.admin_lvl.empty())
       tl_builder.add_tag("admin_level",
                          navteq_2_osm_admin_lvl(d.admin_lvl).c_str());
-
+    if (!d.name.empty())
+      tl_builder.add_tag("name", d.name);
     if (level != 5) {
       for (auto it : d.lang_code_2_area_name)
         tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
@@ -955,10 +973,9 @@ void build_admin_boundary_taglist(osmium::builder::TagListBuilder &tl_builder,
  * \brief adds navteq water tags to Relation
  */
 void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
-                              OGRLayer *layer, OGRFeature *feat,
-                              osmium::memory::Buffer &rel_buffer) {
+                              OGRLayer *layer, OGRFeature *feat) {
   // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
+  osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("type", "multipolygon");
   tl_builder.add_tag("natural", "water");
 
@@ -1058,10 +1075,9 @@ void build_water_way_taglist(osmium::builder::WayBuilder &builder,
  * \brief adds navteq landuse tags to Relation
  */
 void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
-                           OGRLayer *layer, OGRFeature *feat,
-                           osmium::memory::Buffer &rel_buffer) {
+                           OGRLayer *layer, OGRFeature *feat) {
   // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
+  osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("type", "multipolygon");
 
   for (int i = 0; i < layer->GetLayerDefn()->GetFieldCount(); i++) {
@@ -1188,7 +1204,7 @@ osm_id_vector_type build_water_ways_with_tagList(
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
     build_water_way_taglist(builder, layer, feat, way_buffer);
-    osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
+    osmium::builder::WayNodeListBuilder wnl_builder(builder);
     for (size_t j = i;
          j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
       wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
@@ -1201,9 +1217,8 @@ osm_id_vector_type build_water_ways_with_tagList(
 
 void build_relation_members(osmium::builder::RelationBuilder &builder,
                             const osm_id_vector_type &ext_osm_way_ids,
-                            const osm_id_vector_type &int_osm_way_ids,
-                            osmium::memory::Buffer &rel_buffer) {
-  osmium::builder::RelationMemberListBuilder rml_builder(rel_buffer, &builder);
+                            const osm_id_vector_type &int_osm_way_ids) {
+  osmium::builder::RelationMemberListBuilder rml_builder(builder);
 
   for (osmium::unsigned_object_id_type osm_id : ext_osm_way_ids)
     rml_builder.add_member(osmium::item_type::way, osm_id, "outer");
@@ -1213,19 +1228,16 @@ void build_relation_members(osmium::builder::RelationBuilder &builder,
 }
 
 osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
-    osmium::unsigned_object_id_type area_id, osm_id_vector_type ext_osm_way_ids,
-    osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer,
-    uint level) {
+    osmium::unsigned_object_id_type area_id,
+    const osm_id_vector_type &ext_osm_way_ids,
+    const osm_id_vector_type &int_osm_way_ids,
+    osmium::memory::Buffer &rel_buffer, uint level) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
-  { // limit tl_builder scope!
-    osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
-    build_admin_boundary_taglist(tl_builder, area_id, level);
-  }
-
-  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids, rel_buffer);
+  build_admin_boundary_taglist(builder, area_id, level);
+  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
 
@@ -1236,8 +1248,8 @@ osmium::unsigned_object_id_type build_water_relation_with_tags(
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
-  build_water_poly_taglist(builder, layer, feat, rel_buffer);
-  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids, rel_buffer);
+  build_water_poly_taglist(builder, layer, feat);
+  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
 
@@ -1248,8 +1260,8 @@ osmium::unsigned_object_id_type build_landuse_relation_with_tags(
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
-  build_landuse_taglist(builder, layer, feat, rel_buffer);
-  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids, rel_buffer);
+  build_landuse_taglist(builder, layer, feat);
+  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
 
@@ -1406,7 +1418,7 @@ void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
     {
-      osmium::builder::TagListBuilder tl_builder(way_buffer, &builder);
+      osmium::builder::TagListBuilder tl_builder(builder);
       tl_builder.add_tag("railway", "rail");
       tl_builder.add_tag("usage", "main");
 
@@ -1417,7 +1429,7 @@ void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
         tl_builder.add_tag("tunnel", YES);
     }
     {
-      osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
+      osmium::builder::WayNodeListBuilder wnl_builder(builder);
       for (auto osm_way_node_id : osm_way_node_ids) {
         wnl_builder.add_node_ref(osm_way_node_id.second, osm_way_node_id.first);
       }
@@ -1482,7 +1494,7 @@ void process_city(OGRFeature *feat, uint fac_type,
     // Add new node
     osmium::builder::NodeBuilder node_builder(node_buffer);
     build_node(location, &node_builder);
-    osmium::builder::TagListBuilder tl_builder(node_buffer, &node_builder);
+    osmium::builder::TagListBuilder tl_builder(node_builder);
 
     std::string name = feat->GetFieldAsString(POI_NAME);
     tl_builder.add_tag("name", to_camel_case_with_spaces(name));
@@ -1532,7 +1544,7 @@ void process_hamlets(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
     // Add new node
     osmium::builder::NodeBuilder node_builder(node_buffer);
     build_node(location, &node_builder);
-    osmium::builder::TagListBuilder tl_builder(node_buffer, &node_builder);
+    osmium::builder::TagListBuilder tl_builder(node_builder);
 
     std::string name = feat->GetFieldAsString(POI_NAME);
     tl_builder.add_tag("name", to_camel_case_with_spaces(name));
@@ -1559,7 +1571,7 @@ void process_rest_area(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
     // Add new node
     osmium::builder::NodeBuilder node_builder(node_buffer);
     build_node(location, &node_builder);
-    osmium::builder::TagListBuilder tl_builder(node_buffer, &node_builder);
+    osmium::builder::TagListBuilder tl_builder(node_builder);
 
     std::string name = feat->GetFieldAsString(POI_NAME);
     tl_builder.add_tag("name", to_camel_case_with_spaces(name));
@@ -1576,8 +1588,7 @@ void process_rest_area(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
  * \param handle file handle to navteq administrative meta data.
  */
 void process_meta_areas(boost::filesystem::path dir, bool test = false) {
-  DBFHandle handle =
-      read_dbf_file(dir / MTD_AREA_DBF, test ? cnull : std::cerr);
+  DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
 
   for (int i = 0; i < DBFGetRecordCount(handle); i++) {
 
@@ -1604,6 +1615,11 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
     data.lang_code_2_area_name.emplace_back(
         lang_code, to_camel_case_with_spaces(area_name));
     data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
+
+    std::string area_type = dbf_get_string_by_field(handle, i, "AREA_TYPE");
+    if (area_type == "B") {
+      data.name = to_camel_case_with_spaces(area_name);
+    }
   }
   DBFClose(handle);
 }
@@ -1922,8 +1938,8 @@ void add_rest_area_nodes(const std::vector<boost::filesystem::path> &dirs,
   }
 }
 
-void init_g_cnd_mod_map(const boost::filesystem::path &dir, std::ostream &out) {
-  DBFHandle cnd_mod_handle = read_dbf_file(dir / CND_MOD_DBF, out);
+void init_g_cnd_mod_map(const boost::filesystem::path &dir) {
+  DBFHandle cnd_mod_handle = read_dbf_file(dir / CND_MOD_DBF);
   for (int i = 0; i < DBFGetRecordCount(cnd_mod_handle); i++) {
     cond_id_type cond_id = dbf_get_uint_by_field(cnd_mod_handle, i, COND_ID);
     std::string lang_code =
@@ -1948,8 +1964,8 @@ void init_g_cnd_mod_map(const boost::filesystem::path &dir, std::ostream &out) {
   DBFClose(cnd_mod_handle);
 }
 
-void init_g_cdms_map(const boost::filesystem::path &dir, std::ostream &out) {
-  DBFHandle cdms_handle = read_dbf_file(dir / CDMS_DBF, out);
+void init_g_cdms_map(const boost::filesystem::path &dir) {
+  DBFHandle cdms_handle = read_dbf_file(dir / CDMS_DBF);
   for (int i = 0; i < DBFGetRecordCount(cdms_handle); i++) {
     link_id_type link_id = dbf_get_uint_by_field(cdms_handle, i, LINK_ID);
     cond_id_type cond_id = dbf_get_uint_by_field(cdms_handle, i, COND_ID);
@@ -1959,9 +1975,8 @@ void init_g_cdms_map(const boost::filesystem::path &dir, std::ostream &out) {
   DBFClose(cdms_handle);
 }
 
-void init_g_area_to_govt_code_map(const boost::filesystem::path &dir,
-                                  std::ostream &out) {
-  DBFHandle mtd_area_handle = read_dbf_file(dir / MTD_AREA_DBF, out);
+void init_g_area_to_govt_code_map(const boost::filesystem::path &dir) {
+  DBFHandle mtd_area_handle = read_dbf_file(dir / MTD_AREA_DBF);
   for (int i = 0; i < DBFGetRecordCount(mtd_area_handle); i++) {
     area_id_type area_id = dbf_get_uint_by_field(mtd_area_handle, i, AREA_ID);
     govt_code_type govt_code =
@@ -1971,9 +1986,8 @@ void init_g_area_to_govt_code_map(const boost::filesystem::path &dir,
   DBFClose(mtd_area_handle);
 }
 
-void init_g_cntry_ref_map(const boost::filesystem::path &dir,
-                          std::ostream &out) {
-  DBFHandle cntry_ref_handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF, out);
+void init_g_cntry_ref_map(const boost::filesystem::path &dir) {
+  DBFHandle cntry_ref_handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF);
   for (int i = 0; i < DBFGetRecordCount(cntry_ref_handle); i++) {
     govt_code_type govt_code =
         dbf_get_uint_by_field(cntry_ref_handle, i, GOVT_CODE);
@@ -1990,11 +2004,10 @@ void init_g_cntry_ref_map(const boost::filesystem::path &dir,
 
 // \brief stores z_levels in z_level_map for later use. Maps link_ids to pairs
 // of indices and z-levels of waypoints with z-levels not equal 0.
-void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
-                      z_lvl_map &z_level_map) {
+void init_z_level_map(boost::filesystem::path dir, z_lvl_map &z_level_map) {
 
   // open dbf
-  DBFHandle handle = read_dbf_file(dir / ZLEVELS_DBF, out);
+  DBFHandle handle = read_dbf_file(dir / ZLEVELS_DBF);
 
   link_id_type last_link_id = 0;
   index_z_lvl_vector_type v;
@@ -2020,20 +2033,18 @@ void init_z_level_map(boost::filesystem::path dir, std::ostream &out,
     z_level_map.emplace(last_link_id, v);
 }
 
-void init_conditional_driving_manoeuvres(const boost::filesystem::path &dir,
-                                         std::ostream &out) {
+void init_conditional_driving_manoeuvres(const boost::filesystem::path &dir) {
   if (dbf_file_exists(dir / CND_MOD_DBF) && dbf_file_exists(dir / CDMS_DBF)) {
-    init_g_cnd_mod_map(dir, out);
-    init_g_cdms_map(dir, out);
+    init_g_cnd_mod_map(dir);
+    init_g_cdms_map(dir);
   }
 }
 
-void init_country_reference(const boost::filesystem::path &dir,
-                            std::ostream &out) {
+void init_country_reference(const boost::filesystem::path &dir) {
   if (dbf_file_exists(dir / MTD_AREA_DBF) &&
       dbf_file_exists(dir / MTD_CNTRY_REF_DBF)) {
-    init_g_area_to_govt_code_map(dir, out);
-    init_g_cntry_ref_map(dir, out);
+    init_g_area_to_govt_code_map(dir);
+    init_g_cntry_ref_map(dir);
   }
 }
 
@@ -2157,23 +2168,22 @@ void init_ramp_names(const boost::filesystem::path &dir) {
   parse_ramp_names(dir / STREETS_SHP, junctionMap);
 }
 
-z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
-                           std::ostream &out) {
+z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs) {
 
   z_lvl_map z_level_map;
 
   for (auto &dir : dirs) {
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path, out);
+    auto *ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
     assert(layer->GetGeomType() == wkbLineString);
 
-    init_z_level_map(dir, out, z_level_map);
-    init_conditional_driving_manoeuvres(dir, out);
-    init_country_reference(dir, out);
+    init_z_level_map(dir, z_level_map);
+    init_conditional_driving_manoeuvres(dir);
+    init_country_reference(dir);
 
     GDALClose(ds);
   }
@@ -2181,15 +2191,14 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
-                           z_lvl_map &z_level_map, std::ostream &out,
-                           osmium::io::Writer &writer) {
+                           z_lvl_map &z_level_map, osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
 
     // parse ramp names and refs
     init_ramp_names(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path, out);
+    auto *ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2216,8 +2225,7 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void process_way(const std::vector<boost::filesystem::path> &dirs,
-                 z_lvl_map &z_level_map, std::ostream &out,
-                 osmium::io::Writer &writer) {
+                 z_lvl_map &z_level_map, osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
     // parse highway names and refs
     init_highway_names(dir);
@@ -2226,7 +2234,7 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     init_under_construction(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path, out);
+    auto *ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2295,13 +2303,13 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
 }
 
 void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
-                           std::ostream &out, osmium::io::Writer &writer) {
+                           osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
     // create point addresses from PointAddress.dbf
     auto pointMap = createPointAddressMapList(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path, out);
+    auto *ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2370,24 +2378,22 @@ void process_alt_steets_route_types(
  */
 
 void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
-                       osmium::io::Writer &writer, bool test = false) {
+                       osmium::io::Writer &writer) {
 
-  std::ostream &out = test ? cnull : std::cerr;
+  BOOST_LOG_TRIVIAL(info) << " processing z-levels";
+  z_lvl_map z_level_map = process_z_levels(dirs);
 
-  out << " processing z-levels" << std::endl;
-  z_lvl_map z_level_map = process_z_levels(dirs, out);
+  BOOST_LOG_TRIVIAL(info) << " processing way end points";
+  process_way_end_nodes(dirs, z_level_map, writer);
 
-  out << " processing way end points" << std::endl;
-  process_way_end_nodes(dirs, z_level_map, out, writer);
-
-  out << " processing ways" << std::endl;
-  process_way(dirs, z_level_map, out, writer);
+  BOOST_LOG_TRIVIAL(info) << " processing ways";
+  process_way(dirs, z_level_map, writer);
 
   // create house numbers
-  out << " processing house numbers" << std::endl;
-  process_house_numbers(dirs, out, writer);
+  BOOST_LOG_TRIVIAL(info) << " processing house numbers";
+  process_house_numbers(dirs, writer);
 
-  out << " clean" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << " clean";
   for (auto elem : z_level_map)
     elem.second.clear();
   z_level_map.clear();
@@ -2403,10 +2409,10 @@ void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void add_street_shapes(const boost::filesystem::path &dir,
-                       osmium::io::Writer &writer, bool test = false) {
+                       osmium::io::Writer &writer) {
   std::vector<boost::filesystem::path> dir_vector;
   dir_vector.push_back(dir);
-  add_street_shapes(dir_vector, writer, test);
+  add_street_shapes(dir_vector, writer);
 }
 
 /**
@@ -2437,6 +2443,7 @@ void add_admin_shape(
 
 void add_water_shape(boost::filesystem::path water_shape_file,
                      osmium::io::Writer &writer) {
+  g_way_end_points_map.clear();
   auto ds = open_shape_file(water_shape_file);
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -2454,6 +2461,7 @@ void add_water_shape(boost::filesystem::path water_shape_file,
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
   GDALClose(ds);
+  g_way_end_points_map.clear();
 }
 
 void add_building_shape(boost::filesystem::path landmark_shape_file,
@@ -2479,6 +2487,7 @@ void add_building_shape(boost::filesystem::path landmark_shape_file,
 
 void add_railways_shape(boost::filesystem::path water_shape_file,
                         osmium::io::Writer &writer) {
+  g_way_end_points_map.clear();
   auto ds = open_shape_file(water_shape_file);
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -2494,11 +2503,12 @@ void add_railways_shape(boost::filesystem::path water_shape_file,
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   GDALClose(ds);
+  g_way_end_points_map.clear();
 }
 
 void add_landuse_shape(boost::filesystem::path landuse_shape_file,
                        osmium::io::Writer &writer) {
-
+  g_way_end_points_map.clear();
   auto ds = open_shape_file(landuse_shape_file);
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -2516,6 +2526,7 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
   GDALClose(ds);
+  g_way_end_points_map.clear();
 }
 
 /****************************************************
@@ -2549,12 +2560,7 @@ osm_id_vector_type build_admin_line(OGRFeature *feat,
     builder.object().set_id(g_osm_id++);
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
-    osmium::unsigned_object_id_type area_id = feat->GetFieldAsInteger(AREA_ID);
-    { // limit tl_builder scope!
-      osmium::builder::TagListBuilder tl_builder(way_buffer, &builder);
-      build_admin_boundary_taglist(tl_builder, area_id, 1);
-    }
-    osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
+    osmium::builder::WayNodeListBuilder wnl_builder(builder);
     for (size_t j = i;
          j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
       wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
@@ -2601,34 +2607,30 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
 
 void addLevel1Boundaries(std::vector<boost::filesystem::path> &dirs,
                          osmium::io::Writer &writer) {
+  std::map<int, std::pair<osm_id_vector_type, osm_id_vector_type>> map;
 
-  std::map<int, std::pair<osm_id_vector_type, osm_id_vector_type>> adminLineMap;
   for (auto dir : dirs) {
     // for some countries the Adminbndy1.shp doesn't contain the whole country
     // border therefore we additionally add the links from AdminLine1.shp
     if (shp_file_exists(dir / ADMINLINE_1_SHP)) {
       auto adminLine = add_admin_lines(dir / ADMINLINE_1_SHP, writer);
       // merge maps
-      for (auto mapEntry : adminLine) {
+      for (auto &mapEntry : adminLine) {
         boost::copy(mapEntry.second,
-                    std::back_inserter(adminLineMap[mapEntry.first].first));
+                    std::back_inserter(map[mapEntry.first].first));
       }
+    } else if (shp_file_exists(dir / ADMINBNDY_1_SHP)) {
+      add_admin_shape(dir / ADMINBNDY_1_SHP, writer, map);
     }
-  }
-
-  // add admin 1 boundaries
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / ADMINBNDY_1_SHP))
-      add_admin_shape(dir / ADMINBNDY_1_SHP, writer, adminLineMap);
   }
 
   // create relations for admin boundary 1
   osmium::memory::Buffer rel_buffer(buffer_size);
-  for (auto &admin1Boundary : adminLineMap) {
+  for (auto &adminBoundary : map) {
 
     build_admin_boundary_relation_with_tags(
-        admin1Boundary.first, admin1Boundary.second.first,
-        admin1Boundary.second.second, rel_buffer, 1);
+        adminBoundary.first, adminBoundary.second.first,
+        adminBoundary.second.second, rel_buffer, 1);
   }
   rel_buffer.commit();
   writer(std::move(rel_buffer));

@@ -10,6 +10,7 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/log/trivial.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <exception>
 #include <gdal/ogr_api.h>
@@ -63,22 +64,27 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
   if (!dbf_file_exists(dir / ALT_STREETS_DBF))
     return false;
   if (!shp_file_exists(dir / POINT_ADDRESS_SHP))
-    std::cerr << "  point addresses are missing\n";
+    BOOST_LOG_TRIVIAL(warning) << "  point addresses are missing";
 
   if (!shp_file_exists(dir / NAMED_PLC_SHP))
-    std::cerr << "  named places are missing\n";
+    BOOST_LOG_TRIVIAL(warning) << "  named places are missing";
   if (!shp_file_exists(dir / ADMINBNDY_1_SHP))
-    std::cerr << "  administrative boundaries level 1 are missing\n";
+    BOOST_LOG_TRIVIAL(warning)
+        << "  administrative boundaries level 1 are missing";
   if (!shp_file_exists(dir / ADMINBNDY_2_SHP))
-    std::cerr << "  administrative boundaries level 2 are missing\n";
+    BOOST_LOG_TRIVIAL(warning)
+        << "  administrative boundaries level 2 are missing";
   if (!shp_file_exists(dir / ADMINBNDY_3_SHP))
-    std::cerr << "  administrative boundaries level 3 are missing\n";
+    BOOST_LOG_TRIVIAL(warning)
+        << "  administrative boundaries level 3 are missing";
   if (!shp_file_exists(dir / ADMINBNDY_4_SHP))
-    std::cerr << "  administrative boundaries level 4 are missing\n";
+    BOOST_LOG_TRIVIAL(warning)
+        << "  administrative boundaries level 4 are missing";
   if (!shp_file_exists(dir / ADMINBNDY_5_SHP))
-    std::cerr << "  administrative boundaries level 5 are missing\n";
+    BOOST_LOG_TRIVIAL(warning)
+        << "  administrative boundaries level 5 are missing";
   if (!shp_file_exists(dir / ADMINLINE_1_SHP))
-    std::cerr << "  administrative lines level 1 are missing\n";
+    BOOST_LOG_TRIVIAL(warning) << "  administrative lines level 1 are missing";
   return true;
 }
 
@@ -122,9 +128,9 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
   if (dirs.empty())
     return false;
 
-  std::cout << "dirs: " << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "dirs: ";
   for (auto &dir : dirs)
-    std::cout << dir << std::endl;
+    BOOST_LOG_TRIVIAL(info) << dir;
 
   this->plugin_setup(input_path, output_file);
   return true;
@@ -135,6 +141,7 @@ void navteq_plugin::write_output() {}
 void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
   // todo admin-levels only apply to the US => more generic for all countries
 
+  g_way_end_points_map.clear();
   addLevel1Boundaries(dirs, writer);
 
   for (auto dir : dirs) {
@@ -150,6 +157,8 @@ void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
 
   // build relations for the admin line
   g_mtd_area_map.clear();
+
+  g_way_end_points_map.clear();
 }
 
 void navteq_plugin::add_water(osmium::io::Writer &writer) {
@@ -169,10 +178,12 @@ void navteq_plugin::add_railways(osmium::io::Writer &writer) {
 }
 
 void navteq_plugin::add_buildings(osmium::io::Writer &writer) {
+  g_way_end_points_map.clear();
   for (auto dir : dirs) {
     if (shp_file_exists(dir / LANDMARK_SHP))
       add_building_shape(dir / LANDMARK_SHP, writer);
   }
+  g_way_end_points_map.clear();
 }
 
 void navteq_plugin::add_landuse(osmium::io::Writer &writer) {
@@ -194,47 +205,47 @@ void navteq_plugin::execute() {
   hdr.set("xml_josm_upload", "false");
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
 
-  std::cout << "Procesing Meta areas" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Procesing Meta areas";
   preprocess_meta_areas(dirs);
 
-  std::cout << "Procesing alt street rout types" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Procesing alt street rout types";
   process_alt_steets_route_types(dirs);
 
-  std::cout << "Add street shapes" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add street shapes";
   add_street_shapes(dirs, writer);
 
   if (withTurnRestrictions) {
-    std::cout << "Add turn restrictions" << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "Add turn restrictions";
     add_turn_restrictions(dirs, writer);
   }
 
-  std::cout << "Add administrative boundaries" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add administrative boundaries";
   add_administrative_boundaries(writer);
 
-  std::cout << "Add water" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add water";
   add_water(writer);
 
-  std::cout << "Add landuse" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add landuse";
   add_landuse(writer);
 
-  std::cout << "Add city nodes" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add city nodes";
   add_city_nodes(dirs, writer);
 
-  std::cout << "Add hamlet nodes" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add hamlet nodes";
   add_hamlet_nodes(dirs, writer);
 
-  std::cout << "Add railways" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add railways";
   add_railways(writer);
 
-  std::cout << "Add buildings" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add buildings";
   add_buildings(writer);
 
-  std::cout << "Add rest areas" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << "Add rest areas";
   add_rest_area_nodes(dirs, writer);
 
   writer.close();
 
-  std::cout << std::endl << "fin" << std::endl;
+  BOOST_LOG_TRIVIAL(info) << std::endl << "fin";
 }
 
 void navteq_plugin::setWithTurnRestrictions(bool _withTurnRestrictions) {
