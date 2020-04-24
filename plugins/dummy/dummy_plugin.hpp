@@ -10,13 +10,17 @@
 
 #include "../base_plugin.hpp"
 
-class dummy_plugin: public base_plugin {
+class dummy_plugin : public base_plugin {
 public:
-    dummy_plugin();
-    virtual ~dummy_plugin();
+  dummy_plugin();
+  virtual ~dummy_plugin();
 
-    bool check_input(boost::filesystem::path input_path, boost::filesystem::path output_path = boost::filesystem::path());
-    void execute();
+  bool
+  check_input(boost::filesystem::path input_path,
+              boost::filesystem::path output_path = boost::filesystem::path());
+  void execute();
+
+  void setWithTurnRestrictions(bool withTurnRestrictions);
 };
 
 #endif /* DUMMYPLUGIN_HPP_ */

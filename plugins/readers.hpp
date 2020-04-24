@@ -8,35 +8,30 @@
 #ifndef PLUGINS_READERS_HPP_
 #define PLUGINS_READERS_HPP_
 
-#include <gdal/ogrsf_frmts.h>
 #include <boost/filesystem/path.hpp>
+#include <boost/log/trivial.hpp>
+#include <gdal/ogrsf_frmts.h>
+#include <shapefil.h>
 
 #include "comm2osm_exceptions.hpp"
 
-/*
- * \brief Checks shapefile existance and validity.
- * \param shp_file path and file name of shapefile.
- * \return Pointer to first layer in Shapefile.
- * */
+GDALDataset *open_shape_file(boost::filesystem::path shp_file) {
+  BOOST_LOG_TRIVIAL(info) << "\treading " << shp_file;
 
-OGRLayer* read_shape_file(boost::filesystem::path shp_file, std::ostream& out = std::cerr) {
-    RegisterOGRShape();
-    out << "reading " << shp_file << std::endl;
+  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
+      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
+  if (input_data_source == nullptr)
+    throw(shp_error(shp_file.string()));
 
-    OGRDataSource *input_data_source = OGRSFDriverRegistrar::Open(shp_file.c_str(), FALSE);
-    if (input_data_source == NULL) throw(shp_error(shp_file.string()));
-
-    OGRLayer *input_layer = input_data_source->GetLayer(0);
-    if (input_layer == NULL) throw(shp_empty_error(shp_file.string()));
-
-    return input_layer;
+  return input_data_source;
 }
 
-DBFHandle read_dbf_file(boost::filesystem::path dbf_file, std::ostream& out = std::cerr) {
-    out << "reading " << dbf_file << std::endl;
-    DBFHandle handle = DBFOpen(dbf_file.c_str(), "rb");
-    if (handle == NULL) throw(dbf_error(dbf_file.string()));
-    return handle;
+DBFHandle read_dbf_file(boost::filesystem::path dbf_file) {
+  BOOST_LOG_TRIVIAL(info) << "\treading " << dbf_file;
+  DBFHandle handle = DBFOpen(dbf_file.c_str(), "rb");
+  if (handle == nullptr)
+    throw(dbf_error(dbf_file.string()));
+  return handle;
 }
 
 #endif /* PLUGINS_READERS_HPP_ */

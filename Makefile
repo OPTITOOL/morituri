@@ -48,9 +48,9 @@ OSMPBF_LIBRARY=-losmpbf
 endif
 
 INCLUDES=${OSMIUM_INCLUDE} -Iplugins ${OSMPBF_INCLUDE}
-LIBS=-lbz2 -lgdal -lexpat -lgeos -lpthread -lz -lprotobuf-lite -lboost_system -lboost_filesystem -licuuc ${OSMPBF_LIBRARY}
+LIBS=-lbz2 -lgdal -lexpat -lgeos -lpthread -lz -lprotobuf-lite -lboost_system -lboost_filesystem -licuuc -lshp ${OSMPBF_LIBRARY}
 
-CXXFLAGS=-std=c++11 
+CXXFLAGS=-std=c++17 
 DEBUG_FLAGS=-O0 -g
 
 all: comm2osm-debug comm2osm tests

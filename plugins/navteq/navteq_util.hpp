@@ -8,9 +8,9 @@
 #ifndef PLUGINS_NAVTEQ_NAVTEQ_UTIL_HPP_
 #define PLUGINS_NAVTEQ_NAVTEQ_UTIL_HPP_
 
-#include <assert.h>
 #include "../util.hpp"
 #include "navteq_types.hpp"
+#include <assert.h>
 
 /**
  * \brief returns field from OGRFeature
@@ -20,12 +20,14 @@
  * \return const char* of field value
  */
 template <class T>
-const char* get_field_from_feature(std::unique_ptr<T>& feat, const char* field) {
-    assert(feat);
-    int field_index = feat->GetFieldIndex(field);
-    if (field_index == -1) std::cerr << field << std::endl;
-    assert(field_index != -1);
-    return feat->GetFieldAsString(field_index);
+const char *get_field_from_feature(std::unique_ptr<T> &feat,
+                                   const char *field) {
+  assert(feat);
+  int field_index = feat->GetFieldIndex(field);
+  if (field_index == -1)
+    std::cerr << field << std::endl;
+  assert(field_index != -1);
+  return feat->GetFieldAsString(field_index);
 }
 
 /**
@@ -36,17 +38,15 @@ const char* get_field_from_feature(std::unique_ptr<T>& feat, const char* field) 
  * \return field value as uint
  */
 template <class T>
-uint64_t get_uint_from_feature(std::unique_ptr<T>& feat, const char* field) {
-    const char* value = get_field_from_feature(feat, field);
-    assert(value);
-    try {
-        return std::stoul(value);
-    } catch (const std::invalid_argument &) {
-        throw format_error(
-                "Could not parse field='" + std::string(field) + "' with value='" + std::string(value) + "'");
-    }
+uint64_t get_uint_from_feature(std::unique_ptr<T> &feat, const char *field) {
+  const char *value = get_field_from_feature(feat, field);
+  assert(value);
+  try {
+    return std::stoul(value);
+  } catch (const std::invalid_argument &) {
+    throw format_error("Could not parse field='" + std::string(field) +
+                       "' with value='" + std::string(value) + "'");
+  }
 }
-
-
 
 #endif /* PLUGINS_NAVTEQ_NAVTEQ_UTIL_HPP_ */
