@@ -1505,7 +1505,8 @@ void process_city(OGRFeature *feat, uint fac_type,
       tl_builder.add_tag("place", "suburb");
     } else { //=> fac_type = 4444 means 'named place' which is the city centre
       int population = feat->GetFieldAsInteger(POPULATION);
-      tl_builder.add_tag("population", std::to_string(population));
+      if (population > 0)
+        tl_builder.add_tag("population", std::to_string(population));
       uint capital = feat->GetFieldAsInteger(CAPITAL);
       tl_builder.add_tag("place", get_place_value(population, capital));
       if (capital == 1) {
