@@ -64,7 +64,10 @@
 			"typeinfo": "cpp",
 			"bitset": "cpp",
 			"complex": "cpp",
-			"typeindex": "cpp"
+			"typeindex": "cpp",
+			"unordered_set": "cpp",
+			"variant": "cpp",
+			"bit": "cpp"
 		}
 	}
 }
