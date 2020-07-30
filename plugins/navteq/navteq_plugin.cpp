@@ -14,6 +14,7 @@
 #include <boost/range/algorithm/copy.hpp>
 #include <exception>
 #include <gdal/ogr_api.h>
+#include <iomanip>
 
 #include "navteq.hpp"
 #include "navteq_plugin.hpp"
@@ -260,8 +261,15 @@ void navteq_plugin::sortPBF() {
 
   osmium::io::File outfile(output_path.string());
   osmium::io::Header hdr;
-  hdr.set("generator", "osmium");
+  hdr.set("generator", "morituri");
   hdr.set("xml_josm_upload", "false");
+
+  auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  std::stringstream ss;
+  ss << std::put_time(std::gmtime(&now), "%FT%TZ");
+
+  hdr.set("osmosis_replication_timestamp", ss.str());
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
 
   osmium::io::File tmpfile(
