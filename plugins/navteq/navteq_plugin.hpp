@@ -11,12 +11,13 @@
 #include "../base_plugin.hpp"
 #include "navteq_types.hpp"
 #include <boost/filesystem/path.hpp>
+#include <osmium/osm/entity_bits.hpp>
 #include <string>
-
 namespace osmium {
 namespace io {
 class Writer;
-}
+class File;
+} // namespace io
 } // namespace osmium
 
 class navteq_plugin : public base_plugin {
@@ -30,6 +31,10 @@ private:
   void add_landuse(osmium::io::Writer &writer);
   void add_railways(osmium::io::Writer &writer);
   void add_buildings(osmium::io::Writer &writer);
+
+  void sortPBF();
+  void copyType(osmium::io::Writer &writer, osmium::io::File &file,
+                osmium::osm_entity_bits::type bits);
 
   std::vector<boost::filesystem::path> dirs;
 

@@ -199,7 +199,8 @@ void navteq_plugin::execute() {
   if (output_path.empty())
     throw std::exception();
 
-  osmium::io::File outfile(output_path.string());
+  osmium::io::File outfile(
+      output_path.parent_path().append("tmp.pbf").string());
   osmium::io::Header hdr;
   hdr.set("generator", "osmium");
   hdr.set("xml_josm_upload", "false");
@@ -245,9 +246,41 @@ void navteq_plugin::execute() {
 
   writer.close();
 
+  BOOST_LOG_TRIVIAL(info) << "Start sorting PBF ";
+  sortPBF();
+
   BOOST_LOG_TRIVIAL(info) << std::endl << "fin";
 }
 
 void navteq_plugin::setWithTurnRestrictions(bool _withTurnRestrictions) {
   withTurnRestrictions = _withTurnRestrictions;
+}
+
+void navteq_plugin::sortPBF() {
+
+  osmium::io::File outfile(output_path.string());
+  osmium::io::Header hdr;
+  hdr.set("generator", "osmium");
+  hdr.set("xml_josm_upload", "false");
+  osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
+
+  osmium::io::File tmpfile(
+      output_path.parent_path().append("tmp.pbf").string());
+
+  copyType(writer, tmpfile, osmium::osm_entity_bits::node);
+  copyType(writer, tmpfile, osmium::osm_entity_bits::way);
+  copyType(writer, tmpfile, osmium::osm_entity_bits::relation);
+
+  writer.close();
+
+  boost::filesystem::remove(output_path.parent_path().append("tmp.pbf"));
+}
+
+void navteq_plugin::copyType(osmium::io::Writer &writer, osmium::io::File &file,
+                             osmium::osm_entity_bits::type bits) {
+  osmium::io::Reader reader(file, bits);
+  while (osmium::memory::Buffer buffer = reader.read()) {
+    writer(std::move(buffer));
+  }
+  reader.close();
 }
