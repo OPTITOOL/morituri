@@ -36,7 +36,7 @@ are problematic due to the following reasons:
 * gdal-bin (for ogr2ogr)
 
 
-#### Ubuntu install instructions: *(tested with 14.04.2 LTS)*
+#### Ubuntu install instructions: *(tested with 20.04 LTS)*
 
 CAUTION: Have a look at `install_prerequisites.sh` before executing it.
  

@@ -955,6 +955,8 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
                          navteq_2_osm_admin_lvl(d.admin_lvl).c_str());
     if (!d.name.empty())
       tl_builder.add_tag("name", d.name);
+    if (!d.short_name.empty())
+      tl_builder.add_tag("short_name", d.short_name);
     if (level != 5) {
       for (auto it : d.lang_code_2_area_name)
         tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
@@ -1503,7 +1505,8 @@ void process_city(OGRFeature *feat, uint fac_type,
       tl_builder.add_tag("place", "suburb");
     } else { //=> fac_type = 4444 means 'named place' which is the city centre
       int population = feat->GetFieldAsInteger(POPULATION);
-      tl_builder.add_tag("population", std::to_string(population));
+      if (population > 0)
+        tl_builder.add_tag("population", std::to_string(population));
       uint capital = feat->GetFieldAsInteger(CAPITAL);
       tl_builder.add_tag("place", get_place_value(population, capital));
       if (capital == 1) {
@@ -1612,13 +1615,19 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
 
     std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
     std::string area_name = dbf_get_string_by_field(handle, i, AREA_NAME);
-    data.lang_code_2_area_name.emplace_back(
-        lang_code, to_camel_case_with_spaces(area_name));
-    data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
 
     std::string area_type = dbf_get_string_by_field(handle, i, "AREA_TYPE");
     if (area_type == "B") {
       data.name = to_camel_case_with_spaces(area_name);
+      data.lang_code_2_area_name.emplace_back(
+          lang_code, to_camel_case_with_spaces(area_name));
+      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
+    } else if (area_type == "A") {
+      data.short_name = to_camel_case_with_spaces(area_name);
+    } else {
+      data.lang_code_2_area_name.emplace_back(
+          lang_code, to_camel_case_with_spaces(area_name));
+      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
     }
   }
   DBFClose(handle);

@@ -69,6 +69,7 @@ struct mtd_area_dataset {
   std::string admin_lvl;
   uint area_code_1;
   std::string name;
+  std::string short_name;
   std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
 
   void print() {

@@ -15,7 +15,6 @@
 #include <geos/io/WKBWriter.h>
 #include <shapefil.h>
 
-#include <geos/algorithm/CGAlgorithms.h>
 #include <geos/geom/CoordinateFilter.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
 #include <geos/geom/GeometryFactory.h>
@@ -28,7 +27,7 @@ boost::iostreams::stream<boost::iostreams::null_sink>
     cnull((boost::iostreams::null_sink()));
 
 // create static geom factory
-geos::geom::GeometryFactory::unique_ptr geos_factory =
+geos::geom::GeometryFactory::Ptr geos_factory =
     geos::geom::GeometryFactory::create();
 
 geos::operation::buffer::BufferParameters
@@ -64,15 +63,15 @@ std::string ogr2wkb(OGRGeometry *ogr_geom) {
 }
 
 geos::io::WKBReader wkb_reader;
-geos::geom::Geometry *wkb2geos(const std::string &wkb) {
+geos::geom::Geometry::Ptr wkb2geos(const std::string &wkb) {
   std::istringstream ss(wkb);
-  geos::geom::Geometry *geos_geom = wkb_reader.read(ss);
+  geos::geom::Geometry::Ptr geos_geom = wkb_reader.read(ss);
   if (!geos_geom)
     throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
   return geos_geom;
 }
 
-geos::geom::Geometry *ogr2geos(OGRGeometry *ogr_geom) {
+geos::geom::Geometry::Ptr ogr2geos(OGRGeometry *ogr_geom) {
   if (!ogr_geom || ogr_geom->IsEmpty())
     throw std::runtime_error("geometry is nullptr");
   return wkb2geos(ogr2wkb(ogr_geom));
@@ -116,15 +115,30 @@ geos::geom::Coordinate move_point(const geos::geom::Coordinate &moving_coord,
                                 moving_coord.y + move_y);
 }
 
-geos::geom::CoordinateSequence *
-trimAndCloneCoordinateSequence(double cut,
-                               const geos::geom::CoordinateSequence *geos_cs) {
+std::unique_ptr<geos::geom::CoordinateSequence>
+trimAndCloneCoordinateSequence(const geos::geom::CoordinateSequence *geos_cs) {
   geos::geom::Coordinate::Vect *coordVector =
       new geos::geom::Coordinate::Vect();
 
   const auto &frontC = geos_cs->front();
   const auto &backC = geos_cs->back();
+
   int size = geos_cs->getSize();
+
+  // getSingleSidedLineCurve() always produces a ring (bug?). therefore:
+  // first_coord == last_coord => drop last_coord
+  if (frontC == backC)
+    size--;
+
+  double cut_ratio = 0.1;
+  double max_cut = 0.00025;
+  double length = 0.0;
+
+  for (int i = 1; i < size; ++i) {
+    length += geos_cs->getAt(i).distance(geos_cs->getAt(i - 1));
+  }
+
+  double cut = std::min(max_cut, length * cut_ratio);
 
   bool lastFrontSkipped = false;
   bool frontFinished = false;
@@ -167,38 +181,26 @@ trimAndCloneCoordinateSequence(double cut,
   return geos_factory->getCoordinateSequenceFactory()->create(coordVector);
 }
 
-geos::geom::LineString *cut_caps(const geos::geom::CoordinateSequence *cs) {
+std::unique_ptr<geos::geom::LineString>
+cut_caps(const geos::geom::CoordinateSequence *cs) {
 
-  double cut_ratio = 0.1;
-  double max_cut = 0.00025;
-  double length = geos::algorithm::CGAlgorithms::length(cs);
-  double cut = std::min(max_cut, length * cut_ratio);
+  auto geos_cs = trimAndCloneCoordinateSequence(cs);
 
-  geos::geom::CoordinateSequence *geos_cs =
-      trimAndCloneCoordinateSequence(cut, cs);
-
-  return geos_factory->createLineString(geos_cs);
+  return geos_factory->createLineString(std::move(geos_cs));
 }
 
 OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
                                    bool left) {
 
   std::vector<geos::geom::CoordinateSequence *> cs_vec;
-  auto convGeometry = dynamic_cast<geos::geom::LineString *>(ogr2geos(ogr_ls));
+  auto convGeometry = (geos::geom::LineString::Ptr)(ogr2geos(ogr_ls));
   offset_curve_builder->getSingleSidedLineCurve(
-      convGeometry->getCoordinatesRO(), offset, cs_vec, left, !left);
+      convGeometry->getCoordinates().get(), offset, cs_vec, left, !left);
 
   auto cs = cs_vec.front();
 
-  // getSingleSidedLineCurve() always produces a ring (bug?). therefore:
-  // first_coord == last_coord => drop last_coord
-  if (cs->front() == cs->back())
-    cs->deleteAt(cs->size() - 1);
-
   auto cut_caps_geos_ls = cut_caps(cs);
-  auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls);
-  delete cut_caps_geos_ls;
-  delete convGeometry;
+  auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls.get());
   delete cs;
 
   return static_cast<OGRLineString *>(offset_ogr_geom);

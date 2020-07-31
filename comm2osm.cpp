@@ -42,7 +42,7 @@ void check_args_and_setup(int argc, char *argv[]) {
   static struct option long_options[] = {
       {"turn-restrictions", no_argument, &withTrunRestrictions, 1},
       {"help", no_argument, 0, 'h'},
-      {0, 0}};
+      {0, 0, 0, 0}};
 
   while (true) {
     int c = getopt_long(argc, argv, "dhf:t:", long_options, 0);
