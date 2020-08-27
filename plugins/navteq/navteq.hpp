@@ -2597,10 +2597,18 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
 
+  std::set<std::pair<link_id_type, area_id_type>> convertedLinkIds;
+
   while (auto feat = layer->GetNextFeature()) {
     auto areaId = feat->GetFieldAsInteger(AREA_ID);
-    auto osmIdVector = build_admin_line(feat, node_buffer, way_buffer);
-    boost::copy(osmIdVector, std::back_inserter(result[areaId]));
+    auto linkId = feat->GetFieldAsInteger(LINK_ID);
+
+    if (convertedLinkIds.find(std::make_pair(linkId, areaId)) ==
+        convertedLinkIds.end()) {
+      auto osmIdVector = build_admin_line(feat, node_buffer, way_buffer);
+      boost::copy(osmIdVector, std::back_inserter(result[areaId]));
+      convertedLinkIds.insert(std::make_pair(linkId, areaId));
+    }
 
     OGRFeature::DestroyFeature(feat);
   }
