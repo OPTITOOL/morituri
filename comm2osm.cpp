@@ -6,6 +6,7 @@
 
 #include <boost/locale.hpp>
 #include <boost/log/trivial.hpp>
+#include <boost/program_options.hpp>
 #include <gdal/ogrsf_frmts.h>
 #include <getopt.h>
 #include <iostream>
@@ -19,58 +20,45 @@
 boost::filesystem::path input_path, output_file;
 static int withTrunRestrictions = 0;
 
-void print_help() {
-  std::cout << "comm2osm [OPTIONS] [INFILE [OUTFILE]]\n\n"
-            << "If INFILE or OUTFILE is not given stdin/stdout is assumed.\n"
-            << "File format is autodetected from file name suffix.\n"
-            //			<< "Use -t option to force file format.\n"
-            << "\nFile format:\n"
-            << "  (default)  XML encoding\n"
-            << "  pbf        binary PBF encoding\n"
-            << "  opl        OPL encoding\n"
-            << "\nFile compression\n"
-            << "  gz         compressed with gzip\n"
-            << "  bz2        compressed with bzip2\n"
-            << "\nOptions:\n"
-            << "  -h, --help                This help message\n"
-            << "  -t, --to-format=FORMAT    Output format\n"
-            << "  --turn-restrictions   Convert turn restrictions\n";
-}
-
 void check_args_and_setup(int argc, char *argv[]) {
   // options
-  static struct option long_options[] = {
-      {"turn-restrictions", no_argument, &withTrunRestrictions, 1},
-      {"help", no_argument, 0, 'h'},
-      {0, 0, 0, 0}};
+  boost::program_options::options_description desc{"Options"};
+  desc.add_options()("help,h", "print usage message")(
+      "turn-restrictions,tr",
+      boost::program_options::value<bool>()->default_value(false),
+      "enable turn restrictions")(
+      "input-path", boost::program_options::value<std::string>(),
+      "input path")("output-file", boost::program_options::value<std::string>(),
+                    "output file");
 
-  while (true) {
-    int c = getopt_long(argc, argv, "dhf:t:", long_options, 0);
-    if (c == -1) {
-      break;
-    }
+  boost::program_options::positional_options_description p;
+  p.add("input-path", 1);
+  p.add("output-file", -1);
 
-    switch (c) {
-    case 0:
-      break;
-    case 'h':
-      print_help();
-      exit(0);
-    default:
-      exit(1);
-    }
+  boost::program_options::variables_map vm;
+  boost::program_options::store(
+      boost::program_options::command_line_parser(argc, argv)
+          .options(desc)
+          .positional(p)
+          .run(),
+      vm);
+  boost::program_options::notify(vm);
+
+  if (vm.count("help")) {
+    std::cout << desc << "\n";
+    exit(1);
   }
 
-  int remaining_args = argc - optind;
-  if (remaining_args < 2) {
-    std::cerr << "Usage: " << argv[0] << " [OPTIONS] [INFILE [OUTFILE]]"
-              << std::endl;
-    exit(1);
-  } else if (remaining_args == 2) {
-    input_path = boost::filesystem::path(argv[optind]);
-    output_file = boost::filesystem::path(argv[optind + 1]);
-  } else if (remaining_args == 1) {
-    input_path = boost::filesystem::path(argv[optind]);
+  if (vm.count("input-path")) {
+    BOOST_LOG_TRIVIAL(info)
+        << "Input paths are: " << vm["input-path"].as<std::string>() << "\n";
+    input_path = vm["input-path"].as<std::string>();
+  }
+
+  if (vm.count("output-file")) {
+    BOOST_LOG_TRIVIAL(info)
+        << "Input paths are: " << vm["output-file"].as<std::string>() << "\n";
+    output_file = vm["output-file"].as<std::string>();
   }
 }
 
