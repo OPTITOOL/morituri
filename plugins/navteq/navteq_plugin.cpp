@@ -5,9 +5,7 @@
  *      Author: philip
  */
 
-#include <osmium/io/any_input.hpp>
-#include <osmium/io/any_output.hpp>
-
+#include <boost/algorithm/string/join.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
@@ -15,6 +13,8 @@
 #include <exception>
 #include <gdal/ogr_api.h>
 #include <iomanip>
+#include <osmium/io/any_input.hpp>
+#include <osmium/io/any_output.hpp>
 
 #include "navteq.hpp"
 #include "navteq_plugin.hpp"
@@ -75,17 +75,44 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
   if (!shp_file_exists(dir / ADMINBNDY_2_SHP))
     BOOST_LOG_TRIVIAL(warning)
         << "  administrative boundaries level 2 are missing";
-  if (!shp_file_exists(dir / ADMINBNDY_3_SHP))
+
+  boost::filesystem::path bbCheckFile;
+
+  if (!shp_file_exists(dir / ADMINBNDY_3_SHP)) {
     BOOST_LOG_TRIVIAL(warning)
         << "  administrative boundaries level 3 are missing";
-  if (!shp_file_exists(dir / ADMINBNDY_4_SHP))
+  } else {
+    bbCheckFile = dir / ADMINBNDY_3_SHP;
+  }
+
+  if (!shp_file_exists(dir / ADMINBNDY_4_SHP)) {
     BOOST_LOG_TRIVIAL(warning)
         << "  administrative boundaries level 4 are missing";
-  if (!shp_file_exists(dir / ADMINBNDY_5_SHP))
+  } else {
+    bbCheckFile = dir / ADMINBNDY_4_SHP;
+  }
+
+  if (!shp_file_exists(dir / ADMINBNDY_5_SHP)) {
     BOOST_LOG_TRIVIAL(warning)
         << "  administrative boundaries level 5 are missing";
+  } else {
+    bbCheckFile = dir / ADMINBNDY_5_SHP;
+  }
+
   if (!shp_file_exists(dir / ADMINLINE_1_SHP))
     BOOST_LOG_TRIVIAL(warning) << "  administrative lines level 1 are missing";
+
+  // check boundingbox
+  if (!checkInBoundingBox(boundingBox, bbCheckFile)) {
+    BOOST_LOG_TRIVIAL(warning) << dir.string() << " out of boundingbox";
+    return false;
+  }
+
+  if (!checkCountryCode(dir)) {
+    BOOST_LOG_TRIVIAL(info) << dir.string() << " skip country";
+    return false;
+  }
+
   return true;
 }
 
@@ -126,6 +153,11 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
 
   recurse_dir(input_path);
 
+  if (!foundCountries.empty()) {
+    BOOST_LOG_TRIVIAL(info)
+        << "Countries found :" << boost::join(foundCountries, " ");
+  }
+
   if (dirs.empty())
     return false;
 
@@ -134,6 +166,7 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
     BOOST_LOG_TRIVIAL(info) << dir;
 
   this->plugin_setup(input_path, output_file);
+
   return true;
 }
 
@@ -291,4 +324,35 @@ void navteq_plugin::copyType(osmium::io::Writer &writer, osmium::io::File &file,
     writer(std::move(buffer));
   }
   reader.close();
+}
+
+void navteq_plugin::setBoundingBox(double minX, double minY, double maxX,
+                                   double maxY) {
+  boundingBox.MinX = minX;
+  boundingBox.MinY = minY;
+  boundingBox.MaxX = maxX;
+  boundingBox.MaxY = maxY;
+}
+
+void navteq_plugin::setCountries(const std::vector<std::string> &countries) {
+  countriesToConvert = countries;
+}
+
+bool navteq_plugin::checkCountryCode(const boost::filesystem::path &dir) {
+  DBFHandle handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF);
+
+  for (int i = 0; i < DBFGetRecordCount(handle); i++) {
+    std::string countryCode = dbf_get_string_by_field(handle, i, ISO_CODE);
+
+    foundCountries.insert(countryCode);
+    auto found = std::find(countriesToConvert.cbegin(),
+                           countriesToConvert.cend(), countryCode);
+    if (found != countriesToConvert.end()) {
+      DBFClose(handle);
+      return true;
+    }
+  }
+  DBFClose(handle);
+
+  return false;
 }

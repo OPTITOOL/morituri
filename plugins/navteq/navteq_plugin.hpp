@@ -38,6 +38,13 @@ private:
 
   std::vector<boost::filesystem::path> dirs;
 
+  OGREnvelope boundingBox;
+
+  std::vector<std::string> countriesToConvert;
+  std::set<std::string> foundCountries;
+
+  bool checkCountryCode(const boost::filesystem::path &dir);
+
 public:
   navteq_plugin(const boost::filesystem::path &executable_path);
   virtual ~navteq_plugin();
@@ -48,6 +55,10 @@ public:
   void execute();
 
   void setWithTurnRestrictions(bool withTurnRestrictions);
+
+  void setBoundingBox(double minX, double minY, double maxX, double maxY);
+
+  void setCountries(const std::vector<std::string> &_countries);
 };
 
 #endif /* NAVTEQPLUGIN_HPP_ */

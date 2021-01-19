@@ -67,7 +67,13 @@
 			"typeindex": "cpp",
 			"unordered_set": "cpp",
 			"variant": "cpp",
-			"bit": "cpp"
+			"bit": "cpp",
+			"strstream": "cpp",
+			"compare": "cpp",
+			"concepts": "cpp",
+			"ranges": "cpp",
+			"stop_token": "cpp",
+			"cfenv": "cpp"
 		}
 	}
 }

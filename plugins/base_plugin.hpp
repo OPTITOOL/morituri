@@ -90,6 +90,14 @@ public:
    * \brief	Also convert turn restrictions
    * */
   virtual void setWithTurnRestrictions(bool withTurnRestrictions) = 0;
+
+  /**
+   * \brief Only convert elements in the given bounding box
+   * */
+  virtual void setBoundingBox(double minX, double minY, double maxX,
+                              double maxY) = 0;
+
+  virtual void setCountries(const std::vector<std::string> &_countries) = 0;
 };
 
 #endif /* BASEPLUGIN_HPP_ */
