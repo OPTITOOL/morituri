@@ -59,6 +59,8 @@ public:
   void setBoundingBox(double minX, double minY, double maxX, double maxY);
 
   void setCountries(const std::vector<std::string> &_countries);
+
+  void setDebug(bool debug);
 };
 
 #endif /* NAVTEQPLUGIN_HPP_ */

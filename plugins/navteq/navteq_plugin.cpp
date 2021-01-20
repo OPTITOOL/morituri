@@ -356,3 +356,5 @@ bool navteq_plugin::checkCountryCode(const boost::filesystem::path &dir) {
 
   return false;
 }
+
+void navteq_plugin::setDebug(bool debug) { debugMode = debug; }

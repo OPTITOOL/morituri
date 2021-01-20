@@ -77,6 +77,8 @@ cntry_ref_map_type g_cntry_ref_map;
 
 bool withTurnRestrictions = false;
 
+bool debugMode = false;
+
 /**
  * \brief Dummy attributes enable josm to read output xml files.
  *
@@ -204,7 +206,7 @@ link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
   link_id_type link_id = parse_street_tags(
       &tl_builder, feat, &g_cdms_map, &g_cnd_mod_map, &g_area_to_govt_code_map,
       &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map,
-      g_construction_set);
+      g_construction_set, debugMode);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));

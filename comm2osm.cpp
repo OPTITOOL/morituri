@@ -22,6 +22,7 @@ boost::filesystem::path input_path, output_file;
 static bool withTrunRestrictions = false;
 std::vector<double> boundingBox;
 std::vector<std::string> countries;
+static bool debug = false;
 
 void check_args_and_setup(int argc, char *argv[]) {
   std::string countriesString;
@@ -38,6 +39,9 @@ void check_args_and_setup(int argc, char *argv[]) {
       ("countries,c",
        boost::program_options::value<std::string>(&countriesString),
        "list of countries (Iso codes seperate by space)") //
+      ("debug,d",
+       boost::program_options::value<bool>(&debug)->default_value(false),
+       "switch to debug mode") //
       ("input-path", boost::program_options::value<std::string>()->required(),
        "input path") //
       ("output-file", boost::program_options::value<std::string>()->required(),
@@ -111,6 +115,8 @@ int main(int argc, char *argv[]) {
 
     if (!countries.empty())
       plugin->setCountries(countries);
+
+    plugin->setDebug(debug);
 
     if (!boundingBox.empty())
       plugin->setBoundingBox(boundingBox[0], boundingBox[1], boundingBox[2],

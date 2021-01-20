@@ -98,6 +98,8 @@ public:
                               double maxY) = 0;
 
   virtual void setCountries(const std::vector<std::string> &_countries) = 0;
+
+  virtual void setDebug(bool debug) = 0;
 };
 
 #endif /* BASEPLUGIN_HPP_ */
