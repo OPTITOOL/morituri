@@ -341,6 +341,9 @@ void navteq_plugin::setCountries(const std::vector<std::string> &countries) {
 bool navteq_plugin::checkCountryCode(const boost::filesystem::path &dir) {
   DBFHandle handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF);
 
+  if (countriesToConvert.empty())
+    return true;
+
   for (int i = 0; i < DBFGetRecordCount(handle); i++) {
     std::string countryCode = dbf_get_string_by_field(handle, i, ISO_CODE);
 
