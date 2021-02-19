@@ -808,7 +808,7 @@ std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
                              std::to_string(navteq_admin_lvl_int) +
                              "' is out of range.");
 
-  return std::to_string(2 * navteq_admin_lvl_int).c_str();
+  return std::to_string(2 * navteq_admin_lvl_int);
 }
 
 std::string navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {

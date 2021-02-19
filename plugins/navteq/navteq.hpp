@@ -941,6 +941,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
   if (level == 5) {
     // only landuse residential
     tl_builder.add_tag("type", "multipolygon");
+    tl_builder.add_tag("landuse", "residential");
   } else {
     tl_builder.add_tag("type", "boundary");
     tl_builder.add_tag("boundary", "administrative");
@@ -953,8 +954,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
       tl_builder.add_tag("navteq_admin_level", d.admin_lvl);
 
     if (!d.admin_lvl.empty())
-      tl_builder.add_tag("admin_level",
-                         navteq_2_osm_admin_lvl(d.admin_lvl).c_str());
+      tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(d.admin_lvl));
     if (!d.name.empty())
       tl_builder.add_tag("name", d.name);
     if (!d.short_name.empty())
@@ -966,10 +966,6 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
     }
   } else {
     std::cerr << "Skipping unknown navteq_admin_level" << std::endl;
-  }
-
-  if (level == 5) {
-    tl_builder.add_tag("landuse", "residential");
   }
 }
 
