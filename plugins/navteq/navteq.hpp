@@ -115,32 +115,32 @@ void add_common_node_as_via(
   if (from_way_front == to_way_front) {
     auto it = g_way_end_points_map.find(from_way_front);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_front
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_front
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else if (from_way_front == to_way_back) {
     auto it = g_way_end_points_map.find(from_way_front);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_front
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_front
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else if (from_way_back == to_way_front) {
     auto it = g_way_end_points_map.find(from_way_back);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_back
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_back
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else {
     auto it = g_way_end_points_map.find(from_way_back);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_back
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_back
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
@@ -965,7 +965,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
                            it.second);
     }
   } else {
-    std::cerr << "Skipping unknown navteq_admin_level" << std::endl;
+    BOOST_LOG_TRIVIAL(error) << "Skipping unknown navteq_admin_level";
   }
 }
 
@@ -1000,7 +1000,7 @@ void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
     // Type 'BAY/HARBOUR' just gets the 'natural=water' tag
   } else {
     BOOST_LOG_TRIVIAL(error)
-        << "Skipping unknown water poly type " << featureCode << "\n";
+        << "Skipping unknown water poly type " << featureCode;
   }
 }
 
@@ -1042,15 +1042,15 @@ void build_water_way_taglist(osmium::builder::WayBuilder &builder,
   } else if (featureCode == "500421") {
     // FEAT_TYPE 'LAKE'
     BOOST_LOG_TRIVIAL(error)
-        << "Skipping water way as type LAKE should only exist as polygon\n";
+        << "Skipping water way as type LAKE should only exist as polygon";
   } else if (featureCode == "507116") {
     // FEAT_TYPE 'BAY/HARBOUR'
     BOOST_LOG_TRIVIAL(error)
         << "Skipping water way as type BAY/HARBOUR should only exist as "
-           "polygon\n";
+           "polygon";
   } else {
     BOOST_LOG_TRIVIAL(error)
-        << "Skipping unknown water way type " << featureCode << "\n";
+        << "Skipping unknown water way type " << featureCode;
   }
 }
 
@@ -1161,8 +1161,7 @@ void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
     // FEAT_TYPE 'GLACIER'
     tl_builder.add_tag("natural", "glacier");
   } else {
-    BOOST_LOG_TRIVIAL(error)
-        << "Skipping unknown landuse type " << featureCode << "\n";
+    BOOST_LOG_TRIVIAL(error) << "Skipping unknown landuse type " << featureCode;
   }
 }
 
@@ -1566,7 +1565,7 @@ void process_rest_area(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
  * 		  administrative boundaries.
  * \param handle file handle to navteq administrative meta data.
  */
-void process_meta_areas(boost::filesystem::path dir, bool test = false) {
+void process_meta_areas(boost::filesystem::path dir) {
   DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
 
   for (int i = 0; i < DBFGetRecordCount(handle); i++) {
@@ -1584,9 +1583,9 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
     if (data.admin_lvl.empty()) {
       data.admin_lvl = admin_lvl;
     } else if (data.admin_lvl != admin_lvl) {
-      std::cerr << "entry with area_id=" << area_id
-                << " has multiple admin_lvls:" << data.admin_lvl << ", "
-                << admin_lvl << std::endl;
+      BOOST_LOG_TRIVIAL(error)
+          << "entry with area_id=" << area_id
+          << " has multiple admin_lvls:" << data.admin_lvl << ", " << admin_lvl;
     }
 
     std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
@@ -1790,8 +1789,8 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
-        std::cerr << "Skipping city node because of wrong POI type"
-                  << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << "Skipping city node because of wrong POI type";
         OGRFeature::DestroyFeature(feat);
         continue;
       }
@@ -1816,8 +1815,8 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
-        std::cerr << "Skipping city node because of wrong POI type"
-                  << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << "Skipping city node because of wrong POI type";
         OGRFeature::DestroyFeature(feat);
         continue;
       }
@@ -1861,8 +1860,8 @@ void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 9998) {
-        std::cerr << "Skipping hamlet node because of wrong POI type"
-                  << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << "Skipping hamlet node because of wrong POI type";
         OGRFeature::DestroyFeature(feat);
         continue;
       }
