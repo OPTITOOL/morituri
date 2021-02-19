@@ -115,32 +115,32 @@ void add_common_node_as_via(
   if (from_way_front == to_way_front) {
     auto it = g_way_end_points_map.find(from_way_front);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_front
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_front
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else if (from_way_front == to_way_back) {
     auto it = g_way_end_points_map.find(from_way_front);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_front
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_front
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else if (from_way_back == to_way_front) {
     auto it = g_way_end_points_map.find(from_way_back);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_back
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_back
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
   } else {
     auto it = g_way_end_points_map.find(from_way_back);
     if (it == g_way_end_points_map.end()) {
-      std::cerr << "Skipping via node: " << from_way_back
-                << " is not in g_way_end_points_map." << std::endl;
+      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_back
+                               << " is not in g_way_end_points_map.";
       return;
     }
     rml_builder.add_member(osmium::item_type::node, it->second, "via");
@@ -965,50 +965,87 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
                            it.second);
     }
   } else {
-    std::cerr << "Skipping unknown navteq_admin_level" << std::endl;
+    BOOST_LOG_TRIVIAL(error) << "Skipping unknown navteq_admin_level";
   }
+}
+
+/**
+ * \brief adds navteq administrative boundary tags to Relation
+ */
+void build_admin_boundary_taglist(osmium::builder::Builder &builder,
+                                  OGRFeature *feat) {
+  osmium::builder::TagListBuilder tl_builder(builder);
+
+  int level = 0;
+
+  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
+  if (featureCode == "907196") {
+    level = 1;
+  } else if (featureCode == "909996") {
+    level = 2;
+  } else if (featureCode == "900170") {
+    level = 3;
+  } else if (featureCode == "900101") {
+    level = 4;
+  } else if (featureCode == "900156") {
+    level = 5;
+  } else {
+    BOOST_LOG_TRIVIAL(error) << "Unknown admin level " << featureCode;
+    return;
+  }
+
+  // Mind tl_builder scope in calling method!
+  if (level == 5) {
+    // only landuse residential
+    tl_builder.add_tag("type", "multipolygon");
+    tl_builder.add_tag("landuse", "residential");
+  } else {
+    tl_builder.add_tag("type", "boundary");
+    tl_builder.add_tag("boundary", "administrative");
+  }
+
+  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
+  if (!polygonName.empty()) {
+    std::string waters_name = to_camel_case_with_spaces(polygonName);
+    if (!waters_name.empty())
+      tl_builder.add_tag("name", waters_name);
+  }
+
+  tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(level));
 }
 
 /**
  * \brief adds navteq water tags to Relation
  */
 void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
-                              OGRLayer *layer, OGRFeature *feat) {
+                              OGRFeature *feat) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("type", "multipolygon");
   tl_builder.add_tag("natural", "water");
 
-  for (int i = 0; i < layer->GetLayerDefn()->GetFieldCount(); i++) {
-    OGRFieldDefn *po_field_defn = layer->GetLayerDefn()->GetFieldDefn(i);
-    const char *field_name = po_field_defn->GetNameRef();
-    const char *field_value = feat->GetFieldAsString(i);
+  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
+  if (!polygonName.empty()) {
+    std::string waters_name = to_camel_case_with_spaces(polygonName);
+    if (!waters_name.empty())
+      tl_builder.add_tag("name", waters_name);
+  }
 
-    if (!strcmp(field_name, POLYGON_NM)) {
-      if (field_value && field_value[0]) {
-        std::string waters_name = to_camel_case_with_spaces(field_value);
-        if (!waters_name.empty())
-          tl_builder.add_tag("name", waters_name);
-      }
-    }
-
-    if (!strcmp(field_name, FEAT_COD)) {
-      if (!strcmp(field_value, "500412")) {
-        // FEAT_TYPE 'RIVER'
-        tl_builder.add_tag("water", "river");
-      } else if (!strcmp(field_value, "500414")) {
-        // FEAT_TYPE 'CANAL/WATER CHANNEL'
-        tl_builder.add_tag("water", "canal");
-      } else if (!strcmp(field_value, "500421")) {
-        // FEAT_TYPE 'LAKE'
-        tl_builder.add_tag("water", "lake");
-      } else if (!strcmp(field_value, "507116")) {
-        // Type 'BAY/HARBOUR' just gets the 'natural=water' tag
-      } else {
-        std::cerr << "Skipping unknown water poly type " << field_value
-                  << std::endl;
-      }
-    }
+  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
+  if (featureCode == "500412") {
+    // FEAT_TYPE 'RIVER'
+    tl_builder.add_tag("water", "river");
+  } else if (featureCode == "500414") {
+    // FEAT_TYPE 'CANAL/WATER CHANNEL'
+    tl_builder.add_tag("water", "canal");
+  } else if (featureCode == "500421") {
+    // FEAT_TYPE 'LAKE'
+    tl_builder.add_tag("water", "lake");
+  } else if (featureCode == "507116") {
+    // Type 'BAY/HARBOUR' just gets the 'natural=water' tag
+  } else {
+    BOOST_LOG_TRIVIAL(error)
+        << "Skipping unknown water poly type " << featureCode;
   }
 }
 
@@ -1028,46 +1065,37 @@ void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
  * \brief adds navteq water tags to way
  */
 void build_water_way_taglist(osmium::builder::WayBuilder &builder,
-                             OGRLayer *layer, OGRFeature *feat,
-                             osmium::memory::Buffer &way_buffer) {
+                             OGRFeature *feat) {
   // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(way_buffer, &builder);
+  osmium::builder::TagListBuilder tl_builder(builder);
   //    tl_builder.add_tag("natural", "water");
-  for (int i = 0; i < layer->GetLayerDefn()->GetFieldCount(); i++) {
-    OGRFieldDefn *po_field_defn = layer->GetLayerDefn()->GetFieldDefn(i);
-    const char *field_name = po_field_defn->GetNameRef();
-    const char *field_value = feat->GetFieldAsString(i);
 
-    if (!strcmp(field_name, POLYGON_NM)) {
-      if (field_value && field_value[0]) {
-        std::string waters_name = to_camel_case_with_spaces(field_value);
-        if (!waters_name.empty())
-          tl_builder.add_tag("name", waters_name);
-      }
-    }
+  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
+  if (!polygonName.empty()) {
+    std::string waters_name = to_camel_case_with_spaces(polygonName);
+    if (!waters_name.empty())
+      tl_builder.add_tag("name", waters_name);
+  }
 
-    if (!strcmp(field_name, FEAT_COD)) {
-      if (!strcmp(field_value, "500412")) {
-        // FEAT_TYPE 'RIVER'
-        tl_builder.add_tag("waterway", "river");
-      } else if (!strcmp(field_value, "500414")) {
-        // FEAT_TYPE 'CANAL/WATER CHANNEL'
-        tl_builder.add_tag("waterway", "canal");
-      } else if (!strcmp(field_value, "500421")) {
-        // FEAT_TYPE 'LAKE'
-        std::cerr
-            << "Skipping water way as type LAKE should only exist as polygon"
-            << std::endl;
-      } else if (!strcmp(field_value, "507116")) {
-        // FEAT_TYPE 'BAY/HARBOUR'
-        std::cerr << "Skipping water way as type BAY/HARBOUR should only exist "
-                     "as polygon"
-                  << std::endl;
-      } else {
-        std::cerr << "Skipping unknown water way type " << field_value
-                  << std::endl;
-      }
-    }
+  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
+  if (featureCode == "500412") {
+    // FEAT_TYPE 'RIVER'
+    tl_builder.add_tag("waterway", "river");
+  } else if (featureCode == "500414") {
+    // FEAT_TYPE 'CANAL/WATER CHANNEL'
+    tl_builder.add_tag("waterway", "canal");
+  } else if (featureCode == "500421") {
+    // FEAT_TYPE 'LAKE'
+    BOOST_LOG_TRIVIAL(error)
+        << "Skipping water way as type LAKE should only exist as polygon";
+  } else if (featureCode == "507116") {
+    // FEAT_TYPE 'BAY/HARBOUR'
+    BOOST_LOG_TRIVIAL(error)
+        << "Skipping water way as type BAY/HARBOUR should only exist as "
+           "polygon";
+  } else {
+    BOOST_LOG_TRIVIAL(error)
+        << "Skipping unknown water way type " << featureCode;
   }
 }
 
@@ -1075,125 +1103,117 @@ void build_water_way_taglist(osmium::builder::WayBuilder &builder,
  * \brief adds navteq landuse tags to Relation
  */
 void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
-                           OGRLayer *layer, OGRFeature *feat) {
+                           OGRFeature *feat) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("type", "multipolygon");
 
-  for (int i = 0; i < layer->GetLayerDefn()->GetFieldCount(); i++) {
-    OGRFieldDefn *po_field_defn = layer->GetLayerDefn()->GetFieldDefn(i);
-    const char *field_name = po_field_defn->GetNameRef();
-    const char *field_value = feat->GetFieldAsString(i);
+  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
+  if (!polygonName.empty()) {
+    std::string poly_name = to_camel_case_with_spaces(polygonName);
+    if (!poly_name.empty())
+      tl_builder.add_tag("name", poly_name);
+  }
 
-    if (!strcmp(field_name, POLYGON_NM)) {
-      if (field_value && field_value[0]) {
-        std::string poly_name = to_camel_case_with_spaces(field_value);
-        if (!poly_name.empty())
-          tl_builder.add_tag("name", poly_name);
-      }
-    }
+  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
 
-    if (!strcmp(field_name, FEAT_COD)) {
+  // Land Use A types
+  if (featureCode == "509998") {
+    // FEAT_TYPE 'BEACH'
+    tl_builder.add_tag("natural", "beach");
+  } else if (featureCode == "900103") {
+    // FEAT_TYPE 'PARK/MONUMENT (NATIONAL)'
+    tl_builder.add_tag("boundary", "national_park");
+  } else if (featureCode == "900130") {
+    // FEAT_TYPE 'PARK (STATE)'
+    // In many cases this is meant to be a national park or
+    // protected area but this is not guaranteed
+    tl_builder.add_tag("leisure", "park");
+  } else if (featureCode == "900140") {
+    // FEAT_TYPE 'PARK IN WATER'
+    tl_builder.add_tag("boundary", "national_park");
+  } else if (featureCode == "900150") {
+    // FEAT_TYPE 'PARK (CITY/COUNTY)'
+    tl_builder.add_tag("leisure", "park");
+  } else if (featureCode == "900159") {
+    // FEAT_TYPE 'UNDEFINED TRAFFIC AREA'
+    // Possible handling: area=yes, highway=pedestrian
+  } else if (featureCode == "900202") {
+    // FEAT_TYPE 'WOODLAND'
+    tl_builder.add_tag("landuse", "forest");
+  } else if (featureCode == "1700215") {
+    // FEAT_TYPE 'PARKING LOT'
+    tl_builder.add_tag("amenity", "parking");
+  } else if (featureCode == "1900403") {
+    // FEAT_TYPE 'AIRPORT'
+    tl_builder.add_tag("aeroway", "aerodrome");
+  } else if (featureCode == "2000124") {
+    // FEAT_TYPE 'SHOPPING CENTRE'
+    tl_builder.add_tag("shop", "mall");
+    tl_builder.add_tag("building", "retail");
+  } else if (featureCode == "2000200") {
+    // FEAT_TYPE 'INDUSTRIAL COMPLEX'
+    tl_builder.add_tag("landuse", "commercial");
+  } else if (featureCode == "2000403") {
+    // FEAT_TYPE 'UNIVERSITY/COLLEGE'
+    tl_builder.add_tag("amenity", "university");
+  } else if (featureCode == "2000408") {
+    // FEAT_TYPE 'HOSPITAL'
+    tl_builder.add_tag("amenity", "hospital");
+  } else if (featureCode == "2000420") {
+    // FEAT_TYPE 'CEMETERY'
+    tl_builder.add_tag("landuse", "cemetery");
+  } else if (featureCode == "2000457") {
+    // FEAT_TYPE 'SPORTS COMPLEX'
+    tl_builder.add_tag("leisure", "stadium");
+    // tl_builder.add_tag("building", "yes");
+  } else if (featureCode == "2000460") {
+    // FEAT_TYPE 'AMUSEMENT PARK'
+    tl_builder.add_tag("leisure", "park");
+    tl_builder.add_tag("tourism", "theme_park");
+  } else if (featureCode == "908002") {
+    // FEAT_TYPE 'Neighbourhood'
+    tl_builder.add_tag("place", "suburb");
+  } else if (featureCode == "2000461") {
+    // FEAT_TYPE 'ANIMAL PARK'
+    tl_builder.add_tag("tourism", "zoo");
+  }
 
-      // Land Use A types
-      if (!strcmp(field_value, "509998")) {
-        // FEAT_TYPE 'BEACH'
-        tl_builder.add_tag("natural", "beach");
-      } else if (!strcmp(field_value, "900103")) {
-        // FEAT_TYPE 'PARK/MONUMENT (NATIONAL)'
-        tl_builder.add_tag("boundary", "national_park");
-      } else if (!strcmp(field_value, "900130")) {
-        // FEAT_TYPE 'PARK (STATE)'
-        // In many cases this is meant to be a national park or
-        // protected area but this is not guaranteed
-        tl_builder.add_tag("leisure", "park");
-      } else if (!strcmp(field_value, "900140")) {
-        // FEAT_TYPE 'PARK IN WATER'
-        tl_builder.add_tag("boundary", "national_park");
-      } else if (!strcmp(field_value, "900150")) {
-        // FEAT_TYPE 'PARK (CITY/COUNTY)'
-        tl_builder.add_tag("leisure", "park");
-      } else if (!strcmp(field_value, "900159")) {
-        // FEAT_TYPE 'UNDEFINED TRAFFIC AREA'
-        // Possible handling: area=yes, highway=pedestrian
-      } else if (!strcmp(field_value, "900202")) {
-        // FEAT_TYPE 'WOODLAND'
-        tl_builder.add_tag("landuse", "forest");
-      } else if (!strcmp(field_value, "1700215")) {
-        // FEAT_TYPE 'PARKING LOT'
-        tl_builder.add_tag("amenity", "parking");
-      } else if (!strcmp(field_value, "1900403")) {
-        // FEAT_TYPE 'AIRPORT'
-        tl_builder.add_tag("aeroway", "aerodrome");
-      } else if (!strcmp(field_value, "2000124")) {
-        // FEAT_TYPE 'SHOPPING CENTRE'
-        tl_builder.add_tag("shop", "mall");
-        tl_builder.add_tag("building", "retail");
-      } else if (!strcmp(field_value, "2000200")) {
-        // FEAT_TYPE 'INDUSTRIAL COMPLEX'
-        tl_builder.add_tag("landuse", "commercial");
-      } else if (!strcmp(field_value, "2000403")) {
-        // FEAT_TYPE 'UNIVERSITY/COLLEGE'
-        tl_builder.add_tag("amenity", "university");
-      } else if (!strcmp(field_value, "2000408")) {
-        // FEAT_TYPE 'HOSPITAL'
-        tl_builder.add_tag("amenity", "hospital");
-      } else if (!strcmp(field_value, "2000420")) {
-        // FEAT_TYPE 'CEMETERY'
-        tl_builder.add_tag("landuse", "cemetery");
-      } else if (!strcmp(field_value, "2000457")) {
-        // FEAT_TYPE 'SPORTS COMPLEX'
-        tl_builder.add_tag("leisure", "stadium");
-        // tl_builder.add_tag("building", "yes");
-      } else if (!strcmp(field_value, "2000460")) {
-        // FEAT_TYPE 'AMUSEMENT PARK'
-        tl_builder.add_tag("leisure", "park");
-        tl_builder.add_tag("tourism", "theme_park");
-      } else if (!strcmp(field_value, "908002")) {
-        // FEAT_TYPE 'Neighbourhood'
-        tl_builder.add_tag("place", "suburb");
-      } else if (!strcmp(field_value, "2000461")) {
-        // FEAT_TYPE 'ANIMAL PARK'
-        tl_builder.add_tag("tourism", "zoo");
-      }
-
-      // Not implemented so far due to missing sample in data:
-      // MILITARY BASE (900108), NATIVE AMERICAN
-      // RESERVATION (900107), RAILYARD (9997007)
-      // Land Use B types
-      else if (!strcmp(field_value, "900158")) {
-        // FEAT_TYPE 'PEDESTRIAN ZONE'
-        tl_builder.add_tag("highway", "pedestrian");
-      } else if (!strcmp(field_value, "1907403")) {
-        // FEAT_TYPE 'AIRCRAFT ROADS'
-        tl_builder.add_tag("aeroway", "runway");
-      } else if (!strcmp(field_value, "2000123")) {
-        // FEAT_TYPE 'GOLF COURSE'
-        tl_builder.add_tag("leisure", "golf_course");
-        tl_builder.add_tag("sport", "golf");
-      } else if (!strcmp(field_value, "9997004")) {
-        // FEAT_TYPE 'CONGESTION ZONE'
-        // skipping due to no osm equivalent
-      } else if (!strcmp(field_value, "9997010")) {
-        // FEAT_TYPE 'ENVIRONMENTAL ZONE'
-        tl_builder.add_tag("boundary", "low_emission_zone");
-        tl_builder.add_tag("type", "boundary");
-      }
-      // Unknown if Land Use A or B types, but seems to appear somewhere
-      else if (!strcmp(field_value, "509997")) {
-        // FEAT_TYPE 'GLACIER'
-        tl_builder.add_tag("natural", "glacier");
-      } else {
-        std::cerr << "Skipping unknown landuse type " << field_value << " "
-                  << std::endl;
-      }
-    }
+  // Not implemented so far due to missing sample in data:
+  // MILITARY BASE (900108), NATIVE AMERICAN
+  // RESERVATION (900107), RAILYARD (9997007)
+  // Land Use B types
+  else if (featureCode == "900158") {
+    // FEAT_TYPE 'PEDESTRIAN ZONE'
+    tl_builder.add_tag("highway", "pedestrian");
+  } else if (featureCode == "1907403") {
+    // FEAT_TYPE 'AIRCRAFT ROADS'
+    tl_builder.add_tag("aeroway", "runway");
+  } else if (featureCode == "2000123") {
+    // FEAT_TYPE 'GOLF COURSE'
+    tl_builder.add_tag("leisure", "golf_course");
+    tl_builder.add_tag("sport", "golf");
+  } else if (featureCode == "9997004") {
+    // FEAT_TYPE 'CONGESTION ZONE'
+    // skipping due to no osm equivalent
+  } else if (featureCode == "9997010") {
+    // FEAT_TYPE 'ENVIRONMENTAL ZONE'
+    tl_builder.add_tag("boundary", "low_emission_zone");
+    tl_builder.add_tag("type", "boundary");
+  }
+  // Unknown if Land Use A or B types, but seems to appear somewhere
+  else if (featureCode == "509997") {
+    // FEAT_TYPE 'GLACIER'
+    tl_builder.add_tag("natural", "glacier");
+  } else {
+    BOOST_LOG_TRIVIAL(error) << "Skipping unknown landuse type " << featureCode;
   }
 }
 
-osm_id_vector_type build_water_ways_with_tagList(
-    OGRLayer *layer, OGRFeature *feat, OGRLineString *line,
-    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
+osm_id_vector_type
+build_water_ways_with_tagList(OGRFeature *feat, OGRLineString *line,
+                              osmium::memory::Buffer &node_buffer,
+                              osmium::memory::Buffer &way_buffer) {
   node_vector_type osm_way_node_ids = create_open_way_nodes(line, node_buffer);
 
   osm_id_vector_type osm_way_ids;
@@ -1203,7 +1223,7 @@ osm_id_vector_type build_water_ways_with_tagList(
     builder.object().set_id(g_osm_id++);
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
-    build_water_way_taglist(builder, layer, feat, way_buffer);
+    build_water_way_taglist(builder, feat);
     osmium::builder::WayNodeListBuilder wnl_builder(builder);
     for (size_t j = i;
          j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
@@ -1241,26 +1261,39 @@ osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
   return builder.object().id();
 }
 
+osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
+    OGRFeature *feat, const osm_id_vector_type &ext_osm_way_ids,
+    const osm_id_vector_type &int_osm_way_ids,
+    osmium::memory::Buffer &rel_buffer) {
+  osmium::builder::RelationBuilder builder(rel_buffer);
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
+  builder.set_user(USER);
+  build_admin_boundary_taglist(builder, feat);
+  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
+  return builder.object().id();
+}
+
 osmium::unsigned_object_id_type build_water_relation_with_tags(
-    OGRLayer *layer, OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
+    OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
     osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
-  build_water_poly_taglist(builder, layer, feat);
+  build_water_poly_taglist(builder, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
 
 osmium::unsigned_object_id_type build_landuse_relation_with_tags(
-    OGRLayer *layer, OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
+    OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
     osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   builder.object().set_id(g_osm_id++);
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
-  build_landuse_taglist(builder, layer, feat);
+  build_landuse_taglist(builder, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
@@ -1311,7 +1344,7 @@ void create_polygon(OGRPolygon *poly, osm_id_vector_type &exterior_way_ids,
  */
 void process_admin_boundary(
     OGRFeature *feat, osmium::memory::Buffer &node_buffer,
-    osmium::memory::Buffer &way_buffer,
+    osmium::memory::Buffer &way_buffer, osmium::memory::Buffer &rel_buffer,
     std::map<int, std::pair<osm_id_vector_type, osm_id_vector_type>>
         &adminLineMap) {
   auto geom = feat->GetGeometryRef();
@@ -1329,10 +1362,17 @@ void process_admin_boundary(
                              " are not yet supported."));
   }
   osmium::unsigned_object_id_type area_id = feat->GetFieldAsInteger(AREA_ID);
-  boost::copy(exterior_way_ids,
-              std::back_inserter(adminLineMap[area_id].first));
-  boost::copy(interior_way_ids,
-              std::back_inserter(adminLineMap[area_id].second));
+  if (area_id != 0) {
+    boost::copy(exterior_way_ids,
+                std::back_inserter(adminLineMap[area_id].first));
+    boost::copy(interior_way_ids,
+                std::back_inserter(adminLineMap[area_id].second));
+  } else {
+    // need to tag here because there is no unique Area_ID
+    build_admin_boundary_relation_with_tags(feat, exterior_way_ids,
+                                            interior_way_ids, rel_buffer);
+    rel_buffer.commit();
+  }
 
   node_buffer.commit();
   way_buffer.commit();
@@ -1341,8 +1381,7 @@ void process_admin_boundary(
 /**
  * \brief adds water polygons as Relations to m_buffer
  */
-void process_water(OGRLayer *layer, OGRFeature *feat,
-                   osmium::memory::Buffer &node_buffer,
+void process_water(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
                    osmium::memory::Buffer &way_buffer,
                    osmium::memory::Buffer &rel_buffer) {
   auto geom = feat->GetGeometryRef();
@@ -1350,7 +1389,7 @@ void process_water(OGRLayer *layer, OGRFeature *feat,
 
   if (geom_type == wkbLineString) {
     OGRLineString *line = static_cast<OGRLineString *>(geom);
-    build_water_ways_with_tagList(layer, feat, line, node_buffer, way_buffer);
+    build_water_ways_with_tagList(feat, line, node_buffer, way_buffer);
   } else {
     osm_id_vector_type exterior_way_ids, interior_way_ids;
     if (geom_type == wkbMultiPolygon) {
@@ -1365,8 +1404,8 @@ void process_water(OGRLayer *layer, OGRFeature *feat,
           "Water item with geometry=" + std::string(geom->getGeometryName()) +
           " is not yet supported."));
     }
-    build_water_relation_with_tags(layer, feat, exterior_way_ids,
-                                   interior_way_ids, rel_buffer);
+    build_water_relation_with_tags(feat, exterior_way_ids, interior_way_ids,
+                                   rel_buffer);
   }
 
   node_buffer.commit();
@@ -1442,8 +1481,7 @@ void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
 /**
  * \brief adds landuse polygons as Relations to m_buffer
  */
-void process_landuse(OGRLayer *layer, OGRFeature *feat,
-                     osmium::memory::Buffer &node_buffer,
+void process_landuse(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
                      osmium::memory::Buffer &way_buffer,
                      osmium::memory::Buffer &rel_buffer) {
   auto geom = feat->GetGeometryRef();
@@ -1462,8 +1500,8 @@ void process_landuse(OGRLayer *layer, OGRFeature *feat,
         " is not yet supported."));
   }
 
-  build_landuse_relation_with_tags(layer, feat, exterior_way_ids,
-                                   interior_way_ids, rel_buffer);
+  build_landuse_relation_with_tags(feat, exterior_way_ids, interior_way_ids,
+                                   rel_buffer);
 
   node_buffer.commit();
   way_buffer.commit();
@@ -1588,7 +1626,7 @@ void process_rest_area(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
  * 		  administrative boundaries.
  * \param handle file handle to navteq administrative meta data.
  */
-void process_meta_areas(boost::filesystem::path dir, bool test = false) {
+void process_meta_areas(boost::filesystem::path dir) {
   DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
 
   for (int i = 0; i < DBFGetRecordCount(handle); i++) {
@@ -1606,9 +1644,9 @@ void process_meta_areas(boost::filesystem::path dir, bool test = false) {
     if (data.admin_lvl.empty()) {
       data.admin_lvl = admin_lvl;
     } else if (data.admin_lvl != admin_lvl) {
-      std::cerr << "entry with area_id=" << area_id
-                << " has multiple admin_lvls:" << data.admin_lvl << ", "
-                << admin_lvl << std::endl;
+      BOOST_LOG_TRIVIAL(error)
+          << "entry with area_id=" << area_id
+          << " has multiple admin_lvls:" << data.admin_lvl << ", " << admin_lvl;
     }
 
     std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
@@ -1812,8 +1850,8 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
-        std::cerr << "Skipping city node because of wrong POI type"
-                  << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << "Skipping city node because of wrong POI type";
         OGRFeature::DestroyFeature(feat);
         continue;
       }
@@ -1838,8 +1876,8 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
-        std::cerr << "Skipping city node because of wrong POI type"
-                  << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << "Skipping city node because of wrong POI type";
         OGRFeature::DestroyFeature(feat);
         continue;
       }
@@ -1883,8 +1921,8 @@ void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
     while (auto feat = layer->GetNextFeature()) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 9998) {
-        std::cerr << "Skipping hamlet node because of wrong POI type"
-                  << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << "Skipping hamlet node because of wrong POI type";
         OGRFeature::DestroyFeature(feat);
         continue;
       }
@@ -2439,12 +2477,15 @@ void add_admin_shape(
   assert(layer->GetGeomType() == wkbPolygon);
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
+  osmium::memory::Buffer rel_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
-    process_admin_boundary(feat, node_buffer, way_buffer, adminLineMap);
+    process_admin_boundary(feat, node_buffer, way_buffer, rel_buffer,
+                           adminLineMap);
     OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
+  writer(std::move(rel_buffer));
   GDALClose(ds);
 }
 
@@ -2461,7 +2502,7 @@ void add_water_shape(boost::filesystem::path water_shape_file,
   osmium::memory::Buffer way_buffer(buffer_size);
   osmium::memory::Buffer rel_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
-    process_water(layer, feat, node_buffer, way_buffer, rel_buffer);
+    process_water(feat, node_buffer, way_buffer, rel_buffer);
     OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
@@ -2525,7 +2566,7 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
   osmium::memory::Buffer way_buffer(buffer_size);
   osmium::memory::Buffer rel_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
-    process_landuse(layer, feat, node_buffer, way_buffer, rel_buffer);
+    process_landuse(feat, node_buffer, way_buffer, rel_buffer);
     OGRFeature::DestroyFeature(feat);
   }
 
