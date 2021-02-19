@@ -970,6 +970,51 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
 }
 
 /**
+ * \brief adds navteq administrative boundary tags to Relation
+ */
+void build_admin_boundary_taglist(osmium::builder::Builder &builder,
+                                  OGRFeature *feat) {
+  osmium::builder::TagListBuilder tl_builder(builder);
+
+  int level = 0;
+
+  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
+  if (featureCode == "907196") {
+    level = 1;
+  } else if (featureCode == "909996") {
+    level = 2;
+  } else if (featureCode == "900170") {
+    level = 3;
+  } else if (featureCode == "900101") {
+    level = 4;
+  } else if (featureCode == "900156") {
+    level = 5;
+  } else {
+    BOOST_LOG_TRIVIAL(error) << "Unknown admin level " << featureCode;
+    return;
+  }
+
+  // Mind tl_builder scope in calling method!
+  if (level == 5) {
+    // only landuse residential
+    tl_builder.add_tag("type", "multipolygon");
+    tl_builder.add_tag("landuse", "residential");
+  } else {
+    tl_builder.add_tag("type", "boundary");
+    tl_builder.add_tag("boundary", "administrative");
+  }
+
+  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
+  if (!polygonName.empty()) {
+    std::string waters_name = to_camel_case_with_spaces(polygonName);
+    if (!waters_name.empty())
+      tl_builder.add_tag("name", waters_name);
+  }
+
+  tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(level));
+}
+
+/**
  * \brief adds navteq water tags to Relation
  */
 void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
@@ -1216,6 +1261,19 @@ osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
   return builder.object().id();
 }
 
+osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
+    OGRFeature *feat, const osm_id_vector_type &ext_osm_way_ids,
+    const osm_id_vector_type &int_osm_way_ids,
+    osmium::memory::Buffer &rel_buffer) {
+  osmium::builder::RelationBuilder builder(rel_buffer);
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
+  builder.set_user(USER);
+  build_admin_boundary_taglist(builder, feat);
+  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
+  return builder.object().id();
+}
+
 osmium::unsigned_object_id_type build_water_relation_with_tags(
     OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
     osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
@@ -1286,7 +1344,7 @@ void create_polygon(OGRPolygon *poly, osm_id_vector_type &exterior_way_ids,
  */
 void process_admin_boundary(
     OGRFeature *feat, osmium::memory::Buffer &node_buffer,
-    osmium::memory::Buffer &way_buffer,
+    osmium::memory::Buffer &way_buffer, osmium::memory::Buffer &rel_buffer,
     std::map<int, std::pair<osm_id_vector_type, osm_id_vector_type>>
         &adminLineMap) {
   auto geom = feat->GetGeometryRef();
@@ -1311,6 +1369,8 @@ void process_admin_boundary(
                 std::back_inserter(adminLineMap[area_id].second));
   } else {
     // need to tag here because there is no unique Area_ID
+    build_admin_boundary_relation_with_tags(feat, exterior_way_ids,
+                                            interior_way_ids, rel_buffer);
   }
 
   node_buffer.commit();
@@ -2416,12 +2476,15 @@ void add_admin_shape(
   assert(layer->GetGeomType() == wkbPolygon);
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
+  osmium::memory::Buffer rel_buffer(buffer_size);
   while (auto feat = layer->GetNextFeature()) {
-    process_admin_boundary(feat, node_buffer, way_buffer, adminLineMap);
+    process_admin_boundary(feat, node_buffer, way_buffer, rel_buffer,
+                           adminLineMap);
     OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
+  writer(std::move(rel_buffer));
   GDALClose(ds);
 }
 
