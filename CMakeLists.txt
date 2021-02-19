@@ -23,7 +23,7 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
 ENDIF()
 
 set(Boost_NO_BOOST_CMAKE ON)
-find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem locale log)
+find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem locale log program_options)
 find_package(GDAL REQUIRED)
 find_package(GEOS REQUIRED)
 find_package(Osmium)

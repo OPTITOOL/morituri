@@ -77,6 +77,8 @@ cntry_ref_map_type g_cntry_ref_map;
 
 bool withTurnRestrictions = false;
 
+bool debugMode = false;
+
 /**
  * \brief Dummy attributes enable josm to read output xml files.
  *
@@ -204,7 +206,7 @@ link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
   link_id_type link_id = parse_street_tags(
       &tl_builder, feat, &g_cdms_map, &g_cnd_mod_map, &g_area_to_govt_code_map,
       &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map,
-      g_construction_set);
+      g_construction_set, debugMode);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -939,6 +941,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
   if (level == 5) {
     // only landuse residential
     tl_builder.add_tag("type", "multipolygon");
+    tl_builder.add_tag("landuse", "residential");
   } else {
     tl_builder.add_tag("type", "boundary");
     tl_builder.add_tag("boundary", "administrative");
@@ -951,8 +954,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
       tl_builder.add_tag("navteq_admin_level", d.admin_lvl);
 
     if (!d.admin_lvl.empty())
-      tl_builder.add_tag("admin_level",
-                         navteq_2_osm_admin_lvl(d.admin_lvl).c_str());
+      tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(d.admin_lvl));
     if (!d.name.empty())
       tl_builder.add_tag("name", d.name);
     if (!d.short_name.empty())
@@ -964,10 +966,6 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
     }
   } else {
     std::cerr << "Skipping unknown navteq_admin_level" << std::endl;
-  }
-
-  if (level == 5) {
-    tl_builder.add_tag("landuse", "residential");
   }
 }
 
@@ -2597,10 +2595,18 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
 
+  std::set<std::pair<link_id_type, area_id_type>> convertedLinkIds;
+
   while (auto feat = layer->GetNextFeature()) {
     auto areaId = feat->GetFieldAsInteger(AREA_ID);
-    auto osmIdVector = build_admin_line(feat, node_buffer, way_buffer);
-    boost::copy(osmIdVector, std::back_inserter(result[areaId]));
+    auto linkId = feat->GetFieldAsInteger(LINK_ID);
+
+    if (convertedLinkIds.find(std::make_pair(linkId, areaId)) ==
+        convertedLinkIds.end()) {
+      auto osmIdVector = build_admin_line(feat, node_buffer, way_buffer);
+      boost::copy(osmIdVector, std::back_inserter(result[areaId]));
+      convertedLinkIds.insert(std::make_pair(linkId, areaId));
+    }
 
     OGRFeature::DestroyFeature(feat);
   }

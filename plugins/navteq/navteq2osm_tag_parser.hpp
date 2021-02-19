@@ -670,19 +670,16 @@ void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
  * \brief maps navteq tags for access, tunnel, bridge, etc. to osm tags
  * \return link id of processed feature.
  */
-link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
-                               OGRFeature *f, cdms_map_type *cdms_map,
-                               cnd_mod_map_type *cnd_mod_map,
-                               area_id_govt_code_map_type *area_govt_map,
-                               cntry_ref_map_type *cntry_map,
-                               mtd_area_map_type *mtd_area_map,
-                               link_id_route_type_map *route_type_map,
-                               link_id_to_names_map *names_map,
-                               const std::set<link_id_type> &construction_set) {
+link_id_type parse_street_tags(
+    osmium::builder::TagListBuilder *builder, OGRFeature *f,
+    cdms_map_type *cdms_map, cnd_mod_map_type *cnd_mod_map,
+    area_id_govt_code_map_type *area_govt_map, cntry_ref_map_type *cntry_map,
+    mtd_area_map_type *mtd_area_map, link_id_route_type_map *route_type_map,
+    link_id_to_names_map *names_map,
+    const std::set<link_id_type> &construction_set, bool debugMode) {
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   link_id_type link_id = std::stoul(link_id_s);
-  builder->add_tag(LINK_ID, link_id_s); // tag for debug purpose
 
   bool ramp = parse_bool(get_field_from_feature(f, RAMP));
 
@@ -715,22 +712,26 @@ link_id_type parse_street_tags(osmium::builder::TagListBuilder *builder,
   add_additional_restrictions(builder, link_id, l_area_id, r_area_id, cdms_map,
                               cnd_mod_map, area_govt_map, cntry_map,
                               mtd_area_map);
-  add_here_speed_cat_tag(builder, f);
-  if (parse_bool(get_field_from_feature(f, TOLLWAY)))
-    builder->add_tag("here:tollway", YES);
-  if (parse_bool(get_field_from_feature(f, URBAN)))
-    builder->add_tag("here:urban", YES);
-  if (parse_bool(get_field_from_feature(f, CONTRACC)))
-    builder->add_tag("here:controll_access", YES);
-  if (route_type)
-    add_uint_tag(builder, "here:route_type", route_type);
 
-  std::string func_class = get_field_from_feature(f, FUNC_CLASS);
-  if (!func_class.empty())
-    builder->add_tag("here:func_class", func_class.c_str());
+  // tag for debug purpose
+  if (debugMode) {
+    builder->add_tag(LINK_ID, link_id_s);
+    add_here_speed_cat_tag(builder, f);
+    if (parse_bool(get_field_from_feature(f, TOLLWAY)))
+      builder->add_tag("here:tollway", YES);
+    if (parse_bool(get_field_from_feature(f, URBAN)))
+      builder->add_tag("here:urban", YES);
+    if (parse_bool(get_field_from_feature(f, CONTRACC)))
+      builder->add_tag("here:controll_access", YES);
+    if (route_type)
+      add_uint_tag(builder, "here:route_type", route_type);
 
-  add_uint_tag(builder, "here:area_code", get_area_code_l(f, mtd_area_map));
+    std::string func_class = get_field_from_feature(f, FUNC_CLASS);
+    if (!func_class.empty())
+      builder->add_tag("here:func_class", func_class.c_str());
 
+    add_uint_tag(builder, "here:area_code", get_area_code_l(f, mtd_area_map));
+  }
   return link_id;
 }
 
@@ -807,7 +808,7 @@ std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
                              std::to_string(navteq_admin_lvl_int) +
                              "' is out of range.");
 
-  return std::to_string(2 * navteq_admin_lvl_int).c_str();
+  return std::to_string(2 * navteq_admin_lvl_int);
 }
 
 std::string navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {

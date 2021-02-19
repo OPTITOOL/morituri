@@ -223,4 +223,31 @@ void add_uint_tag(osmium::builder::TagListBuilder *tl_builder,
   }
 }
 
+bool checkInBoundingBox(const OGREnvelope &boundingBox,
+                        const boost::filesystem::path &shp_file) {
+
+  if (!boundingBox.IsInit())
+    return true;
+
+  auto ds = open_shape_file(shp_file);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(shp_file.string()));
+
+  OGREnvelope layerEnvelop;
+
+  if (layer->GetExtent(&layerEnvelop) != OGRERR_NONE) {
+    GDALClose(ds);
+    return false;
+  }
+
+  bool result = false;
+  if (boundingBox.Intersects(layerEnvelop)) {
+    result = true;
+  }
+
+  GDALClose(ds);
+  return result;
+}
+
 #endif /* UTIL_HPP_ */
