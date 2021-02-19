@@ -1371,6 +1371,7 @@ void process_admin_boundary(
     // need to tag here because there is no unique Area_ID
     build_admin_boundary_relation_with_tags(feat, exterior_way_ids,
                                             interior_way_ids, rel_buffer);
+    rel_buffer.commit();
   }
 
   node_buffer.commit();
