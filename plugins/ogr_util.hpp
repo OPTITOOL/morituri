@@ -74,7 +74,22 @@ geos::geom::Geometry::Ptr wkb2geos(const std::string &wkb) {
 geos::geom::Geometry::Ptr ogr2geos(OGRGeometry *ogr_geom) {
   if (!ogr_geom || ogr_geom->IsEmpty())
     throw std::runtime_error("geometry is nullptr");
-  return wkb2geos(ogr2wkb(ogr_geom));
+
+  unsigned char staticbuffer[1024 * 1024];
+  unsigned char *buffer = staticbuffer;
+  size_t wkb_size = ogr_geom->WkbSize();
+  if (wkb_size > sizeof(staticbuffer))
+    buffer = (unsigned char *)malloc(wkb_size);
+  ogr_geom->exportToWkb(wkbNDR, buffer);
+
+  geos::geom::Geometry::Ptr geos_geom = wkb_reader.read(buffer, wkb_size);
+  if (buffer != staticbuffer)
+    free(buffer);
+
+  if (!geos_geom)
+    throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
+
+  return geos_geom;
 }
 
 geos::io::WKBWriter wkb_writer;
