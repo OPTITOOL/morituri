@@ -9,7 +9,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 # set c++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-ADD_DEFINITIONS(-DBOOST_LOG_DYN_LINK)
+#ADD_DEFINITIONS(-DBOOST_LOG_DYN_LINK)
 
 message(STATUS "Build ${CMAKE_BUILD_TYPE}")
 
@@ -22,12 +22,14 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -flto -Wall -Wextra -pedantic")
 ENDIF()
 
-set(Boost_NO_BOOST_CMAKE ON)
-find_package(Boost 1.65.0 REQUIRED COMPONENTS system filesystem locale log program_options)
+set(Boost_USE_STATIC_LIBS    ON)
+set(Boost_USE_STATIC_RUNTIME ON)
+
+find_package(Boost REQUIRED COMPONENTS system filesystem locale log program_options)
 find_package(GDAL REQUIRED)
-find_package(GEOS REQUIRED)
-find_package(Osmium)
-find_package(Shp)
+find_package(geos REQUIRED)
+find_path(LIBOSMIUM_INCLUDE_DIRS "osmium/area/assembler.hpp")
+find_package(shp CONFIG REQUIRED)
 
 
 # Find includes in corresponding build directories 
@@ -38,9 +40,13 @@ set(MAIN_CPP_FILES ${PROJECT_SOURCE_DIR}/comm2osm.cpp)
 file(GLOB_RECURSE  CPP_FILES ${PROJECT_SOURCE_DIR}/plugins/*.cpp) 
 file(GLOB_RECURSE  INCLUDE_FILES ${PROJECT_SOURCE_DIR}/*.h)
 
-include_directories( ${GDAL_INCLUDE_DIR} ${GEOS_INCLUDE_DIR} ${OSMIUM_INCLUDE_DIRS} ${SHP_INCLUDE_DIR})
-
+include_directories(${GDAL_INCLUDE_DIRS} ${GEOS_INCLUDE_DIR} ${OSMIUM_INCLUDE_DIRS} ${SHP_INCLUDE_DIR})
 
 add_executable (${PROJECT_NAME} ${MAIN_CPP_FILES} ${CPP_FILES})
 
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${CMAKE_DL_LIBS} ${GDAL_LIBRARY} ${GEOS_LIBRARY} ${OSMIUM_LIBRARIES} ${SHP_LIBRARIES} bz2 z expat pthread)
+target_link_libraries(${PROJECT_NAME} PRIVATE Boost::boost Boost::log Boost::locale Boost::program_options
+                                      PRIVATE GEOS::geos 
+                                      PRIVATE ${LIBOSMIUM_INCLUDE_DIRS}
+                                      PRIVATE ${GDAL_LIBRARIES}
+                                      PRIVATE shp
+                                      PRIVATE bz2)
