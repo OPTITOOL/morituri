@@ -12,6 +12,7 @@
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
+            "envFile": "${workspaceFolder}/.env",
             "linux": {
                 "program": "${workspaceFolder}/build/comm2osm",
                 "MIMode": "gdb",
