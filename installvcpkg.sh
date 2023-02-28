@@ -9,4 +9,4 @@ cd $vcpkgPath
 ./bootstrap-vcpkg.sh
 
 #build linux dependenciess
-./vcpkg install --recurse --clean-after-build gdal[core] geos boost-log boost-program-options shapelib libosmium
+./vcpkg install --recurse --clean-after-build gdal[core] geos boost-log boost-program-options boost-locale shapelib libosmium
