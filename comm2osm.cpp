@@ -8,7 +8,7 @@
 #include <boost/locale.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 #include <getopt.h>
 #include <iostream>
 #include <memory>

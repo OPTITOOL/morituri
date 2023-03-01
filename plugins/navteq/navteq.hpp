@@ -12,11 +12,11 @@
 
 #include <iostream>
 
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
-#include <boost/progress.hpp>
+#include <boost/timer/progress_display.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/index/map/sparse_file_array.hpp>
@@ -2284,7 +2284,7 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
-    boost::progress_display progress(layer->GetFeatureCount());
+    boost::timer::progress_display progress(layer->GetFeatureCount());
 
     osmium::memory::Buffer node_buffer(buffer_size);
     osmium::memory::Buffer way_buffer(buffer_size);
@@ -2359,7 +2359,7 @@ void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
-    boost::progress_display progress(layer->GetFeatureCount());
+    boost::timer::progress_display progress(layer->GetFeatureCount());
 
     osmium::memory::Buffer node_buffer(buffer_size);
     osmium::memory::Buffer way_buffer(buffer_size);

@@ -12,8 +12,8 @@
 #include <boost/iostreams/device/null.hpp>
 #include <boost/iostreams/stream.hpp>
 #include <boost/locale.hpp>
-#include <gdal/ogr_api.h>
-#include <gdal/ogrsf_frmts.h>
+#include <ogr_api.h>
+#include <ogrsf_frmts.h>
 #include <map>
 #include <memory>
 #include <osmium/builder/osm_object_builder.hpp>

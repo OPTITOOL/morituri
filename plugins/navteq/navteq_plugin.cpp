@@ -11,7 +11,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <exception>
-#include <gdal/ogr_api.h>
+#include <ogr_api.h>
 #include <iomanip>
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>

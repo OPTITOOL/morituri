@@ -10,7 +10,7 @@
 
 #include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 #include <shapefil.h>
 
 #include "comm2osm_exceptions.hpp"
