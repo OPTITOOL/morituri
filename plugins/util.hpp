@@ -12,10 +12,10 @@
 #include <boost/iostreams/device/null.hpp>
 #include <boost/iostreams/stream.hpp>
 #include <boost/locale.hpp>
-#include <ogr_api.h>
-#include <ogrsf_frmts.h>
 #include <map>
 #include <memory>
+#include <ogr_api.h>
+#include <ogrsf_frmts.h>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/types.hpp>
 #include <shapefil.h>
@@ -43,13 +43,9 @@ const double SHORT_TON = 0.90718474;
  * */
 
 bool shp_file_exists(const std::string &shp_file) {
-  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
-      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
-  if (input_data_source == nullptr) {
-    return false;
-  }
-  GDALClose(input_data_source);
-  return true;
+  auto input_data_source =
+      GDALDatasetUniquePtr(GDALDataset::Open(shp_file.c_str()));
+  return input_data_source != nullptr;
 }
 
 bool shp_file_exists(boost::filesystem::path shp_file) {
@@ -237,7 +233,6 @@ bool checkInBoundingBox(const OGREnvelope &boundingBox,
   OGREnvelope layerEnvelop;
 
   if (layer->GetExtent(&layerEnvelop) != OGRERR_NONE) {
-    GDALClose(ds);
     return false;
   }
 
@@ -246,7 +241,6 @@ bool checkInBoundingBox(const OGREnvelope &boundingBox,
     result = true;
   }
 
-  GDALClose(ds);
   return result;
 }
 

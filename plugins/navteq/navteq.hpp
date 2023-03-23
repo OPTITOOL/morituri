@@ -16,8 +16,8 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
-#include <boost/timer/progress_display.hpp>
 #include <boost/range/algorithm/copy.hpp>
+#include <boost/timer/progress_display.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/index/map/sparse_file_array.hpp>
 #include <osmium/osm/item_type.hpp>
@@ -1847,18 +1847,16 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
 
     std::map<uint64_t, std::map<std::string, std::string>> translations;
     // read translations
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
         BOOST_LOG_TRIVIAL(error)
             << "Skipping city node because of wrong POI type";
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type == "B") {
         // Skip this entry as it's just a translated namePlc of former one
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
       int poiId = feat->GetFieldAsInteger(poiIdField);
@@ -1867,8 +1865,6 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
 
       translations[poiId].emplace(parse_lang_code(langCode),
                                   to_camel_case_with_spaces(locName));
-
-      OGRFeature::DestroyFeature(feat);
     }
 
     layer->ResetReading();
@@ -1878,24 +1874,20 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
       if (fac_type != 4444 && fac_type != 9709) {
         BOOST_LOG_TRIVIAL(error)
             << "Skipping city node because of wrong POI type";
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type != "B") {
         // Skip this entry as it's just a translated namePlc of former one
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
       int poiId = feat->GetFieldAsInteger(poiIdField);
 
       process_city(feat, fac_type, node_buffer, translations[poiId]);
-      OGRFeature::DestroyFeature(feat);
     }
     node_buffer.commit();
     writer(std::move(node_buffer));
-    GDALClose(ds);
   }
 }
 
@@ -1938,7 +1930,6 @@ void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
       OGRFeature::DestroyFeature(feat);
     }
     writer(std::move(node_buffer));
-    GDALClose(ds);
   }
 }
 
@@ -1979,7 +1970,6 @@ void add_rest_area_nodes(const std::vector<boost::filesystem::path> &dirs,
       OGRFeature::DestroyFeature(feat);
     }
     writer(std::move(node_buffer));
-    GDALClose(ds);
   }
 }
 
@@ -2182,8 +2172,6 @@ void parse_ramp_names(
 
     OGRFeature::DestroyFeature(feat);
   }
-
-  GDALClose(ds);
 }
 
 std::map<link_id_type, std::string>
@@ -2219,7 +2207,7 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs) {
 
   for (auto &dir : dirs) {
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2229,8 +2217,6 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs) {
     init_z_level_map(dir, z_level_map);
     init_conditional_driving_manoeuvres(dir);
     init_country_reference(dir);
-
-    GDALClose(ds);
   }
   return z_level_map;
 }
@@ -2243,7 +2229,7 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
     init_ramp_names(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2264,7 +2250,6 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
     }
     node_buffer.commit();
     writer(std::move(node_buffer));
-    GDALClose(ds);
     g_ramps_ref_map.clear();
   }
 }
@@ -2279,7 +2264,7 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     init_under_construction(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2300,8 +2285,6 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     writer(std::move(way_buffer));
 
     g_hwys_ref_map.clear();
-
-    GDALClose(ds);
   }
 }
 
@@ -2311,7 +2294,7 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
       new std::map<uint64_t,
                    std::vector<std::pair<osmium::Location, std::string>>>();
   if (shp_file_exists(dir / POINT_ADDRESS_SHP)) {
-    auto *ds = open_shape_file(dir / POINT_ADDRESS_SHP);
+    auto ds = open_shape_file(dir / POINT_ADDRESS_SHP);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2354,7 +2337,7 @@ void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
     auto pointMap = createPointAddressMapList(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2378,7 +2361,6 @@ void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
     writer(std::move(node_buffer));
     writer(std::move(way_buffer));
     delete pointMap;
-    GDALClose(ds);
   }
 }
 
@@ -2486,7 +2468,6 @@ void add_admin_shape(
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  GDALClose(ds);
 }
 
 void add_water_shape(boost::filesystem::path water_shape_file,
@@ -2508,7 +2489,6 @@ void add_water_shape(boost::filesystem::path water_shape_file,
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  GDALClose(ds);
   g_way_end_points_map.clear();
 }
 
@@ -2530,7 +2510,6 @@ void add_building_shape(boost::filesystem::path landmark_shape_file,
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  GDALClose(ds);
 }
 
 void add_railways_shape(boost::filesystem::path water_shape_file,
@@ -2550,7 +2529,6 @@ void add_railways_shape(boost::filesystem::path water_shape_file,
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  GDALClose(ds);
   g_way_end_points_map.clear();
 }
 
@@ -2573,7 +2551,6 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  GDALClose(ds);
   g_way_end_points_map.clear();
 }
 
@@ -2656,7 +2633,6 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
 
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  GDALClose(ds);
 
   return result;
 }
