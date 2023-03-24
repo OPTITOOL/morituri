@@ -19,8 +19,7 @@
  * \param field field name as key
  * \return const char* of field value
  */
-template <class T>
-const char *get_field_from_feature(std::unique_ptr<T> &feat,
+const char *get_field_from_feature(OGRFeatureUniquePtr &feat,
                                    const char *field) {
   assert(feat);
   int field_index = feat->GetFieldIndex(field);
@@ -37,8 +36,7 @@ const char *get_field_from_feature(std::unique_ptr<T> &feat,
  * \param field field name as key
  * \return field value as uint
  */
-template <class T>
-uint64_t get_uint_from_feature(std::unique_ptr<T> &feat, const char *field) {
+uint64_t get_uint_from_feature(OGRFeatureUniquePtr &feat, const char *field) {
   const char *value = get_field_from_feature(feat, field);
   assert(value);
   try {
