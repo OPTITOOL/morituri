@@ -20,6 +20,7 @@
 #include <osmium/osm/types.hpp>
 #include <shapefil.h>
 #include <sstream>
+#include <string>
 
 #include "../plugins/comm2osm_exceptions.hpp"
 #include "ogr_util.hpp"
@@ -130,7 +131,7 @@ const char *get_field_from_feature(const OGRFeature *feat, const char *field) {
  * \param field field name as key
  * \return field value as uint
  */
-uint64_t get_uint_from_feature(OGRFeature *feat, const char *field) {
+uint64_t get_uint_from_feature(const OGRFeature *feat, const char *field) {
   const char *value = get_field_from_feature(feat, field);
   assert(value);
   try {
@@ -166,17 +167,13 @@ bool string_is_not_unsigned_integer(const std::string &s) {
  * \brief converts kilogram to tons
  */
 template <class T> std::string kg_to_t(T kilo) {
-  std::stringstream stream;
-  stream << kilo / 1000.0f;
-  return stream.str();
+  return std::to_string(kilo / 1000.0f);
 }
 /**
  * \brief converts centimeter to meters
  */
 template <class T> std::string cm_to_m(T meter) {
-  std::stringstream stream;
-  stream << meter / 100.0f;
-  return stream.str();
+  return std::to_string(meter / 100.0f);
 }
 /**
  * \brief converts inches to feet
