@@ -4,9 +4,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV EDITOR=nano
 
-RUN apt-get update && apt-get upgrade --yes
-
 RUN apt-get update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
+    software-properties-common && \
+    # gcc 13 ppa   
+    add-apt-repository ppa:ubuntu-toolchain-r/test && \  
+    apt-get update && apt-get upgrade --yes && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
     bash \
     build-essential \
@@ -28,8 +31,8 @@ RUN apt-get update && \
     tar \
     zip \
     pkg-config \
-    gcc-12 \
-    g++-12 \
+    gcc-13 \
+    g++-13 \
     gcovr \
     cppcheck \
     autoconf \
@@ -70,7 +73,12 @@ RUN apt-get update && \
     flawfinder \
     gdb \
     locales \
-    clang-format
+    clang-format && \
+
+    # cleanup
+    apt-get remove --purge -y gnupg && \
+    apt-get autoremove --purge -y && \
+    apt-get clean
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
@@ -79,9 +87,8 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en  
 ENV LC_ALL en_US.UTF-8 
 
-RUN apt-get clean 
-
 COPY installvcpkg.sh installvcpkg.sh
 
 # create dependencies
 RUN ./installvcpkg.sh
+
