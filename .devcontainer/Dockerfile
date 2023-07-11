@@ -30,9 +30,10 @@ RUN apt-get update && \
     tar \
     zip \
     pkg-config \
-    gcc-13 \
-    g++-13 \
+    gcc-12 \
+    g++-12 \
     gcovr \
+    make \
     cppcheck \
     flawfinder \
     gdb \
@@ -52,7 +53,8 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8 
 
 COPY installvcpkg.sh installvcpkg.sh
+COPY vcpkg.json vcpkg.json
 
 # create dependencies
-RUN ./installvcpkg.sh
+#RUN ./installvcpkg.sh
 
