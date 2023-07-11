@@ -38,24 +38,19 @@ bool fits_street_ref(const std::string &st_name) {
   return number_started;
 }
 
-bool begins_with(const std::string &str, const char *start_str) {
-  return str.rfind(start_str) == 0;
-}
-
 uint get_number_after(const std::string &str, const char *start_str) {
-  if (!begins_with(str, start_str))
+  if (!str.starts_with(start_str))
     return 0; /* doesn't start with start_str */
 
   /* Get number string after start_str until first non-digit appears */
   std::string end_str = str.substr(strlen(start_str));
   std::string number_str;
   for (auto it = end_str.begin(); it != end_str.end(); ++it) {
-    if (std::isdigit(*it)) {
-      number_str += *it;
-    } else {
+    if (!std::isdigit(*it)) {
       /* break because B107a should return 107*/
       break;
     }
+    number_str += *it;
   }
 
   try {

@@ -116,7 +116,7 @@ uint64_t dbf_get_uint_by_field(DBFHandle handle, int row,
  * \param field field name as key
  * \return const char* of field value
  */
-const char *get_field_from_feature(OGRFeature *feat, const char *field) {
+const char *get_field_from_feature(const OGRFeature *feat, const char *field) {
   int field_index = feat->GetFieldIndex(field);
   if (field_index == -1)
     std::cerr << field << std::endl;

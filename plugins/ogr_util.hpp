@@ -48,7 +48,7 @@ std::unique_ptr<geos::operation::buffer::OffsetCurveBuilder>
  */
 
 geos::io::WKBReader wkb_reader;
-geos::geom::Geometry::Ptr ogr2geos(OGRGeometry *ogr_geom) {
+geos::geom::Geometry::Ptr ogr2geos(const OGRGeometry *ogr_geom) {
   if (!ogr_geom || ogr_geom->IsEmpty())
     throw std::runtime_error("geometry is nullptr");
 
@@ -175,7 +175,7 @@ cut_caps(const geos::geom::CoordinateSequence *cs) {
   return geos_factory->createLineString(std::move(geos_cs));
 }
 
-OGRLineString *create_offset_curve(OGRLineString *ogr_ls, double offset,
+OGRLineString *create_offset_curve(const OGRLineString *ogr_ls, double offset,
                                    bool left) {
 
   std::vector<geos::geom::CoordinateSequence *> cs_vec;

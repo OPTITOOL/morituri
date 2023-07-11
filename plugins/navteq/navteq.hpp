@@ -608,8 +608,8 @@ void set_ferry_z_lvls_to_zero(OGRFeatureUniquePtr &feat,
  * \param left specifies on which side of the linestring the house numbers
  * will be applied
  */
-void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
-                          osmium::memory::Buffer &node_buffer,
+void create_house_numbers(const OGRFeature *feat, const OGRLineString *ogr_ls,
+                          bool left, osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
   const char *ref_addr = left ? L_REFADDR : R_REFADDR;
   const char *nref_addr = left ? L_NREFADDR : R_NREFADDR;
@@ -700,7 +700,7 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
   way_buffer.commit();
 }
 
-void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
+void create_house_numbers(const OGRFeature *feat, const OGRLineString *ogr_ls,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
   create_house_numbers(feat, ogr_ls, true, node_buffer, way_buffer);
@@ -708,7 +708,7 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
 }
 
 void create_premium_house_numbers(
-    OGRFeature *feat,
+    const OGRFeature *feat,
     const std::vector<std::pair<osmium::Location, std::string>> &addressList,
     int linkId, osmium::memory::Buffer &node_buffer) {
 
@@ -791,13 +791,13 @@ void process_way(OGRFeatureUniquePtr &feat, z_lvl_map *z_level_map,
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
 void process_house_numbers(
-    OGRFeature *feat,
+    const OGRFeature *feat,
     std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
         *pointAddresses,
     int linkId, osmium::memory::Buffer &node_buffer,
     osmium::memory::Buffer &way_buffer) {
 
-  auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
+  auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
   auto it = pointAddresses->find(linkId);
   if (it != pointAddresses->end()) {
@@ -850,7 +850,7 @@ void process_way_end_nodes(OGRFeatureUniquePtr &feat,
  * \brief creates nodes for closed ways (i.e. for administrative boundary)
  * \return osm_ids of created nodes
  */
-node_vector_type create_closed_way_nodes(OGRLinearRing *ring,
+node_vector_type create_closed_way_nodes(const OGRLinearRing *ring,
                                          osmium::memory::Buffer &node_buffer) {
   node_vector_type osm_way_node_ids;
   for (auto &point : *ring) {
@@ -901,7 +901,7 @@ node_vector_type create_open_way_nodes(const OGRLineString *line,
  * \brief creates closed ways (i.e. for administrative boundary)
  * \return osm_ids of created ways
  */
-osm_id_vector_type build_closed_ways(OGRLinearRing *ring,
+osm_id_vector_type build_closed_ways(const OGRLinearRing *ring,
                                      osmium::memory::Buffer &node_buffer,
                                      osmium::memory::Buffer &way_buffer) {
   node_vector_type osm_way_node_ids =
@@ -1302,34 +1302,31 @@ void create_multi_polygon(OGRMultiPolygon *mp,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
 
-  for (int i = 0; i < mp->getNumGeometries(); i++) {
-    OGRPolygon *poly = static_cast<OGRPolygon *>(mp->getGeometryRef(i));
-
+  for (const OGRPolygon *poly : mp) {
     osm_id_vector_type exterior_way_ids =
         build_closed_ways(poly->getExteriorRing(), node_buffer, way_buffer);
     // append osm_way_ids to relation_member_ids
     std::move(exterior_way_ids.begin(), exterior_way_ids.end(),
               std::back_inserter(mp_ext_ring_osm_ids));
 
-    for (int i = 0; i < poly->getNumInteriorRings(); i++) {
-      auto interior_way_ids =
-          build_closed_ways(poly->getInteriorRing(i), node_buffer, way_buffer);
+    for (const OGRLinearRing *ring : *poly) {
+      auto interior_way_ids = build_closed_ways(ring, node_buffer, way_buffer);
       std::move(interior_way_ids.begin(), interior_way_ids.end(),
                 std::back_inserter(mp_int_ring_osm_ids));
     }
   }
 }
 
-void create_polygon(OGRPolygon *poly, osm_id_vector_type &exterior_way_ids,
+void create_polygon(const OGRPolygon *poly,
+                    osm_id_vector_type &exterior_way_ids,
                     osm_id_vector_type &interior_way_ids,
                     osmium::memory::Buffer &node_buffer,
                     osmium::memory::Buffer &way_buffer) {
   exterior_way_ids =
       build_closed_ways(poly->getExteriorRing(), node_buffer, way_buffer);
 
-  for (int i = 0; i < poly->getNumInteriorRings(); i++) {
-    auto tmp =
-        build_closed_ways(poly->getInteriorRing(i), node_buffer, way_buffer);
+  for (const OGRLinearRing *ring : *poly) {
+    auto tmp = build_closed_ways(ring, node_buffer, way_buffer);
     std::move(tmp.begin(), tmp.end(), std::back_inserter(interior_way_ids));
   }
 }
