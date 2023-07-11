@@ -27,7 +27,6 @@ RUN apt-get update && \
     ninja-build \
     apt-utils \
     apt-transport-https \
-    software-properties-common \
     tar \
     zip \
     pkg-config \
@@ -35,41 +34,6 @@ RUN apt-get update && \
     g++-13 \
     gcovr \
     cppcheck \
-    autoconf \
-    automake \
-    autopoint \
-    bash \
-    bison \
-    bzip2 \
-    flex \
-    g++ \
-    g++-multilib \
-    gettext \
-    git \
-    gperf \
-    intltool \
-    libbz2-dev \
-    libc6-dev-i386 \
-    libgdk-pixbuf2.0-dev \
-    libltdl-dev \
-    libssl-dev \
-    libtool-bin \
-    libxml-parser-perl \
-    lzip \
-    make \
-    openssl \
-    p7zip-full \
-    patch \
-    perl \
-    python3 \
-    python3-mako \
-    ruby \
-    sed \
-    unzip \
-    wget \
-    xz-utils \
-    python-is-python3 \
-    nsis \
     flawfinder \
     gdb \
     locales \
