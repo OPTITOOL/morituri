@@ -49,8 +49,6 @@ RUN apt-get update && apt-get upgrade --yes && \
     --enable-languages=c,c++ \
     --disable-multilib \
     --with-system-zlib \
-    --disable-shared \
-    --enable-static \
     --enable-libgomp \
     --enable-libatomic \
     --enable-graphite \
@@ -64,7 +62,7 @@ RUN apt-get update && apt-get upgrade --yes && \
 
 
     # cleanup
-    #  apt-get remove --purge -y gnupg libgmp-dev libmpfr-dev libmpc-dev libisl-dev && \
+    apt-get remove --purge -y gnupg libgmp-dev libmpfr-dev libmpc-dev libisl-dev && \
     apt-get autoremove --purge -y && \
     apt-get clean
 
@@ -79,5 +77,5 @@ COPY installvcpkg.sh installvcpkg.sh
 COPY vcpkg.json vcpkg.json
 
 # create dependencies
-#RUN ./installvcpkg.sh
+RUN ./installvcpkg.sh
 
