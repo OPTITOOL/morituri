@@ -46,7 +46,7 @@ add_executable(${PROJECT_NAME} ${MAIN_CPP_FILES} ${CPP_FILES})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Boost::boost Boost::log Boost::locale Boost::program_options
   PRIVATE GEOS::geos
-  PRIVATE ${LIBOSMIUM_INCLUDE_DIRS} expat
-  PRIVATE ${GDAL_LIBRARIES}
+  PRIVATE ${LIBOSMIUM_INCLUDE_DIRS}
+  PRIVATE GDAL::GDAL
   PRIVATE shp
-  PRIVATE bz2)
+  PRIVATE expat bz2)

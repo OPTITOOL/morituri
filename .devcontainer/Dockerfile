@@ -2,14 +2,11 @@ FROM ubuntu:22.04
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+ARG GCC_VERSION=13.1.0
+
 ENV EDITOR=nano
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
-    software-properties-common && \
-    # gcc 13 ppa   
-    add-apt-repository ppa:ubuntu-toolchain-r/test && \  
-    apt-get update && apt-get upgrade --yes && \
+RUN apt-get update && apt-get upgrade --yes && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
     bash \
     build-essential \
@@ -30,18 +27,36 @@ RUN apt-get update && \
     tar \
     zip \
     pkg-config \
-    gcc-12 \
-    g++-12 \
     gcovr \
     make \
+    libbz2-dev \ 
     cppcheck \
     flawfinder \
     gdb \
     locales \
-    clang-format && \
+    clang-format \
+    libgmp-dev \
+    libmpfr-dev \
+    libmpc-dev \
+    libisl-dev && \
+
+    #build gcc
+    wget -q https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz -O - | tar -xJ && \
+    \
+    cd gcc-${GCC_VERSION} && \
+    \
+    ./configure \
+    --enable-languages=c,c++ \
+    --disable-multilib \
+    --with-system-zlib && \
+    make -j`nproc` && \
+    make install && \
+    cd .. && \
+    rm -r gcc gcc-${GCC_VERSION} && \
+
 
     # cleanup
-    apt-get remove --purge -y gnupg && \
+    apt-get remove --purge -y gnupg libgmp-dev libmpfr-dev libmpc-dev libisl-dev && \
     apt-get autoremove --purge -y && \
     apt-get clean
 
@@ -56,5 +71,5 @@ COPY installvcpkg.sh installvcpkg.sh
 COPY vcpkg.json vcpkg.json
 
 # create dependencies
-#RUN ./installvcpkg.sh
+RUN ./installvcpkg.sh
 
