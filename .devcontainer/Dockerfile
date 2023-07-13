@@ -1,8 +1,6 @@
-FROM ubuntu:22.04
+FROM gcc:13
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-ARG GCC_VERSION=13.1.0
 
 ENV EDITOR=nano
 
@@ -34,32 +32,9 @@ RUN apt-get update && apt-get upgrade --yes && \
     flawfinder \
     gdb \
     locales \
-    clang-format \
-    libgmp-dev \
-    libmpfr-dev \
-    libmpc-dev \
-    libisl-dev && \
-    \
-    #build gcc
-    wget -q https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz -O - | tar -xJ && \
-    \
-    mkdir build-gcc && \
-    cd build-gcc && \
-    \
-    ../gcc-${GCC_VERSION}/configure \
-    --enable-languages=c,c++ \
-    --disable-multilib \
-    --with-system-zlib \
-    --disable-nls \
-    --disable-libstdcxx-pch \
-    --disable-libstdcxx-debug && \
-    make -j`nproc` && \
-    make install && \
-    cd .. && \
-    rm -rf build-gcc gcc-${GCC_VERSION} && \
+    clang-format && \
     \
     # cleanup
-    apt-get remove --purge -y gnupg libgmp-dev libmpfr-dev libmpc-dev libisl-dev && \
     apt-get autoremove --purge -y && \
     apt-get clean
 
