@@ -39,28 +39,25 @@ RUN apt-get update && apt-get upgrade --yes && \
     libmpfr-dev \
     libmpc-dev \
     libisl-dev && \
-
+    \
     #build gcc
     wget -q https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz -O - | tar -xJ && \
     \
-    cd gcc-${GCC_VERSION} && \
+    mkdir build-gcc && \
+    cd build-gcc && \
     \
-    ./configure \
+    ../gcc-${GCC_VERSION}/configure \
     --enable-languages=c,c++ \
     --disable-multilib \
     --with-system-zlib \
-    --enable-libgomp \
-    --enable-libatomic \
-    --enable-graphite \
     --disable-nls \
     --disable-libstdcxx-pch \
     --disable-libstdcxx-debug && \
     make -j`nproc` && \
     make install && \
     cd .. && \
-    rm -r gcc gcc-${GCC_VERSION} && \
-
-
+    rm -rf build-gcc gcc-${GCC_VERSION} && \
+    \
     # cleanup
     apt-get remove --purge -y gnupg libgmp-dev libmpfr-dev libmpc-dev libisl-dev && \
     apt-get autoremove --purge -y && \
