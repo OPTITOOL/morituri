@@ -73,12 +73,12 @@ void check_args_and_setup(int argc, char *argv[]) {
 
   if (vm.count("output-file")) {
     BOOST_LOG_TRIVIAL(info)
-        << "Input paths are: " << vm["output-file"].as<std::string>() << "\n";
+        << "Output file is: " << vm["output-file"].as<std::string>() << "\n";
     output_file = vm["output-file"].as<std::string>();
   }
 
   if (vm.count("countries")) {
-    BOOST_LOG_TRIVIAL(info) << "Countires: " << countriesString << "\n";
+    BOOST_LOG_TRIVIAL(info) << "Countries: " << countriesString << "\n";
     // split country string
     boost::split(countries, countriesString, boost::is_any_of(" "),
                  boost::token_compress_on);
