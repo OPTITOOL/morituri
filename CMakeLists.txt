@@ -20,7 +20,7 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
   add_definitions(-DNDEBUG)
 
   # LTO produces slow binary (maybe libgeos)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -pedantic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -flto -Wall -Wextra -pedantic")
 ENDIF()
 
 set(Boost_USE_STATIC_LIBS ON)

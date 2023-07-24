@@ -778,7 +778,7 @@ void parse_lang_code_file() {
       }
       std::string iso_639_2 = lv.at(0);
       std::string iso_639_1 = lv.at(2);
-      g_lang_code_map.insert(std::make_pair(iso_639_2, iso_639_1));
+      g_lang_code_map.emplace(std::make_pair(iso_639_2, iso_639_1));
     }
     file.close();
   }
