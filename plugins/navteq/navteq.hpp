@@ -608,7 +608,7 @@ void set_ferry_z_lvls_to_zero(OGRFeatureUniquePtr &feat,
  * \param left specifies on which side of the linestring the house numbers
  * will be applied
  */
-void create_house_numbers(OGRFeatureUniquePtr &feat,
+void create_house_numbers(const OGRFeatureUniquePtr &feat,
                           const OGRLineString *ogr_ls, bool left,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
@@ -648,8 +648,7 @@ void create_house_numbers(OGRFeatureUniquePtr &feat,
         tl_builder.add_tag("addr:housenumber", startNumber);
         tl_builder.add_tag(
             "addr:street",
-            to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME))
-                .c_str());
+            to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME)));
       }
     }
   } else {
@@ -701,7 +700,7 @@ void create_house_numbers(OGRFeatureUniquePtr &feat,
   way_buffer.commit();
 }
 
-void create_house_numbers(OGRFeatureUniquePtr &feat,
+void create_house_numbers(const OGRFeatureUniquePtr &feat,
                           const OGRLineString *ogr_ls,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
@@ -710,7 +709,7 @@ void create_house_numbers(OGRFeatureUniquePtr &feat,
 }
 
 void create_premium_house_numbers(
-    OGRFeatureUniquePtr &feat,
+    const OGRFeatureUniquePtr &feat,
     const std::vector<std::pair<osmium::Location, std::string>> &addressList,
     int linkId, osmium::memory::Buffer &node_buffer) {
 
@@ -777,8 +776,7 @@ void process_way(OGRFeatureUniquePtr &feat, z_lvl_map *z_level_map,
 
     way_buffer.commit();
 
-    bool ferry = is_ferry(get_field_from_feature(feat, FERRY));
-    if (ferry)
+    if (is_ferry(get_field_from_feature(feat, FERRY)))
       set_ferry_z_lvls_to_zero(feat, index_z_lvl_vector);
 
     split_way_by_z_level(feat, ogr_ls, index_z_lvl_vector, &node_ref_map,
@@ -793,7 +791,7 @@ void process_way(OGRFeatureUniquePtr &feat, z_lvl_map *z_level_map,
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
 void process_house_numbers(
-    OGRFeatureUniquePtr &feat,
+    const OGRFeatureUniquePtr &feat,
     std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
         *pointAddresses,
     int linkId, osmium::memory::Buffer &node_buffer,
@@ -1974,13 +1972,13 @@ void init_g_cnd_mod_map(const boost::filesystem::path &dir) {
     if (it2 == g_cnd_mod_map.end()) {
       mod_group_vector_type new_vector;
       new_vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      g_cnd_mod_map.insert(std::make_pair(cond_id, new_vector));
+      g_cnd_mod_map.emplace(cond_id, new_vector);
     } else {
       //(std::vector<mod_group_type>) ()’
       auto vector = it2->second;
       g_cnd_mod_map.erase(it2);
       vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      g_cnd_mod_map.insert(std::make_pair(cond_id, vector));
+      g_cnd_mod_map.emplace(cond_id, vector);
     }
   }
   DBFClose(cnd_mod_handle);
