@@ -858,6 +858,7 @@ node_vector_type create_closed_way_nodes(const OGRLinearRing *ring,
   for (auto &point : *ring) {
     osmium::Location location(point.getX(), point.getY());
     auto it = g_way_end_points_map.find(location);
+
     if (it != g_way_end_points_map.end()) {
       osm_way_node_ids.emplace_back(location, it->second);
     } else {
@@ -872,7 +873,7 @@ node_vector_type create_closed_way_nodes(const OGRLinearRing *ring,
   if (!ring->get_IsClosed())
     throw format_error(
         "admin boundary ring is invalid. First and last node don't match");
-  osm_way_node_ids.push_back(osm_way_node_ids.front());
+
   return osm_way_node_ids;
 }
 
