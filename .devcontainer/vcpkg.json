@@ -2,13 +2,7 @@
     "dependencies": [
         "boost-log",
         "boost-program-options",
-        {
-            "name": "boost-locale",
-            "features": [
-                "icu"
-            ]
-        },
-        "boost-iostreams",
+        "icu",
         "boost-timer",
         "shapelib",
         "libosmium",

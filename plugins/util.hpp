@@ -9,9 +9,6 @@
 #define UTIL_HPP_
 
 #include <boost/filesystem/path.hpp>
-#include <boost/iostreams/device/null.hpp>
-#include <boost/iostreams/stream.hpp>
-#include <boost/locale.hpp>
 #include <map>
 #include <memory>
 #include <ogr_api.h>
@@ -21,6 +18,7 @@
 #include <shapefil.h>
 #include <sstream>
 #include <string>
+#include <unicode/unistr.h>
 
 #include "../plugins/comm2osm_exceptions.hpp"
 #include "ogr_util.hpp"
@@ -198,7 +196,13 @@ std::string lbs_to_metric_ton(double lbs) {
  * \brief duplicate const char* value to change
  */
 std::string to_camel_case_with_spaces(const char *camel) {
-  return boost::locale::to_title(camel);
+
+  std::string titleString;
+  icu::UnicodeString ustr(camel);
+  ustr.toTitle(nullptr);
+  ustr.toUTF8String(titleString);
+
+  return titleString;
 }
 
 /**

@@ -5,13 +5,12 @@
  */
 
 #include <boost/algorithm/string.hpp>
-#include <boost/locale.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/program_options.hpp>
-#include <ogrsf_frmts.h>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
+#include <ogrsf_frmts.h>
 #include <vector>
 
 #include "plugins/base_plugin.hpp"
@@ -96,10 +95,6 @@ void check_args_and_setup(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-
-  boost::locale::generator gen;
-  auto loc = gen("");
-  std::locale::global(loc);
 
   GDALAllRegister();
   check_args_and_setup(argc, argv);

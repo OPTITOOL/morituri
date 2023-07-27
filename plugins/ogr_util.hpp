@@ -9,7 +9,6 @@
 #define PLUGINS_OGR_UTIL_HPP_
 
 #include <assert.h>
-#include <boost/iostreams/stream.hpp>
 
 #include <geos/io/WKBReader.h>
 #include <geos/io/WKBWriter.h>
@@ -22,9 +21,6 @@
 #include <geos/geom/Point.h>
 #include <geos/operation/buffer/BufferParameters.h>
 #include <geos/operation/buffer/OffsetCurveBuilder.h>
-
-boost::iostreams::stream<boost::iostreams::null_sink>
-    cnull((boost::iostreams::null_sink()));
 
 // create static geom factory
 geos::geom::GeometryFactory::Ptr geos_factory =
