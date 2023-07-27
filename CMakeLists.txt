@@ -26,11 +26,12 @@ ENDIF()
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
-find_package(Boost REQUIRED COMPONENTS system filesystem locale log program_options)
+find_package(Boost REQUIRED COMPONENTS system filesystem log program_options)
 find_package(GDAL REQUIRED)
 find_package(geos REQUIRED)
 find_path(LIBOSMIUM_INCLUDE_DIRS "osmium/area/assembler.hpp")
 find_package(shp CONFIG REQUIRED)
+find_package(ICU COMPONENTS uc data io i18n tu)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -44,9 +45,11 @@ include_directories(${GDAL_INCLUDE_DIRS} ${GEOS_INCLUDE_DIR} ${OSMIUM_INCLUDE_DI
 
 add_executable(${PROJECT_NAME} ${MAIN_CPP_FILES} ${CPP_FILES})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Boost::boost Boost::log Boost::locale Boost::program_options
+target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
+  PRIVATE Boost::boost Boost::log Boost::program_options
   PRIVATE GEOS::geos
   PRIVATE ${LIBOSMIUM_INCLUDE_DIRS}
   PRIVATE GDAL::GDAL
   PRIVATE shp
-  PRIVATE expat bz2)
+  PRIVATE expat bz2
+  )
