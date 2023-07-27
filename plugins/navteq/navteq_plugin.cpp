@@ -247,7 +247,7 @@ void navteq_plugin::execute() {
   process_alt_steets_route_types(dirs);
 
   BOOST_LOG_TRIVIAL(info) << "Add street shapes";
-  // add_street_shapes(dirs, writer);
+  add_street_shapes(dirs, writer);
 
   if (withTurnRestrictions) {
     BOOST_LOG_TRIVIAL(info) << "Add turn restrictions";
