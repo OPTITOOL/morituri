@@ -1295,6 +1295,23 @@ osmium::unsigned_object_id_type build_landuse_relation_with_tags(
   return builder.object().id();
 }
 
+void create_polygon(const OGRPolygon *poly,
+                    osm_id_vector_type &exterior_way_ids,
+                    osm_id_vector_type &interior_way_ids,
+                    osmium::memory::Buffer &node_buffer,
+                    osmium::memory::Buffer &way_buffer) {
+  bool isExteriorRing = true; // first ring is the exterior ring
+  for (const OGRLinearRing *ring : *poly) {
+    auto tmp = build_closed_ways(ring, node_buffer, way_buffer);
+    if (isExteriorRing) {
+      std::move(tmp.begin(), tmp.end(), std::back_inserter(exterior_way_ids));
+    } else {
+      std::move(tmp.begin(), tmp.end(), std::back_inserter(interior_way_ids));
+    }
+    isExteriorRing = false;
+  }
+}
+
 /**
  * \brief handles administrative boundary multipolygons
  */
@@ -1305,31 +1322,8 @@ void create_multi_polygon(OGRMultiPolygon *mp,
                           osmium::memory::Buffer &way_buffer) {
 
   for (const OGRPolygon *poly : mp) {
-    osm_id_vector_type exterior_way_ids =
-        build_closed_ways(poly->getExteriorRing(), node_buffer, way_buffer);
-    // append osm_way_ids to relation_member_ids
-    std::move(exterior_way_ids.begin(), exterior_way_ids.end(),
-              std::back_inserter(mp_ext_ring_osm_ids));
-
-    for (const OGRLinearRing *ring : *poly) {
-      auto interior_way_ids = build_closed_ways(ring, node_buffer, way_buffer);
-      std::move(interior_way_ids.begin(), interior_way_ids.end(),
-                std::back_inserter(mp_int_ring_osm_ids));
-    }
-  }
-}
-
-void create_polygon(const OGRPolygon *poly,
-                    osm_id_vector_type &exterior_way_ids,
-                    osm_id_vector_type &interior_way_ids,
-                    osmium::memory::Buffer &node_buffer,
-                    osmium::memory::Buffer &way_buffer) {
-  exterior_way_ids =
-      build_closed_ways(poly->getExteriorRing(), node_buffer, way_buffer);
-
-  for (const OGRLinearRing *ring : *poly) {
-    auto tmp = build_closed_ways(ring, node_buffer, way_buffer);
-    std::move(tmp.begin(), tmp.end(), std::back_inserter(interior_way_ids));
+    create_polygon(poly, mp_ext_ring_osm_ids, mp_int_ring_osm_ids, node_buffer,
+                   way_buffer);
   }
 }
 
