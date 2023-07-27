@@ -16,7 +16,7 @@
 #include "comm2osm_exceptions.hpp"
 
 GDALDatasetUniquePtr open_shape_file(boost::filesystem::path shp_file) {
-  BOOST_LOG_TRIVIAL(info) << "\treading " << shp_file;
+  BOOST_LOG_TRIVIAL(debug) << "\treading " << shp_file;
 
   auto input_data_source =
       GDALDatasetUniquePtr(GDALDataset::Open(shp_file.c_str()));
@@ -27,7 +27,7 @@ GDALDatasetUniquePtr open_shape_file(boost::filesystem::path shp_file) {
 }
 
 DBFHandle read_dbf_file(boost::filesystem::path dbf_file) {
-  BOOST_LOG_TRIVIAL(info) << "\treading " << dbf_file;
+  BOOST_LOG_TRIVIAL(debug) << "\treading " << dbf_file;
   DBFHandle handle = DBFOpen(dbf_file.c_str(), "rb");
   if (handle == nullptr)
     throw(dbf_error(dbf_file.string()));
