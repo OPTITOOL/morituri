@@ -7,6 +7,7 @@ ENV EDITOR=nano
 RUN apt-get update && apt-get upgrade --yes && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
     autoconf \
+    autoconf-archive \
     bash \
     build-essential \
     curl \
@@ -52,13 +53,13 @@ COPY installvcpkg.sh installvcpkg.sh
 COPY vcpkg.json vcpkg.json
 
 # create dependencies
-RUN ./installvcpkg.sh
+# RUN ./installvcpkg.sh
 
-ARG UID=1001
-ARG GID=1001
+#ARG UID=1001
+#ARG GID=1001
 
-RUN groupadd -g $GID morituri
-RUN useradd -m -u $UID -g $GID -s /bin/bash morituri
+#RUN groupadd -g $GID morituri
+#RUN useradd -m -u $UID -g $GID -s /bin/bash morituri
 
 WORKDIR /home/morituri
 
