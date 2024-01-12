@@ -6,6 +6,7 @@ ENV EDITOR=nano
 
 RUN apt-get update && apt-get upgrade --yes && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
+    autoconf \
     bash \
     build-essential \
     curl \
