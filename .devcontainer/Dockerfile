@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/jammy
+FROM mcr.microsoft.com/devcontainers/cpp:jammy
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
