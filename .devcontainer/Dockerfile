@@ -1,4 +1,4 @@
-FROM gcc:13
+FROM mcr.microsoft.com/devcontainers/jammy
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -6,7 +6,6 @@ ENV EDITOR=nano
 
 RUN apt-get update && apt-get upgrade --yes && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --yes \
-    autoconf-archive \
     bash \
     build-essential \
     curl \
@@ -33,7 +32,9 @@ RUN apt-get update && apt-get upgrade --yes && \
     flawfinder \
     gdb \
     locales \
-    clang-format && \
+    clang-format \
+    gcc-12 \
+    g++-12 && \
     \
     # cleanup
     apt-get autoremove --purge -y && \

@@ -6,7 +6,7 @@ cd /
 
 ####### vcpkg
 rm -rf $vcpkgPath
-git clone -b fix-shapelib https://github.com/OPTITOOL/vcpkg.git
+git clone https://github.com/microsoft/vcpkg.git
 cd $vcpkgPath
 
 #init vcpkg
