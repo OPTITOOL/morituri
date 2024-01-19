@@ -55,11 +55,5 @@ COPY vcpkg.json vcpkg.json
 # create dependencies
 RUN ./installvcpkg.sh
 
-ARG UID=1001
-ARG GID=1001
-
-RUN groupadd -g $GID morituri
-RUN useradd -m -u $UID -g $GID -s /bin/bash morituri
-
-WORKDIR /home/morituri
+WORKDIR /workspaces/morituri
 
