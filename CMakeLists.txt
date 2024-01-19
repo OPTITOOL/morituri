@@ -30,7 +30,7 @@ find_package(Boost REQUIRED COMPONENTS system filesystem log program_options)
 find_package(GDAL REQUIRED)
 find_package(geos REQUIRED)
 find_path(LIBOSMIUM_INCLUDE_DIRS "osmium/area/assembler.hpp")
-find_package(shp CONFIG REQUIRED)
+find_package(shapelib CONFIG REQUIRED)
 find_package(ICU COMPONENTS uc data io i18n tu)
 
 # Find includes in corresponding build directories
@@ -50,6 +50,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
   PRIVATE GEOS::geos
   PRIVATE ${LIBOSMIUM_INCLUDE_DIRS}
   PRIVATE GDAL::GDAL
-  PRIVATE shp
+  PRIVATE shapelib::shp
   PRIVATE expat bz2
   )
