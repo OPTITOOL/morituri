@@ -34,5 +34,10 @@ jobs:
             cd build
             cmake -G'Ninja' -DVCPKG_INSTALLED_DIR=/vcpkg_installed -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake ..
             cmake --build .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: morituri
+          path: build/comm2osm     
             
             
