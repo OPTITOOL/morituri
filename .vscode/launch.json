@@ -12,13 +12,14 @@
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
+            "envFile": "${workspaceFolder}/.env",
             "linux": {
                 "program": "${workspaceFolder}/build/comm2osm",
                 "MIMode": "gdb",
                 "args": [
                     //"--bb=-25.0 32.9 31.4 71.7",
                     "--countries=ALB AND AUT BEL BGR BIH BLR CHE CYP CZE DEU DNK ESP EST FIN FRA FRO GBR GIB GRC GRL HRV HUN IMN IRL ISL ITA KOS LIE LTU LUX LVA MCO MDA MKD MLT MNE NCY NLD NOR POL PRT ROU SJM SMR SRB SVK SVN SWE VAT",
-                    "~/dev/here-europe",
+                    "/here-europe",
                     "build/europa.osm.pbf"
                 ]
             },

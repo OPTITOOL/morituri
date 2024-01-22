@@ -9,17 +9,16 @@
 #define UTIL_HPP_
 
 #include <boost/filesystem/path.hpp>
-#include <boost/iostreams/device/null.hpp>
-#include <boost/iostreams/stream.hpp>
-#include <boost/locale.hpp>
-#include <gdal/ogr_api.h>
-#include <gdal/ogrsf_frmts.h>
 #include <map>
 #include <memory>
+#include <ogr_api.h>
+#include <ogrsf_frmts.h>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/types.hpp>
 #include <shapefil.h>
 #include <sstream>
+#include <string>
+#include <unicode/unistr.h>
 
 #include "../plugins/comm2osm_exceptions.hpp"
 #include "ogr_util.hpp"
@@ -43,13 +42,9 @@ const double SHORT_TON = 0.90718474;
  * */
 
 bool shp_file_exists(const std::string &shp_file) {
-  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
-      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
-  if (input_data_source == nullptr) {
-    return false;
-  }
-  GDALClose(input_data_source);
-  return true;
+  auto input_data_source =
+      GDALDatasetUniquePtr(GDALDataset::Open(shp_file.c_str()));
+  return input_data_source != nullptr;
 }
 
 bool shp_file_exists(boost::filesystem::path shp_file) {
@@ -120,7 +115,7 @@ uint64_t dbf_get_uint_by_field(DBFHandle handle, int row,
  * \param field field name as key
  * \return const char* of field value
  */
-const char *get_field_from_feature(OGRFeature *feat, const char *field) {
+const char *get_field_from_feature(const OGRFeature *feat, const char *field) {
   int field_index = feat->GetFieldIndex(field);
   if (field_index == -1)
     std::cerr << field << std::endl;
@@ -134,7 +129,7 @@ const char *get_field_from_feature(OGRFeature *feat, const char *field) {
  * \param field field name as key
  * \return field value as uint
  */
-uint64_t get_uint_from_feature(OGRFeature *feat, const char *field) {
+uint64_t get_uint_from_feature(const OGRFeature *feat, const char *field) {
   const char *value = get_field_from_feature(feat, field);
   assert(value);
   try {
@@ -170,17 +165,13 @@ bool string_is_not_unsigned_integer(const std::string &s) {
  * \brief converts kilogram to tons
  */
 template <class T> std::string kg_to_t(T kilo) {
-  std::stringstream stream;
-  stream << kilo / 1000.0f;
-  return stream.str();
+  return std::to_string(kilo / 1000.0f);
 }
 /**
  * \brief converts centimeter to meters
  */
 template <class T> std::string cm_to_m(T meter) {
-  std::stringstream stream;
-  stream << meter / 100.0f;
-  return stream.str();
+  return std::to_string(meter / 100.0f);
 }
 /**
  * \brief converts inches to feet
@@ -205,7 +196,13 @@ std::string lbs_to_metric_ton(double lbs) {
  * \brief duplicate const char* value to change
  */
 std::string to_camel_case_with_spaces(const char *camel) {
-  return boost::locale::to_title(camel);
+
+  std::string titleString;
+  icu::UnicodeString ustr(camel);
+  ustr.toTitle(nullptr);
+  ustr.toUTF8String(titleString);
+
+  return titleString;
 }
 
 /**
@@ -237,7 +234,6 @@ bool checkInBoundingBox(const OGREnvelope &boundingBox,
   OGREnvelope layerEnvelop;
 
   if (layer->GetExtent(&layerEnvelop) != OGRERR_NONE) {
-    GDALClose(ds);
     return false;
   }
 
@@ -246,7 +242,6 @@ bool checkInBoundingBox(const OGREnvelope &boundingBox,
     result = true;
   }
 
-  GDALClose(ds);
   return result;
 }
 

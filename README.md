@@ -17,40 +17,13 @@ are problematic due to the following reasons:
 * data might be bad - reviews missing
 * shallow data
 
-# Prerequisites
-* libosmium
-* bz2 
-* gdal 
-* expat
-* geos
-* pthread
-* libz
-* osmpbf
-* protobuf-lite
-* boost
-* boost-filesystem
-* shapelib ([http://download.osgeo.org/shapelib/](http://download.osgeo.org/shapelib/))
 
-##### For Testing
-* g++-4.8
-* gdal-bin (for ogr2ogr)
+#### Ubuntu install instructions:
 
+It is recommendet to use the devcontainer in vscode to build the project. The devcontainer is based on Ubuntu 22.04 and provides all dependencies via [vcpkg](gtihub.com/Microsoft/vcpkg).
 
-#### Ubuntu install instructions: *(tested with 20.04 LTS)*
+The resulting binary is statically linked and can be copied to any other Ubuntu 22.04 machine.
 
-CAUTION: Have a look at `install_prerequisites.sh` before executing it.
- 
-Install prerequisits with the `install_prerequisites.sh`. You may have to make this executable 
-(e.g. with `chmod +x install_prerequisites.sh`).
-
-build with: `make -j2`
-
-run with:	`./comm2osm /path/to/navteq/data/ output_file.{desired-output-format}`
-
-e.g.
- `./comm2osm ~/navteq-testdata/ ~/navteq-testdata/routable.osm` to produce 
-an XML file <br> or `./comm2osm ~/navteq-testdata/ ~/navteq-testdata/routable.pbf` 
-to produce a PBF file.
 
 ### Test data
 
@@ -117,6 +90,9 @@ If you want to test this program and you don't have data of your own you may get
   
   
 # For developers
+
+Development is mostly done in vscode with the devcontainer extension. This allows for a consistent development environment across platforms. The devcontainer is based
+on Ubuntu 22.04 and all dependencies are installed via vcpkg.
 
 Feel free to add plugins to convert data from other suppliers.<br>
 There is only a single real test. More tests are welcome.

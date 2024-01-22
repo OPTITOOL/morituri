@@ -1,0 +1,17 @@
+{
+    "dependencies": [
+        "boost-log",
+        "boost-program-options",
+        "icu",
+        "boost-timer",
+        "shapelib",
+        "libosmium",
+        {
+            "name": "gdal",
+            "default-features": false,
+            "features": [
+                "geos"
+            ]
+        }
+    ]
+}

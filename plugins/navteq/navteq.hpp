@@ -12,12 +12,12 @@
 
 #include <iostream>
 
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
-#include <boost/progress.hpp>
 #include <boost/range/algorithm/copy.hpp>
+#include <boost/timer/progress_display.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/index/map/sparse_file_array.hpp>
 #include <osmium/osm/item_type.hpp>
@@ -199,7 +199,8 @@ size_t build_turn_restriction(const osm_id_vector_type &osm_ids,
  * \return link id of parsed feature.
  */
 
-link_id_type build_tag_list(OGRFeature *feat, osmium::builder::Builder *builder,
+link_id_type build_tag_list(OGRFeatureUniquePtr &feat,
+                            osmium::builder::Builder *builder,
                             osmium::memory::Buffer &buf, short z_level) {
   osmium::builder::TagListBuilder tl_builder(buf, builder);
 
@@ -274,9 +275,9 @@ void test__z_lvl_range(short z_lvl) {
  * \return id of created Way.
  */
 osmium::unsigned_object_id_type
-build_way(OGRFeature *feat, OGRLineString *ogr_ls, node_map_type *node_ref_map,
-          osmium::memory::Buffer &way_buffer, bool is_sub_linestring = false,
-          short z_lvl = -5) {
+build_way(OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
+          node_map_type *node_ref_map, osmium::memory::Buffer &way_buffer,
+          bool is_sub_linestring = false, short z_lvl = -5) {
 
   if (is_sub_linestring)
     test__z_lvl_range(z_lvl);
@@ -379,7 +380,7 @@ bool is_superior_or_equal(short superior, short than) {
  * \param node_ref_map provides osm_ids of Nodes to a given location.
  * \param z_lvl
  */
-void build_sub_way_by_index(OGRFeature *feat, OGRLineString *ogr_ls,
+void build_sub_way_by_index(OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
                             ushort start_index, ushort end_index,
                             node_map_type *node_ref_map,
                             osmium::memory::Buffer &way_buffer,
@@ -401,7 +402,7 @@ void build_sub_way_by_index(OGRFeature *feat, OGRLineString *ogr_ls,
  * node locations) \return start_index
  */
 ushort create_continuing_sub_ways(
-    OGRFeature *feat, OGRLineString *ogr_ls, ushort first_index,
+    OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls, ushort first_index,
     ushort start_index, ushort last_index, uint link_id,
     const index_z_lvl_vector_type &node_z_level_vector,
     node_map_type *node_ref_map, osmium::memory::Buffer &way_buffer) {
@@ -487,7 +488,7 @@ ushort create_continuing_sub_ways(
  * provides osm_ids of Nodes to a given location. \param link_id link_id of
  * processed feature - for debug only.
  */
-void split_way_by_z_level(OGRFeature *feat, OGRLineString *ogr_ls,
+void split_way_by_z_level(OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
                           const index_z_lvl_vector_type &node_z_level_vector,
                           node_map_type *node_ref_map, uint link_id,
                           osmium::memory::Buffer &way_buffer) {
@@ -585,7 +586,7 @@ void middle_points_preparation(OGRLineString *ogr_ls,
  * \brief replaces all z-levels by zero, which are not an endpoint
  * \param z_lvl_vec vector containing pairs of [z_lvl_index, z_lvl]
  */
-void set_ferry_z_lvls_to_zero(OGRFeature *feat,
+void set_ferry_z_lvls_to_zero(OGRFeatureUniquePtr &feat,
                               index_z_lvl_vector_type &z_lvl_vec) {
   // erase middle z_lvls
   if (z_lvl_vec.size() > 2)
@@ -607,7 +608,8 @@ void set_ferry_z_lvls_to_zero(OGRFeature *feat,
  * \param left specifies on which side of the linestring the house numbers
  * will be applied
  */
-void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
+void create_house_numbers(const OGRFeatureUniquePtr &feat,
+                          const OGRLineString *ogr_ls, bool left,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
   const char *ref_addr = left ? L_REFADDR : R_REFADDR;
@@ -646,8 +648,7 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
         tl_builder.add_tag("addr:housenumber", startNumber);
         tl_builder.add_tag(
             "addr:street",
-            to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME))
-                .c_str());
+            to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME)));
       }
     }
   } else {
@@ -679,8 +680,7 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
               }
               tl_builder.add_tag("addr:street",
                                  to_camel_case_with_spaces(
-                                     get_field_from_feature(feat, ST_NAME))
-                                     .c_str());
+                                     get_field_from_feature(feat, ST_NAME)));
             }
           }
 
@@ -700,7 +700,8 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls, bool left,
   way_buffer.commit();
 }
 
-void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
+void create_house_numbers(const OGRFeatureUniquePtr &feat,
+                          const OGRLineString *ogr_ls,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
   create_house_numbers(feat, ogr_ls, true, node_buffer, way_buffer);
@@ -708,7 +709,7 @@ void create_house_numbers(OGRFeature *feat, OGRLineString *ogr_ls,
 }
 
 void create_premium_house_numbers(
-    OGRFeature *feat,
+    const OGRFeatureUniquePtr &feat,
     const std::vector<std::pair<osmium::Location, std::string>> &addressList,
     int linkId, osmium::memory::Buffer &node_buffer) {
 
@@ -724,8 +725,7 @@ void create_premium_house_numbers(
       tl_builder.add_tag("addr:housenumber", address.second);
       tl_builder.add_tag(
           "addr:street",
-          to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME))
-              .c_str());
+          to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME)));
     }
   }
 }
@@ -736,7 +736,7 @@ void create_premium_house_numbers(
  * \param ogr_ls linestring which provides the geometry.
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
-void process_way(OGRFeature *feat, z_lvl_map *z_level_map,
+void process_way(OGRFeatureUniquePtr &feat, z_lvl_map *z_level_map,
                  osmium::memory::Buffer &node_buffer,
                  osmium::memory::Buffer &way_buffer) {
 
@@ -776,8 +776,7 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map,
 
     way_buffer.commit();
 
-    bool ferry = is_ferry(get_field_from_feature(feat, FERRY));
-    if (ferry)
+    if (is_ferry(get_field_from_feature(feat, FERRY)))
       set_ferry_z_lvls_to_zero(feat, index_z_lvl_vector);
 
     split_way_by_z_level(feat, ogr_ls, index_z_lvl_vector, &node_ref_map,
@@ -792,13 +791,13 @@ void process_way(OGRFeature *feat, z_lvl_map *z_level_map,
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
 void process_house_numbers(
-    OGRFeature *feat,
+    const OGRFeatureUniquePtr &feat,
     std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
         *pointAddresses,
     int linkId, osmium::memory::Buffer &node_buffer,
     osmium::memory::Buffer &way_buffer) {
 
-  auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
+  auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
   auto it = pointAddresses->find(linkId);
   if (it != pointAddresses->end()) {
@@ -834,10 +833,10 @@ void process_way_end_node(const osmium::Location &location,
 }
 
 // \brief gets end nodes of linestring and processes them.
-void process_way_end_nodes(OGRFeature *feat,
+void process_way_end_nodes(OGRFeatureUniquePtr &feat,
                            osmium::memory::Buffer &node_buffer) {
 
-  auto ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
+  auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
   process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)),
                        node_buffer);
@@ -851,13 +850,13 @@ void process_way_end_nodes(OGRFeature *feat,
  * \brief creates nodes for closed ways (i.e. for administrative boundary)
  * \return osm_ids of created nodes
  */
-node_vector_type create_closed_way_nodes(OGRLinearRing *ring,
+node_vector_type create_closed_way_nodes(const OGRLinearRing *ring,
                                          osmium::memory::Buffer &node_buffer) {
   node_vector_type osm_way_node_ids;
-  auto numOfPoints = ring->getNumPoints();
-  for (int i = 0; i < numOfPoints - 1; ++i) {
-    osmium::Location location(ring->getX(i), ring->getY(i));
+  for (auto &point : *ring) {
+    osmium::Location location(point.getX(), point.getY());
     auto it = g_way_end_points_map.find(location);
+
     if (it != g_way_end_points_map.end()) {
       osm_way_node_ids.emplace_back(location, it->second);
     } else {
@@ -869,12 +868,10 @@ node_vector_type create_closed_way_nodes(OGRLinearRing *ring,
 
   // first and last node are the same in rings, hence add first node_id and
   // skip last node.
-  osmium::Location last_location(ring->getX(numOfPoints - 1),
-                                 ring->getY(numOfPoints - 1));
-  if (last_location != osm_way_node_ids.front().first)
+  if (!ring->get_IsClosed())
     throw format_error(
         "admin boundary ring is invalid. First and last node don't match");
-  osm_way_node_ids.push_back(osm_way_node_ids.front());
+
   return osm_way_node_ids;
 }
 
@@ -882,13 +879,12 @@ node_vector_type create_closed_way_nodes(OGRLinearRing *ring,
  * \brief creates nodes for open ways
  * \return osm_ids of created nodes
  */
-node_vector_type create_open_way_nodes(OGRLineString *line,
+node_vector_type create_open_way_nodes(const OGRLineString *line,
                                        osmium::memory::Buffer &node_buffer) {
   node_vector_type osm_way_node_ids;
-  auto numPoints = line->getNumPoints();
 
-  for (int i = 0; i < numPoints; ++i) {
-    osmium::Location location(line->getX(i), line->getY(i));
+  for (auto &point : *line) {
+    osmium::Location location(point.getX(), point.getY());
     auto it = g_way_end_points_map.find(location);
     if (it != g_way_end_points_map.end()) {
       osm_way_node_ids.emplace_back(location, it->second);
@@ -906,7 +902,7 @@ node_vector_type create_open_way_nodes(OGRLineString *line,
  * \brief creates closed ways (i.e. for administrative boundary)
  * \return osm_ids of created ways
  */
-osm_id_vector_type build_closed_ways(OGRLinearRing *ring,
+osm_id_vector_type build_closed_ways(const OGRLinearRing *ring,
                                      osmium::memory::Buffer &node_buffer,
                                      osmium::memory::Buffer &way_buffer) {
   node_vector_type osm_way_node_ids =
@@ -973,7 +969,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
  * \brief adds navteq administrative boundary tags to Relation
  */
 void build_admin_boundary_taglist(osmium::builder::Builder &builder,
-                                  OGRFeature *feat) {
+                                  const OGRFeatureUniquePtr &feat) {
   osmium::builder::TagListBuilder tl_builder(builder);
 
   int level = 0;
@@ -1018,7 +1014,7 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
  * \brief adds navteq water tags to Relation
  */
 void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
-                              OGRFeature *feat) {
+                              const OGRFeatureUniquePtr &feat) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("type", "multipolygon");
@@ -1050,7 +1046,7 @@ void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
 }
 
 void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
-                                 OGRFeature *feat) {
+                                 const OGRFeatureUniquePtr &feat) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("building", "yes");
@@ -1065,7 +1061,7 @@ void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
  * \brief adds navteq water tags to way
  */
 void build_water_way_taglist(osmium::builder::WayBuilder &builder,
-                             OGRFeature *feat) {
+                             const OGRFeatureUniquePtr &feat) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(builder);
   //    tl_builder.add_tag("natural", "water");
@@ -1103,7 +1099,7 @@ void build_water_way_taglist(osmium::builder::WayBuilder &builder,
  * \brief adds navteq landuse tags to Relation
  */
 void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
-                           OGRFeature *feat) {
+                           const OGRFeatureUniquePtr &feat) {
   // Mind tl_builder scope!
   osmium::builder::TagListBuilder tl_builder(builder);
   tl_builder.add_tag("type", "multipolygon");
@@ -1210,10 +1206,9 @@ void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
   }
 }
 
-osm_id_vector_type
-build_water_ways_with_tagList(OGRFeature *feat, OGRLineString *line,
-                              osmium::memory::Buffer &node_buffer,
-                              osmium::memory::Buffer &way_buffer) {
+osm_id_vector_type build_water_ways_with_tagList(
+    const OGRFeatureUniquePtr &feat, OGRLineString *line,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
   node_vector_type osm_way_node_ids = create_open_way_nodes(line, node_buffer);
 
   osm_id_vector_type osm_way_ids;
@@ -1262,7 +1257,7 @@ osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
 }
 
 osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
-    OGRFeature *feat, const osm_id_vector_type &ext_osm_way_ids,
+    const OGRFeatureUniquePtr &feat, const osm_id_vector_type &ext_osm_way_ids,
     const osm_id_vector_type &int_osm_way_ids,
     osmium::memory::Buffer &rel_buffer) {
   osmium::builder::RelationBuilder builder(rel_buffer);
@@ -1275,7 +1270,7 @@ osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
 }
 
 osmium::unsigned_object_id_type build_water_relation_with_tags(
-    OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
+    const OGRFeatureUniquePtr &feat, osm_id_vector_type ext_osm_way_ids,
     osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   builder.object().set_id(g_osm_id++);
@@ -1287,7 +1282,7 @@ osmium::unsigned_object_id_type build_water_relation_with_tags(
 }
 
 osmium::unsigned_object_id_type build_landuse_relation_with_tags(
-    OGRFeature *feat, osm_id_vector_type ext_osm_way_ids,
+    const OGRFeatureUniquePtr &feat, osm_id_vector_type ext_osm_way_ids,
     osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   builder.object().set_id(g_osm_id++);
@@ -1296,6 +1291,23 @@ osmium::unsigned_object_id_type build_landuse_relation_with_tags(
   build_landuse_taglist(builder, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
+}
+
+void create_polygon(const OGRPolygon *poly,
+                    osm_id_vector_type &exterior_way_ids,
+                    osm_id_vector_type &interior_way_ids,
+                    osmium::memory::Buffer &node_buffer,
+                    osmium::memory::Buffer &way_buffer) {
+  bool isExteriorRing = true; // first ring is the exterior ring
+  for (const OGRLinearRing *ring : *poly) {
+    auto tmp = build_closed_ways(ring, node_buffer, way_buffer);
+    if (isExteriorRing) {
+      std::move(tmp.begin(), tmp.end(), std::back_inserter(exterior_way_ids));
+    } else {
+      std::move(tmp.begin(), tmp.end(), std::back_inserter(interior_way_ids));
+    }
+    isExteriorRing = false;
+  }
 }
 
 /**
@@ -1307,35 +1319,9 @@ void create_multi_polygon(OGRMultiPolygon *mp,
                           osmium::memory::Buffer &node_buffer,
                           osmium::memory::Buffer &way_buffer) {
 
-  for (int i = 0; i < mp->getNumGeometries(); i++) {
-    OGRPolygon *poly = static_cast<OGRPolygon *>(mp->getGeometryRef(i));
-
-    osm_id_vector_type exterior_way_ids =
-        build_closed_ways(poly->getExteriorRing(), node_buffer, way_buffer);
-    // append osm_way_ids to relation_member_ids
-    std::move(exterior_way_ids.begin(), exterior_way_ids.end(),
-              std::back_inserter(mp_ext_ring_osm_ids));
-
-    for (int i = 0; i < poly->getNumInteriorRings(); i++) {
-      auto interior_way_ids =
-          build_closed_ways(poly->getInteriorRing(i), node_buffer, way_buffer);
-      std::move(interior_way_ids.begin(), interior_way_ids.end(),
-                std::back_inserter(mp_int_ring_osm_ids));
-    }
-  }
-}
-
-void create_polygon(OGRPolygon *poly, osm_id_vector_type &exterior_way_ids,
-                    osm_id_vector_type &interior_way_ids,
-                    osmium::memory::Buffer &node_buffer,
-                    osmium::memory::Buffer &way_buffer) {
-  exterior_way_ids =
-      build_closed_ways(poly->getExteriorRing(), node_buffer, way_buffer);
-
-  for (int i = 0; i < poly->getNumInteriorRings(); i++) {
-    auto tmp =
-        build_closed_ways(poly->getInteriorRing(i), node_buffer, way_buffer);
-    std::move(tmp.begin(), tmp.end(), std::back_inserter(interior_way_ids));
+  for (const OGRPolygon *poly : mp) {
+    create_polygon(poly, mp_ext_ring_osm_ids, mp_int_ring_osm_ids, node_buffer,
+                   way_buffer);
   }
 }
 
@@ -1343,7 +1329,7 @@ void create_polygon(OGRPolygon *poly, osm_id_vector_type &exterior_way_ids,
  * \brief adds administrative boundaries as Relations to m_buffer
  */
 void process_admin_boundary(
-    OGRFeature *feat, osmium::memory::Buffer &node_buffer,
+    const OGRFeatureUniquePtr &feat, osmium::memory::Buffer &node_buffer,
     osmium::memory::Buffer &way_buffer, osmium::memory::Buffer &rel_buffer,
     std::map<int, std::pair<osm_id_vector_type, osm_id_vector_type>>
         &adminLineMap) {
@@ -1381,7 +1367,8 @@ void process_admin_boundary(
 /**
  * \brief adds water polygons as Relations to m_buffer
  */
-void process_water(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
+void process_water(const OGRFeatureUniquePtr &feat,
+                   osmium::memory::Buffer &node_buffer,
                    osmium::memory::Buffer &way_buffer,
                    osmium::memory::Buffer &rel_buffer) {
   auto geom = feat->GetGeometryRef();
@@ -1416,7 +1403,8 @@ void process_water(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
 /**
  * \brief adds water polygons as Relations to m_buffer
  */
-void process_building(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
+void process_building(const OGRFeatureUniquePtr &feat,
+                      osmium::memory::Buffer &node_buffer,
                       osmium::memory::Buffer &way_buffer) {
   auto geom = feat->GetGeometryRef();
 
@@ -1445,10 +1433,12 @@ void process_building(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
   way_buffer.commit();
 }
 
-void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
+void process_railways(const OGRFeatureUniquePtr &feat,
+                      osmium::memory::Buffer &node_buffer,
                       osmium::memory::Buffer &way_buffer) {
 
-  OGRLineString *line = static_cast<OGRLineString *>(feat->GetGeometryRef());
+  const OGRLineString *line =
+      static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
   node_vector_type osm_way_node_ids = create_open_way_nodes(line, node_buffer);
   {
@@ -1481,7 +1471,8 @@ void process_railways(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
 /**
  * \brief adds landuse polygons as Relations to m_buffer
  */
-void process_landuse(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
+void process_landuse(const OGRFeatureUniquePtr &feat,
+                     osmium::memory::Buffer &node_buffer,
                      osmium::memory::Buffer &way_buffer,
                      osmium::memory::Buffer &rel_buffer) {
   auto geom = feat->GetGeometryRef();
@@ -1511,7 +1502,7 @@ void process_landuse(OGRFeature *feat, osmium::memory::Buffer &node_buffer,
 /**
  * \brief adds cities to the node buffer
  */
-void process_city(OGRFeature *feat, uint fac_type,
+void process_city(const OGRFeatureUniquePtr &feat, uint fac_type,
                   osmium::memory::Buffer &node_buffer,
                   const std::map<std::string, std::string> &translations) {
 
@@ -1565,7 +1556,8 @@ void process_city(OGRFeature *feat, uint fac_type,
 /**
  * \brief adds hamlets to the node_buffer
  */
-void process_hamlets(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
+void process_hamlets(const OGRFeatureUniquePtr &feat,
+                     osmium::memory::Buffer &node_buffer) {
 
   auto geom = feat->GetGeometryRef();
   auto geom_type = geom->getGeometryType();
@@ -1592,7 +1584,8 @@ void process_hamlets(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
   node_buffer.commit();
 }
 
-void process_rest_area(OGRFeature *feat, osmium::memory::Buffer &node_buffer) {
+void process_rest_area(const OGRFeatureUniquePtr &feat,
+                       osmium::memory::Buffer &node_buffer) {
 
   auto geom = feat->GetGeometryRef();
   auto geom_type = geom->getGeometryType();
@@ -1847,18 +1840,16 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
 
     std::map<uint64_t, std::map<std::string, std::string>> translations;
     // read translations
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
         BOOST_LOG_TRIVIAL(error)
             << "Skipping city node because of wrong POI type";
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type == "B") {
         // Skip this entry as it's just a translated namePlc of former one
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
       int poiId = feat->GetFieldAsInteger(poiIdField);
@@ -1867,35 +1858,29 @@ void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
 
       translations[poiId].emplace(parse_lang_code(langCode),
                                   to_camel_case_with_spaces(locName));
-
-      OGRFeature::DestroyFeature(feat);
     }
 
     layer->ResetReading();
 
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 4444 && fac_type != 9709) {
         BOOST_LOG_TRIVIAL(error)
             << "Skipping city node because of wrong POI type";
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type != "B") {
         // Skip this entry as it's just a translated namePlc of former one
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
       int poiId = feat->GetFieldAsInteger(poiIdField);
 
       process_city(feat, fac_type, node_buffer, translations[poiId]);
-      OGRFeature::DestroyFeature(feat);
     }
     node_buffer.commit();
     writer(std::move(node_buffer));
-    GDALClose(ds);
   }
 }
 
@@ -1918,27 +1903,22 @@ void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
     int facTypeField = layer->FindFieldIndex(FAC_TYPE, true);
     int poiNmTypeField = layer->FindFieldIndex(POI_NMTYPE, true);
 
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 9998) {
         BOOST_LOG_TRIVIAL(error)
             << "Skipping hamlet node because of wrong POI type";
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type != "B") {
         // Skip this entry as it's just a translated namePlc of former one
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
-
       process_hamlets(feat, node_buffer);
-      OGRFeature::DestroyFeature(feat);
     }
     writer(std::move(node_buffer));
-    GDALClose(ds);
   }
 }
 
@@ -1961,25 +1941,20 @@ void add_rest_area_nodes(const std::vector<boost::filesystem::path> &dirs,
     int facTypeField = layer->FindFieldIndex(FAC_TYPE, true);
     int poiNmTypeField = layer->FindFieldIndex(POI_NMTYPE, true);
 
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       uint fac_type = feat->GetFieldAsInteger(facTypeField);
       if (fac_type != 7897) {
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
 
       std::string name_type = feat->GetFieldAsString(poiNmTypeField);
       if (name_type != "B") {
         // Skip this entry as it's just a translated namePlc of former one
-        OGRFeature::DestroyFeature(feat);
         continue;
       }
-
       process_rest_area(feat, node_buffer);
-      OGRFeature::DestroyFeature(feat);
     }
     writer(std::move(node_buffer));
-    GDALClose(ds);
   }
 }
 
@@ -1997,13 +1972,13 @@ void init_g_cnd_mod_map(const boost::filesystem::path &dir) {
     if (it2 == g_cnd_mod_map.end()) {
       mod_group_vector_type new_vector;
       new_vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      g_cnd_mod_map.insert(std::make_pair(cond_id, new_vector));
+      g_cnd_mod_map.emplace(cond_id, new_vector);
     } else {
       //(std::vector<mod_group_type>) ()’
       auto vector = it2->second;
       g_cnd_mod_map.erase(it2);
       vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      g_cnd_mod_map.insert(std::make_pair(cond_id, vector));
+      g_cnd_mod_map.emplace(cond_id, vector);
     }
   }
   DBFClose(cnd_mod_handle);
@@ -2153,10 +2128,9 @@ void parse_ramp_names(
   int directionField = layer->FindFieldIndex(DIR_TRAVEL, true);
   int rampField = layer->FindFieldIndex(RAMP, true);
 
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
 
     if (!parse_bool(feat->GetFieldAsString(rampField))) {
-      OGRFeature::DestroyFeature(feat);
       continue;
     }
 
@@ -2179,11 +2153,7 @@ void parse_ramp_names(
         g_ramps_ref_map[location].emplace(1, it->second);
       }
     }
-
-    OGRFeature::DestroyFeature(feat);
   }
-
-  GDALClose(ds);
 }
 
 std::map<link_id_type, std::string>
@@ -2219,7 +2189,7 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs) {
 
   for (auto &dir : dirs) {
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2229,8 +2199,6 @@ z_lvl_map process_z_levels(const std::vector<boost::filesystem::path> &dirs) {
     init_z_level_map(dir, z_level_map);
     init_conditional_driving_manoeuvres(dir);
     init_country_reference(dir);
-
-    GDALClose(ds);
   }
   return z_level_map;
 }
@@ -2243,7 +2211,7 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
     init_ramp_names(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2254,17 +2222,15 @@ void process_way_end_nodes(const std::vector<boost::filesystem::path> &dirs,
     int linkIDField = layer->FindFieldIndex(LINK_ID, true);
 
     // get all nodes which may be a routable crossing
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       link_id_type link_id = feat->GetFieldAsInteger(linkIDField);
       // omit way end nodes with different z-levels (they have to be handled
       // extra)
       if (z_level_map.find(link_id) == z_level_map.end())
         process_way_end_nodes(feat, node_buffer);
-      OGRFeature::DestroyFeature(feat);
     }
     node_buffer.commit();
     writer(std::move(node_buffer));
-    GDALClose(ds);
     g_ramps_ref_map.clear();
   }
 }
@@ -2279,19 +2245,18 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     init_under_construction(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
-    boost::progress_display progress(layer->GetFeatureCount());
+    boost::timer::progress_display progress(layer->GetFeatureCount());
 
     osmium::memory::Buffer node_buffer(buffer_size);
     osmium::memory::Buffer way_buffer(buffer_size);
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       process_way(feat, &z_level_map, node_buffer, way_buffer);
       ++progress;
-      OGRFeature::DestroyFeature(feat);
     }
 
     node_buffer.commit();
@@ -2300,8 +2265,6 @@ void process_way(const std::vector<boost::filesystem::path> &dirs,
     writer(std::move(way_buffer));
 
     g_hwys_ref_map.clear();
-
-    GDALClose(ds);
   }
 }
 
@@ -2311,7 +2274,7 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
       new std::map<uint64_t,
                    std::vector<std::pair<osmium::Location, std::string>>>();
   if (shp_file_exists(dir / POINT_ADDRESS_SHP)) {
-    auto *ds = open_shape_file(dir / POINT_ADDRESS_SHP);
+    auto ds = open_shape_file(dir / POINT_ADDRESS_SHP);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
@@ -2322,7 +2285,7 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
     int lonField = layer->FindFieldIndex("DISP_LON", true);
     int addressField = layer->FindFieldIndex("ADDRESS", true);
 
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       int linkId = feat->GetFieldAsInteger(linkIdField);
       auto houseNumber = std::string(feat->GetFieldAsString(addressField));
 
@@ -2330,7 +2293,7 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
       double lon = 0.0;
 
       if (feat->IsFieldNull(lonField) && feat->IsFieldNull(latField)) {
-        auto point = static_cast<OGRPoint *>(feat->GetGeometryRef());
+        auto point = static_cast<const OGRPoint *>(feat->GetGeometryRef());
         lat = point->getY();
         lon = point->getX();
       } else {
@@ -2340,8 +2303,6 @@ auto createPointAddressMapList(const boost::filesystem::path dir) {
 
       (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
                                               houseNumber);
-
-      OGRFeature::DestroyFeature(feat);
     }
   }
   return pointAddressMap;
@@ -2354,23 +2315,22 @@ void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
     auto pointMap = createPointAddressMapList(dir);
 
     auto path = dir / STREETS_SHP;
-    auto *ds = open_shape_file(path);
+    auto ds = open_shape_file(path);
 
     auto layer = ds->GetLayer(0);
     if (layer == nullptr)
       throw(shp_empty_error(path.string()));
-    boost::progress_display progress(layer->GetFeatureCount());
+    boost::timer::progress_display progress(layer->GetFeatureCount());
 
     osmium::memory::Buffer node_buffer(buffer_size);
     osmium::memory::Buffer way_buffer(buffer_size);
 
     int linkIdField = layer->FindFieldIndex(LINK_ID, true);
 
-    while (auto feat = layer->GetNextFeature()) {
+    for (auto &feat : *layer) {
       int linkId = feat->GetFieldAsInteger(linkIdField);
       process_house_numbers(feat, pointMap, linkId, node_buffer, way_buffer);
       ++progress;
-      OGRFeature::DestroyFeature(feat);
     }
 
     node_buffer.commit();
@@ -2378,7 +2338,6 @@ void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
     writer(std::move(node_buffer));
     writer(std::move(way_buffer));
     delete pointMap;
-    GDALClose(ds);
   }
 }
 
@@ -2399,13 +2358,14 @@ void process_alt_steets_route_types(
       ushort route_type = dbf_get_uint_by_field(alt_streets_handle, i, ROUTE);
 
       // try to emplace <link_id, route_type> pair
-      auto insertion = g_route_type_map.emplace(link_id, route_type);
+      auto [insertion, inserted] =
+          g_route_type_map.emplace(link_id, route_type);
 
       // if its already exists update routetype
-      if (!insertion.second && insertion.first->second > route_type) {
+      if (!inserted && insertion->second > route_type) {
         // As link id's aren't unique in AltStreets.dbf
         // just store the lowest route type
-        insertion.first->second = route_type;
+        insertion->second = route_type;
       }
     }
     DBFClose(alt_streets_handle);
@@ -2478,15 +2438,13 @@ void add_admin_shape(
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
   osmium::memory::Buffer rel_buffer(buffer_size);
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
     process_admin_boundary(feat, node_buffer, way_buffer, rel_buffer,
                            adminLineMap);
-    OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  GDALClose(ds);
 }
 
 void add_water_shape(boost::filesystem::path water_shape_file,
@@ -2501,14 +2459,12 @@ void add_water_shape(boost::filesystem::path water_shape_file,
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
   osmium::memory::Buffer rel_buffer(buffer_size);
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
     process_water(feat, node_buffer, way_buffer, rel_buffer);
-    OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  GDALClose(ds);
   g_way_end_points_map.clear();
 }
 
@@ -2522,15 +2478,13 @@ void add_building_shape(boost::filesystem::path landmark_shape_file,
          layer->GetGeomType() == wkbLineString);
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
     if (!strcmp(feat->GetFieldAsString(FEAT_COD), "2005999")) {
       process_building(feat, node_buffer, way_buffer);
     }
-    OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  GDALClose(ds);
 }
 
 void add_railways_shape(boost::filesystem::path water_shape_file,
@@ -2544,13 +2498,11 @@ void add_railways_shape(boost::filesystem::path water_shape_file,
          layer->GetGeomType() == wkbLineString);
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
     process_railways(feat, node_buffer, way_buffer);
-    OGRFeature::DestroyFeature(feat);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  GDALClose(ds);
   g_way_end_points_map.clear();
 }
 
@@ -2565,15 +2517,13 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
   osmium::memory::Buffer node_buffer(buffer_size);
   osmium::memory::Buffer way_buffer(buffer_size);
   osmium::memory::Buffer rel_buffer(buffer_size);
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
     process_landuse(feat, node_buffer, way_buffer, rel_buffer);
-    OGRFeature::DestroyFeature(feat);
   }
 
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  GDALClose(ds);
   g_way_end_points_map.clear();
 }
 
@@ -2593,7 +2543,7 @@ void clear_all() {
   g_mtd_area_map.clear();
 }
 
-osm_id_vector_type build_admin_line(OGRFeature *feat,
+osm_id_vector_type build_admin_line(OGRFeatureUniquePtr &feat,
                                     osmium::memory::Buffer &node_buffer,
                                     osmium::memory::Buffer &way_buffer) {
 
@@ -2638,7 +2588,7 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
 
   std::set<std::pair<link_id_type, area_id_type>> convertedLinkIds;
 
-  while (auto feat = layer->GetNextFeature()) {
+  for (auto &feat : *layer) {
     auto areaId = feat->GetFieldAsInteger(AREA_ID);
     auto linkId = feat->GetFieldAsInteger(LINK_ID);
 
@@ -2648,15 +2598,12 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
       boost::copy(osmIdVector, std::back_inserter(result[areaId]));
       convertedLinkIds.insert(std::make_pair(linkId, areaId));
     }
-
-    OGRFeature::DestroyFeature(feat);
   }
   node_buffer.commit();
   way_buffer.commit();
 
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
-  GDALClose(ds);
 
   return result;
 }

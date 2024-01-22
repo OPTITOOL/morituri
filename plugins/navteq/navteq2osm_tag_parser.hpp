@@ -38,24 +38,19 @@ bool fits_street_ref(const std::string &st_name) {
   return number_started;
 }
 
-bool begins_with(const std::string &str, const char *start_str) {
-  return str.rfind(start_str) == 0;
-}
-
 uint get_number_after(const std::string &str, const char *start_str) {
-  if (!begins_with(str, start_str))
+  if (!str.starts_with(start_str))
     return 0; /* doesn't start with start_str */
 
   /* Get number string after start_str until first non-digit appears */
   std::string end_str = str.substr(strlen(start_str));
   std::string number_str;
   for (auto it = end_str.begin(); it != end_str.end(); ++it) {
-    if (std::isdigit(*it)) {
-      number_str += *it;
-    } else {
+    if (!std::isdigit(*it)) {
       /* break because B107a should return 107*/
       break;
     }
+    number_str += *it;
   }
 
   try {
@@ -65,7 +60,7 @@ uint get_number_after(const std::string &str, const char *start_str) {
   }
 }
 
-bool is_motorized_allowed(OGRFeature *f) {
+bool is_motorized_allowed(OGRFeatureUniquePtr &f) {
   if (parse_bool(get_field_from_feature(f, AR_AUTO)))
     return true;
   if (parse_bool(get_field_from_feature(f, AR_BUS)))
@@ -100,7 +95,7 @@ uint get_area_code_l(area_id_type l_area_id, area_id_type r_area_id,
                                std::to_string(mtd_area_map->size())));
 }
 
-uint get_area_code_l(OGRFeature *f, mtd_area_map_type *mtd_area_map) {
+uint get_area_code_l(OGRFeatureUniquePtr &f, mtd_area_map_type *mtd_area_map) {
   area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
   area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
 
@@ -180,9 +175,9 @@ std::string get_hwy_value(ushort route_type, ushort func_class,
   return get_hwy_vector(HWY_FUNC_CLASS_MAP, area_code_1).at(apply_func_class);
 }
 
-void add_highway_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f,
-                     ushort route_type, ushort func_class,
-                     mtd_area_map_type *mtd_area_map,
+void add_highway_tag(osmium::builder::TagListBuilder *builder,
+                     OGRFeatureUniquePtr &f, ushort route_type,
+                     ushort func_class, mtd_area_map_type *mtd_area_map,
                      const std::string &ref_name, bool underConstruction) {
 
   bool paved = parse_bool(get_field_from_feature(f, PAVED));
@@ -257,7 +252,8 @@ void add_one_way_tag(osmium::builder::TagListBuilder *builder,
     builder->add_tag(one_way, parsed_value);
 }
 
-void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
+void add_access_tags(osmium::builder::TagListBuilder *builder,
+                     OGRFeatureUniquePtr &f) {
   bool automobile_allowed = parse_bool(get_field_from_feature(f, AR_AUTO));
   if (!automobile_allowed)
     builder->add_tag("motorcar", NO);
@@ -298,7 +294,7 @@ void add_access_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
  * \brief adds maxspeed tag
  */
 void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
-                       OGRFeature *f) {
+                       OGRFeatureUniquePtr &f) {
   char *from_speed_limit_s = strdup(get_field_from_feature(f, FR_SPEED_LIMIT));
   char *to_speed_limit_s = strdup(get_field_from_feature(f, TO_SPEED_LIMIT));
 
@@ -339,7 +335,7 @@ void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
  * \brief adds here:speed_cat tag
  */
 void add_here_speed_cat_tag(osmium::builder::TagListBuilder *builder,
-                            OGRFeature *f) {
+                            OGRFeatureUniquePtr &f) {
   auto speed_cat = get_uint_from_feature(f, SPEED_CAT);
   if (0 < speed_cat &&
       speed_cat < (sizeof(speed_cat_metric) / sizeof(const char *)))
@@ -531,7 +527,7 @@ bool is_ferry(const char *value) {
                      std::string(FERRY) + " not valid"));
 }
 
-bool only_pedestrians(OGRFeature *f) {
+bool only_pedestrians(OGRFeatureUniquePtr &f) {
   if (strcmp(get_field_from_feature(f, AR_PEDESTRIANS), "Y"))
     return false;
   if (!strcmp(get_field_from_feature(f, AR_AUTO), "Y"))
@@ -550,7 +546,8 @@ bool only_pedestrians(OGRFeature *f) {
   return true;
 }
 
-void add_ferry_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
+void add_ferry_tag(osmium::builder::TagListBuilder *builder,
+                   OGRFeatureUniquePtr &f) {
   const char *ferry = get_field_from_feature(f, FERRY);
   builder->add_tag("route", "ferry");
   if (!strcmp(ferry, "B")) {
@@ -572,13 +569,15 @@ void add_ferry_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
                        std::string(FERRY) + " not valid"));
 }
 
-void add_lanes_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
+void add_lanes_tag(osmium::builder::TagListBuilder *builder,
+                   OGRFeatureUniquePtr &f) {
   const char *number_of_physical_lanes = get_field_from_feature(f, PHYS_LANES);
   if (strcmp(number_of_physical_lanes, "0"))
     builder->add_tag("lanes", number_of_physical_lanes);
 }
 
-void add_postcode_tag(osmium::builder::TagListBuilder *builder, OGRFeature *f) {
+void add_postcode_tag(osmium::builder::TagListBuilder *builder,
+                      OGRFeatureUniquePtr &f) {
   std::string l_postcode = get_field_from_feature(f, L_POSTCODE);
   std::string r_postcode = get_field_from_feature(f, R_POSTCODE);
 
@@ -634,8 +633,9 @@ std::string add_highway_name_tags(osmium::builder::TagListBuilder *builder,
   return ref_tag;
 }
 
-void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
-                      ushort route_type, mtd_area_map_type *mtd_area_map,
+void add_highway_tags(osmium::builder::TagListBuilder *builder,
+                      OGRFeatureUniquePtr &f, ushort route_type,
+                      mtd_area_map_type *mtd_area_map,
                       const std::string &ref_name, bool underConstruction) {
 
   ushort func_class = 0;
@@ -671,7 +671,7 @@ void add_highway_tags(osmium::builder::TagListBuilder *builder, OGRFeature *f,
  * \return link id of processed feature.
  */
 link_id_type parse_street_tags(
-    osmium::builder::TagListBuilder *builder, OGRFeature *f,
+    osmium::builder::TagListBuilder *builder, OGRFeatureUniquePtr &f,
     cdms_map_type *cdms_map, cnd_mod_map_type *cnd_mod_map,
     area_id_govt_code_map_type *area_govt_map, cntry_ref_map_type *cntry_map,
     mtd_area_map_type *mtd_area_map, link_id_route_type_map *route_type_map,
@@ -778,7 +778,7 @@ void parse_lang_code_file() {
       }
       std::string iso_639_2 = lv.at(0);
       std::string iso_639_1 = lv.at(2);
-      g_lang_code_map.insert(std::make_pair(iso_639_2, iso_639_1));
+      g_lang_code_map.emplace(std::make_pair(iso_639_2, iso_639_1));
     }
     file.close();
   }

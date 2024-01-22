@@ -10,24 +10,24 @@
 
 #include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
-#include <gdal/ogrsf_frmts.h>
+#include <ogrsf_frmts.h>
 #include <shapefil.h>
 
 #include "comm2osm_exceptions.hpp"
 
-GDALDataset *open_shape_file(boost::filesystem::path shp_file) {
-  BOOST_LOG_TRIVIAL(info) << "\treading " << shp_file;
+GDALDatasetUniquePtr open_shape_file(boost::filesystem::path shp_file) {
+  BOOST_LOG_TRIVIAL(debug) << "\treading " << shp_file;
 
-  GDALDataset *input_data_source = (GDALDataset *)GDALOpenEx(
-      shp_file.c_str(), GDAL_OF_READONLY, nullptr, nullptr, nullptr);
-  if (input_data_source == nullptr)
+  auto input_data_source =
+      GDALDatasetUniquePtr(GDALDataset::Open(shp_file.c_str()));
+  if (!input_data_source)
     throw(shp_error(shp_file.string()));
 
   return input_data_source;
 }
 
 DBFHandle read_dbf_file(boost::filesystem::path dbf_file) {
-  BOOST_LOG_TRIVIAL(info) << "\treading " << dbf_file;
+  BOOST_LOG_TRIVIAL(debug) << "\treading " << dbf_file;
   DBFHandle handle = DBFOpen(dbf_file.c_str(), "rb");
   if (handle == nullptr)
     throw(dbf_error(dbf_file.string()));
