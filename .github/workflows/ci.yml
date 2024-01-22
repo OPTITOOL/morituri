@@ -24,8 +24,8 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           # Change this to point to your image name
-          imageName: ghcr.io/OPTITOOL/morituri-devcontainer
-          cacheFrom: ghcr.io/OPTITOOL/morituri-devcontainer
+          imageName: ghcr.io/optitool/morituri-devcontainer
+          cacheFrom: ghcr.io/optitool/morituri-devcontainer
           push: always
           # Change this to be your CI task/script
           runCmd: |
