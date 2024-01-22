@@ -32,7 +32,7 @@ jobs:
             # Add multiple commands to run if needed
             mkdir -p build
             cd build
-            cmake -G'Ninja' -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+            cmake -G'Ninja' -DVCPKG_INSTALLED_DIR=/vcpkg_installed -DCMAKE_TOOLCHAIN_FILE=/vcpkg/scripts/buildsystems/vcpkg.cmake ..
             cmake --build .
             
             
