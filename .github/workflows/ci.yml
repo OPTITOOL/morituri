@@ -30,4 +30,9 @@ jobs:
           # Change this to be your CI task/script
           runCmd: |
             # Add multiple commands to run if needed
-            ls
+            mkdir -p build
+            cd build
+            cmake -G'Ninja' ..
+            cmake --build .
+            
+            
