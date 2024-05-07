@@ -15,6 +15,7 @@
 #include <ogr_api.h>
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
+#include <ranges>
 
 #include "navteq.hpp"
 #include "navteq_plugin.hpp"
@@ -348,8 +349,7 @@ bool navteq_plugin::checkCountryCode(const boost::filesystem::path &dir) {
     std::string countryCode = dbf_get_string_by_field(handle, i, ISO_CODE);
 
     foundCountries.insert(countryCode);
-    auto found = std::find(countriesToConvert.cbegin(),
-                           countriesToConvert.cend(), countryCode);
+    auto found = std::ranges::find(countriesToConvert, countryCode);
     if (found != countriesToConvert.end()) {
       DBFClose(handle);
       return true;
