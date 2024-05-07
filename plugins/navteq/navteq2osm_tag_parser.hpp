@@ -1,6 +1,7 @@
 #ifndef NAVTEQ2OSMTAGPARSE_HPP_
 #define NAVTEQ2OSMTAGPARSE_HPP_
 
+#include <fmt/format.h>
 #include <fstream>
 #include <iostream>
 
@@ -18,24 +19,6 @@ bool parse_bool(const char *value) {
   if (!strcmp(value, "Y"))
     return true;
   return false;
-}
-
-bool fits_street_ref(const std::string &st_name) {
-  if (st_name.empty())
-    return false;
-  if (st_name.size() > 6)
-    return false;
-
-  bool number_started = false;
-  for (auto it = st_name.begin(); it != st_name.end(); ++it) {
-    if (std::isdigit(*it)) {
-      number_started = true;
-    } else if (number_started) {
-      return false;
-    }
-  }
-
-  return number_started;
 }
 
 uint get_number_after(const std::string &str, const char *start_str) {
@@ -90,9 +73,8 @@ uint get_area_code_l(area_id_type l_area_id, area_id_type r_area_id,
   if (r_area != mtd_area_map->end())
     return r_area->second.area_code_1;
 
-  throw(out_of_range_exception("could not find area_id " +
-                               std::to_string(++ctr) + ", " +
-                               std::to_string(mtd_area_map->size())));
+  throw(out_of_range_exception(fmt::format("could not find area_id {}, {}",
+                                           ++ctr, mtd_area_map->size())));
 }
 
 uint get_area_code_l(OGRFeatureUniquePtr &f, mtd_area_map_type *mtd_area_map) {
@@ -240,8 +222,7 @@ const char *parse_one_way_tag(const char *value) {
     return "-1";                // todo reverse way instead using "-1"
   else if (!strcmp(value, "B")) // B --> BOTH ways are allowed
     return nullptr;
-  throw(
-      format_error("value '" + std::string(value) + "' for oneway not valid"));
+  throw(format_error(fmt::format("value '{}' for oneway not valid", value)));
 }
 
 void add_one_way_tag(osmium::builder::TagListBuilder *builder,
@@ -295,40 +276,44 @@ void add_access_tags(osmium::builder::TagListBuilder *builder,
  */
 void add_maxspeed_tags(osmium::builder::TagListBuilder *builder,
                        OGRFeatureUniquePtr &f) {
-  char *from_speed_limit_s = strdup(get_field_from_feature(f, FR_SPEED_LIMIT));
-  char *to_speed_limit_s = strdup(get_field_from_feature(f, TO_SPEED_LIMIT));
 
   uint from_speed_limit = get_uint_from_feature(f, FR_SPEED_LIMIT);
   uint to_speed_limit = get_uint_from_feature(f, TO_SPEED_LIMIT);
 
   if (from_speed_limit >= 1000 || to_speed_limit >= 1000)
-    throw(format_error("from_speed_limit='" + std::string(from_speed_limit_s) +
-                       "' or to_speed_limit='" + std::string(to_speed_limit_s) +
-                       "' is not valid (>= 1000)"));
+    throw(format_error(fmt::format(
+        "from_speed_limit='{}' or to_speed_limit='{}' is not valid (>= 1000)",
+        from_speed_limit, to_speed_limit)));
 
   // 998 is a ramp without speed limit information
   if (from_speed_limit == 998 || to_speed_limit == 998)
     return;
 
+  // 0 means speed limit is not set
+  if (from_speed_limit == 0 && to_speed_limit == 0)
+    return;
+
   // 999 means no speed limit at all
-  const char *from = from_speed_limit == 999 ? "none" : from_speed_limit_s;
-  const char *to = to_speed_limit == 999 ? "none" : to_speed_limit_s;
 
-  if (from_speed_limit != 0 && to_speed_limit != 0) {
-    if (from_speed_limit != to_speed_limit) {
-      builder->add_tag("maxspeed:forward", from);
-      builder->add_tag("maxspeed:backward", to);
-    } else {
-      builder->add_tag("maxspeed", from);
-    }
-  } else if (from_speed_limit != 0 && to_speed_limit == 0) {
-    builder->add_tag("maxspeed", from);
-  } else if (from_speed_limit == 0 && to_speed_limit != 0) {
-    builder->add_tag("maxspeed", to);
+  std::string speedUnit = "kph";
+
+  if (from_speed_limit != 0 && to_speed_limit != 0 &&
+      from_speed_limit != to_speed_limit) {
+    const auto &from = (from_speed_limit == 999)
+                           ? "none"
+                           : fmt::format("{} {}", from_speed_limit, speedUnit);
+    const auto &to = (to_speed_limit == 999)
+                         ? "none"
+                         : fmt::format("{} {}", to_speed_limit, speedUnit);
+    builder->add_tag("maxspeed:forward", from);
+    builder->add_tag("maxspeed:backward", to);
+  } else {
+    int speed_limit = std::max(from_speed_limit, to_speed_limit);
+    const auto &speed = (speed_limit == 999)
+                            ? "none"
+                            : fmt::format("{} {}", speed_limit, speedUnit);
+    builder->add_tag("maxspeed", speed);
   }
-
-  free(from_speed_limit_s);
-  free(to_speed_limit_s);
 }
 
 /**
@@ -391,17 +376,17 @@ bool is_imperial(area_id_type l_area_id, area_id_type r_area_id,
 void add_hazmat_tag(osmium::builder::TagListBuilder *builder,
                     mod_val_type mod_val) {
   if (mod_val == 20) { // || mod_val == 21
-    builder->add_tag("hazmat", "no");
+    builder->add_tag("hazmat", NO);
   } else if (mod_val == 22) {
-    builder->add_tag("hazmat:water", "no");
+    builder->add_tag("hazmat:water", NO);
   } else if (mod_val == 24) {
-    builder->add_tag("hazmat:B", "no");
+    builder->add_tag("hazmat:B", NO);
   } else if (mod_val == 28) {
-    builder->add_tag("hazmat:C", "no");
+    builder->add_tag("hazmat:C", NO);
   } else if (mod_val == 32) {
-    builder->add_tag("hazmat:D", "no");
+    builder->add_tag("hazmat:D", NO);
   } else if (mod_val == 34) {
-    builder->add_tag("hazmat:E", "no");
+    builder->add_tag("hazmat:E", NO);
   } else if (mod_val == 23) {
     /* 23 = Explosive and Flammable */
   } else {
@@ -523,8 +508,7 @@ bool is_ferry(const char *value) {
     return true; // T --> boat ferry
   else if (!strcmp(value, "R"))
     return true; // B --> rail ferry
-  throw(format_error("value '" + std::string(value) + "' for " +
-                     std::string(FERRY) + " not valid"));
+  throw(format_error(fmt::format("value '{}' for {} not valid", value, FERRY)));
 }
 
 bool only_pedestrians(OGRFeatureUniquePtr &f) {
