@@ -16,13 +16,13 @@
 
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/path.hpp>
-#include <boost/range/algorithm/copy.hpp>
 #include <boost/timer/progress_display.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/index/map/sparse_file_array.hpp>
 #include <osmium/osm/item_type.hpp>
 #include <osmium/osm/object.hpp>
 #include <osmium/osm/types.hpp>
+#include <ranges>
 
 #include "../comm2osm_exceptions.hpp"
 #include "../readers.hpp"
@@ -1349,10 +1349,10 @@ void process_admin_boundary(
   }
   osmium::unsigned_object_id_type area_id = feat->GetFieldAsInteger(AREA_ID);
   if (area_id != 0) {
-    boost::copy(exterior_way_ids,
-                std::back_inserter(adminLineMap[area_id].first));
-    boost::copy(interior_way_ids,
-                std::back_inserter(adminLineMap[area_id].second));
+    std::ranges::copy(exterior_way_ids,
+                      std::back_inserter(adminLineMap[area_id].first));
+    std::ranges::copy(interior_way_ids,
+                      std::back_inserter(adminLineMap[area_id].second));
   } else {
     // need to tag here because there is no unique Area_ID
     build_admin_boundary_relation_with_tags(feat, exterior_way_ids,
@@ -1441,12 +1441,12 @@ void process_railways(const OGRFeatureUniquePtr &feat,
       static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
   node_vector_type osm_way_node_ids = create_open_way_nodes(line, node_buffer);
-  {
+  { // scope way_builder
     osmium::builder::WayBuilder builder(way_buffer);
     builder.object().set_id(g_osm_id++);
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER);
-    {
+    { // scope tl_builder
       osmium::builder::TagListBuilder tl_builder(builder);
       tl_builder.add_tag("railway", "rail");
       tl_builder.add_tag("usage", "main");
@@ -1457,10 +1457,10 @@ void process_railways(const OGRFeatureUniquePtr &feat,
       if (parse_bool(feat->GetFieldAsString(TUNNEL)))
         tl_builder.add_tag("tunnel", YES);
     }
-    {
+    { // scope wnl_builder
       osmium::builder::WayNodeListBuilder wnl_builder(builder);
-      for (auto osm_way_node_id : osm_way_node_ids) {
-        wnl_builder.add_node_ref(osm_way_node_id.second, osm_way_node_id.first);
+      for (const auto &[location, objectId] : osm_way_node_ids) {
+        wnl_builder.add_node_ref(objectId, location);
       }
     }
   }
@@ -2595,7 +2595,7 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
     if (convertedLinkIds.find(std::make_pair(linkId, areaId)) ==
         convertedLinkIds.end()) {
       auto osmIdVector = build_admin_line(feat, node_buffer, way_buffer);
-      boost::copy(osmIdVector, std::back_inserter(result[areaId]));
+      std::ranges::copy(osmIdVector, std::back_inserter(result[areaId]));
       convertedLinkIds.insert(std::make_pair(linkId, areaId));
     }
   }
@@ -2619,8 +2619,8 @@ void addLevel1Boundaries(std::vector<boost::filesystem::path> &dirs,
       auto adminLine = add_admin_lines(dir / ADMINLINE_1_SHP, writer);
       // merge maps
       for (auto &mapEntry : adminLine) {
-        boost::copy(mapEntry.second,
-                    std::back_inserter(map[mapEntry.first].first));
+        std::ranges::copy(mapEntry.second,
+                          std::back_inserter(map[mapEntry.first].first));
       }
     } else if (shp_file_exists(dir / ADMINBNDY_1_SHP)) {
       add_admin_shape(dir / ADMINBNDY_1_SHP, writer, map);
