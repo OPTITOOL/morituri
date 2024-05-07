@@ -32,7 +32,8 @@ find_package(geos REQUIRED)
 find_path(OSMIUM_INCLUDE_DIRS "osmium/version.hpp")
 find_package(shapelib CONFIG REQUIRED)
 find_package(ICU COMPONENTS uc data io i18n tu)
-
+find_package(fmt CONFIG REQUIRED)
+  
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -52,4 +53,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
   PRIVATE GDAL::GDAL
   PRIVATE shapelib::shp
   PRIVATE expat bz2
+  PRIVATE fmt::fmt
   )
