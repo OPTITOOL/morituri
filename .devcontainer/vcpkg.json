@@ -12,6 +12,7 @@
             "features": [
                 "geos"
             ]
-        }
+        },
+        "fmt"
     ]
 }
