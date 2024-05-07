@@ -340,18 +340,22 @@ void add_here_speed_cat_tag(osmium::builder::TagListBuilder *builder,
 bool is_imperial(area_id_type area_id,
                  area_id_govt_code_map_type *area_govt_map,
                  cntry_ref_map_type *cntry_map) {
-  if (area_govt_map->find(area_id) != area_govt_map->end()) {
-    if (cntry_map->find(area_govt_map->at(area_id)) != cntry_map->end()) {
-      auto unit_measure =
-          cntry_map->at(area_govt_map->at(area_id)).unit_measure;
-      if (unit_measure == "E") {
-        return true;
-      } else if (unit_measure != "M") {
-        format_error("unit_measure in navteq data is invalid: '" +
-                     unit_measure + "'");
-      }
-    }
+  auto gov_code = area_govt_map->find(area_id);
+  if (gov_code == area_govt_map->end())
+    return false;
+
+  auto cntry_ref = cntry_map->find(gov_code->second);
+  if (cntry_ref == cntry_map->end())
+    return false;
+
+  auto unit_measure = cntry_ref->second.unit_measure;
+  if (unit_measure == "E") {
+    return true;
+  } else if (unit_measure != "M") {
+    format_error("unit_measure in navteq data is invalid: '" + unit_measure +
+                 "'");
   }
+
   return false;
 }
 
@@ -549,8 +553,8 @@ void add_ferry_tag(osmium::builder::TagListBuilder *builder,
   } else if (!strcmp(ferry, "R")) {
     builder->add_tag("railway", "ferry");
   } else
-    throw(format_error("value '" + std::string(ferry) + "' for " +
-                       std::string(FERRY) + " not valid"));
+    throw(
+        format_error(fmt::format("value '{}' for {} not valid", ferry, FERRY)));
 }
 
 void add_lanes_tag(osmium::builder::TagListBuilder *builder,
@@ -769,8 +773,8 @@ void parse_lang_code_file() {
 }
 
 std::string parse_lang_code(std::string lang_code) {
-  std::transform(lang_code.begin(), lang_code.end(), lang_code.begin(),
-                 ::tolower);
+  // convert to lower case
+  std::ranges::transform(lang_code, lang_code.begin(), ::tolower);
   if (g_lang_code_map.empty())
     parse_lang_code_file();
 
