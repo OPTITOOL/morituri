@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/cpp:jammy
+FROM mcr.microsoft.com/devcontainers/cpp:noble
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -35,8 +35,8 @@ RUN apt-get update && apt-get upgrade --yes && \
     gdb \
     locales \
     clang-format \
-    gcc-12 \
-    g++-12 && \
+    gcc-13 \
+    g++-13 && \
     \
     # cleanup
     apt-get autoremove --purge -y && \
