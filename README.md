@@ -20,9 +20,9 @@ are problematic due to the following reasons:
 
 #### Ubuntu install instructions:
 
-It is recommendet to use the devcontainer in vscode to build the project. The devcontainer is based on Ubuntu 22.04 and provides all dependencies via [vcpkg](gtihub.com/Microsoft/vcpkg).
+It is recommendet to use the devcontainer in vscode to build the project. The devcontainer is based on Ubuntu 24.04 and provides all dependencies via [vcpkg](gtihub.com/Microsoft/vcpkg).
 
-The resulting binary is statically linked and can be copied to any other Ubuntu 22.04 machine.
+The resulting binary is statically linked and can be copied to any other Ubuntu 24.04 machine.
 
 
 ### Test data
