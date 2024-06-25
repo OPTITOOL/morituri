@@ -6,10 +6,10 @@
  */
 
 #include <boost/algorithm/string/join.hpp>
-#include <boost/filesystem/operations.hpp>
-#include <boost/filesystem/path.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/range/algorithm/copy.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <exception>
 #include <iomanip>
 #include <ogr_api.h>
