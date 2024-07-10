@@ -54,8 +54,6 @@ public:
       const boost::filesystem::path &output_path = boost::filesystem::path());
   void execute();
 
-  void setWithTurnRestrictions(bool withTurnRestrictions);
-
   void setBoundingBox(double minX, double minY, double maxX, double maxY);
 
   void setCountries(const std::vector<std::string> &_countries);

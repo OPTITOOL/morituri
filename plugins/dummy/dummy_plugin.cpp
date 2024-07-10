@@ -20,5 +20,3 @@ bool dummy_plugin::check_input(boost::filesystem::path,
 void dummy_plugin::execute() {
   std::cout << "dummy has nothing to execute" << std::endl;
 }
-
-void dummy_plugin::setWithTurnRestrictions(bool) {}

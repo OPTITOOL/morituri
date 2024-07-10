@@ -19,8 +19,6 @@ public:
   check_input(boost::filesystem::path input_path,
               boost::filesystem::path output_path = boost::filesystem::path());
   void execute();
-
-  void setWithTurnRestrictions(bool withTurnRestrictions);
 };
 
 #endif /* DUMMYPLUGIN_HPP_ */

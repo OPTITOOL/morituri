@@ -18,7 +18,6 @@
 #include "plugins/navteq/navteq_plugin.hpp"
 
 boost::filesystem::path input_path, output_file;
-static bool withTrunRestrictions = false;
 std::vector<double> boundingBox;
 std::vector<std::string> countries;
 static bool debug = false;
@@ -29,12 +28,11 @@ void check_args_and_setup(int argc, char *argv[]) {
 
   // options
   boost::program_options::options_description desc{"Options"};
-  desc.add_options()("help,h", "print usage message") //
-      ("turn-restrictions,tr",
-       boost::program_options::value<bool>(&withTrunRestrictions)
-           ->default_value(false),
-       "enable turn restrictions")
-      //("bounding-box,bb", boost::program_options::value(&bb), "bounding box")
+  desc.add_options()(
+      "help,h", "print usage message") //
+                                       //("bounding-box,bb",
+                                       // boost::program_options::value(&bb),
+                                       //"bounding box")
       ("countries,c",
        boost::program_options::value<std::string>(&countriesString),
        "list of countries (Iso codes seperate by space)") //
@@ -118,8 +116,6 @@ int main(int argc, char *argv[]) {
                              boundingBox[3]);
 
     if (plugin->check_input(input_path, output_file)) {
-      plugin->setWithTurnRestrictions(withTrunRestrictions);
-
       BOOST_LOG_TRIVIAL(info) << "executing plugin " << plugin->get_name();
       plugin->execute();
     }

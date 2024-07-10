@@ -87,11 +87,6 @@ public:
   virtual void execute() = 0;
 
   /**
-   * \brief	Also convert turn restrictions
-   * */
-  virtual void setWithTurnRestrictions(bool withTurnRestrictions) = 0;
-
-  /**
    * \brief Only convert elements in the given bounding box
    * */
   virtual void setBoundingBox(double minX, double minY, double maxX,
