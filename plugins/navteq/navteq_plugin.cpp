@@ -249,11 +249,6 @@ void navteq_plugin::execute() {
   BOOST_LOG_TRIVIAL(info) << "Add street shapes";
   add_street_shapes(dirs, writer);
 
-  if (withTurnRestrictions) {
-    BOOST_LOG_TRIVIAL(info) << "Add turn restrictions";
-    add_turn_restrictions(dirs, writer);
-  }
-
   BOOST_LOG_TRIVIAL(info) << "Add administrative boundaries";
   add_administrative_boundaries(writer);
 
@@ -284,10 +279,6 @@ void navteq_plugin::execute() {
   sortPBF();
 
   BOOST_LOG_TRIVIAL(info) << std::endl << "fin";
-}
-
-void navteq_plugin::setWithTurnRestrictions(bool _withTurnRestrictions) {
-  withTurnRestrictions = _withTurnRestrictions;
 }
 
 void navteq_plugin::sortPBF() {

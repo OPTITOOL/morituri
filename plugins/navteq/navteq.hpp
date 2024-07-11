@@ -43,10 +43,6 @@ z_lvl_nodes_map_type g_z_lvl_nodes_map;
 // id counter for object creation
 osmium::unsigned_object_id_type g_osm_id = 1;
 
-// g_link_id_map maps navteq link_ids to a vector of osm_ids (it will mostly map
-// to a single osm_id)
-link_id_map_type g_link_id_map;
-
 // g_route_type_map maps navteq link_ids to the lowest occurring route_type
 // value
 link_id_route_type_map g_route_type_map;
@@ -60,10 +56,6 @@ std::set<link_id_type> g_construction_set;
 // g_ramps_ref_map maps navteq link_ids to a vector of ramp names
 std::map<osmium::Location, std::map<uint, std::string>> g_ramps_ref_map;
 
-std::map<osmium::unsigned_object_id_type,
-         std::pair<osmium::Location, osmium::Location>>
-    wayStartEndMap;
-
 // auxiliary map which maps datasets with tags for administrative boundaries
 mtd_area_map_type g_mtd_area_map;
 
@@ -74,8 +66,6 @@ cnd_mod_map_type g_cnd_mod_map;
 cdms_map_type g_cdms_map;
 std::map<area_id_type, govt_code_type> g_area_to_govt_code_map;
 cntry_ref_map_type g_cntry_ref_map;
-
-bool withTurnRestrictions = false;
 
 bool debugMode = false;
 
@@ -89,107 +79,6 @@ void set_dummy_osm_object_attributes(osmium::OSMObject &obj) {
   obj.set_changeset(CHANGESET);
   obj.set_uid(USERID);
   obj.set_timestamp(TIMESTAMP);
-}
-
-/**
- * \brief adds mutual node of two ways as via role (required)
- *
- * \param osm_ids vector with osm_ids of ways which belong to the turn
- * restriction \param rml_builder relation member list builder of turn
- * restriction
- */
-
-void add_common_node_as_via(
-    const osm_id_vector_type &osm_ids,
-    osmium::builder::RelationMemberListBuilder &rml_builder) {
-  assert(osm_ids.size() == 2);
-
-  const auto &from_way = wayStartEndMap.find(osm_ids.front());
-  auto from_way_front = from_way->second.first;
-  auto from_way_back = from_way->second.second;
-
-  const auto &to_way = wayStartEndMap.find(osm_ids.back());
-  auto to_way_front = to_way->second.first;
-  auto to_way_back = to_way->second.second;
-
-  if (from_way_front == to_way_front) {
-    auto it = g_way_end_points_map.find(from_way_front);
-    if (it == g_way_end_points_map.end()) {
-      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_front
-                               << " is not in g_way_end_points_map.";
-      return;
-    }
-    rml_builder.add_member(osmium::item_type::node, it->second, "via");
-  } else if (from_way_front == to_way_back) {
-    auto it = g_way_end_points_map.find(from_way_front);
-    if (it == g_way_end_points_map.end()) {
-      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_front
-                               << " is not in g_way_end_points_map.";
-      return;
-    }
-    rml_builder.add_member(osmium::item_type::node, it->second, "via");
-  } else if (from_way_back == to_way_front) {
-    auto it = g_way_end_points_map.find(from_way_back);
-    if (it == g_way_end_points_map.end()) {
-      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_back
-                               << " is not in g_way_end_points_map.";
-      return;
-    }
-    rml_builder.add_member(osmium::item_type::node, it->second, "via");
-  } else {
-    auto it = g_way_end_points_map.find(from_way_back);
-    if (it == g_way_end_points_map.end()) {
-      BOOST_LOG_TRIVIAL(error) << "Skipping via node: " << from_way_back
-                               << " is not in g_way_end_points_map.";
-      return;
-    }
-    rml_builder.add_member(osmium::item_type::node, it->second, "via");
-    assert(from_way_back == to_way_back);
-  }
-}
-
-/**
- * \brief writes turn restrictions as Relation to m_buffer.
- * 			required roles: "from" "via" and "to" (multiple "via"s
- * are allowed) the order of *links is important to assign the correct role.
- *
- * \param osm_ids vector with osm_ids of ways which belong to the turn
- * restriction \return Last number of committed bytes to m_buffer before this
- * commit.
- */
-size_t build_turn_restriction(const osm_id_vector_type &osm_ids,
-                              osmium::memory::Buffer &rel_buffer) {
-
-  {
-    // scope builder
-    osmium::builder::RelationBuilder builder(rel_buffer);
-    builder.object().set_id(std::to_string(g_osm_id++).c_str());
-    set_dummy_osm_object_attributes(builder.object());
-    builder.set_user(USER);
-
-    {
-      // scope rml_builder
-      osmium::builder::RelationMemberListBuilder rml_builder(rel_buffer,
-                                                             &builder);
-
-      assert(osm_ids.size() >= 2);
-
-      rml_builder.add_member(osmium::item_type::way, osm_ids.front(), "from");
-      for (size_t i = 1; i < osm_ids.size() - 1; ++i)
-        rml_builder.add_member(osmium::item_type::way, osm_ids.at(i), "via");
-      if (osm_ids.size() == 2)
-        add_common_node_as_via(osm_ids, rml_builder);
-      rml_builder.add_member(osmium::item_type::way, osm_ids.back(), "to");
-    }
-    {
-      // scope tl_builder
-      osmium::builder::TagListBuilder tl_builder(rel_buffer, &builder);
-      // todo get the correct direction of the turn restriction
-      tl_builder.add_tag("restriction", "no_straight_on");
-      tl_builder.add_tag("type", "restriction");
-    }
-  }
-  return rel_buffer.commit();
 }
 
 /**
@@ -289,7 +178,6 @@ build_way(OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
   osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
   osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
                        ogr_ls->getY(ogr_ls->getNumPoints() - 1));
-  auto startEnd = std::make_pair(start, end);
 
   builder.set_user(USER);
   {
@@ -317,16 +205,9 @@ build_way(OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
       }
       add_way_node(location, wnl_builder, map_containing_node);
     }
-
-    if (withTurnRestrictions) {
-      wayStartEndMap.emplace(builder.object().id(), startEnd);
-    }
   }
 
-  link_id_type link_id = build_tag_list(feat, &builder, way_buffer, z_lvl);
-  if (withTurnRestrictions) {
-    g_link_id_map[link_id].emplace_back(builder.object().id());
-  }
+  build_tag_list(feat, &builder, way_buffer, z_lvl);
   return builder.object().id();
 }
 
@@ -425,9 +306,8 @@ ushort create_continuing_sub_ways(
     if (DEBUG)
       std::cout << "first_index=" << first_index << "   "
                 << "start_index=" << start_index << "   "
-                << "last_index=" << last_index << "   "
-                << "index=" << index << "   "
-                << "z_lvl=" << z_lvl << "   "
+                << "last_index=" << last_index << "   " << "index=" << index
+                << "   " << "z_lvl=" << z_lvl << "   "
                 << "next_z_lvl=" << next_z_lvl << std::endl;
 
     if (not_last_element) {
@@ -1668,101 +1548,6 @@ void preprocess_meta_areas(const std::vector<boost::filesystem::path> &dirs) {
   }
 }
 
-link_id_vector_type collect_via_manoeuvre_link_ids(link_id_type link_id,
-                                                   DBFHandle rdms_handle,
-                                                   cond_id_type cond_id,
-                                                   int &i) {
-  link_id_vector_type via_manoeuvre_link_id;
-  via_manoeuvre_link_id.push_back(link_id);
-  for (int j = 0;; j++) {
-    if (i + j == DBFGetRecordCount(rdms_handle)) {
-      i += j - 1;
-      break;
-    }
-    cond_id_type next_cond_id =
-        dbf_get_uint_by_field(rdms_handle, i + j, COND_ID);
-    if (cond_id != next_cond_id) {
-      i += j - 1;
-      break;
-    }
-    via_manoeuvre_link_id.push_back(
-        dbf_get_uint_by_field(rdms_handle, i + j, MAN_LINKID));
-  }
-  return via_manoeuvre_link_id;
-}
-
-osm_id_vector_type collect_via_manoeuvre_osm_ids(
-    const link_id_vector_type &via_manoeuvre_link_id) {
-  osm_id_vector_type via_manoeuvre_osm_id;
-
-  osmium::Location end_point_front;
-  osmium::Location end_point_back;
-  osmium::Location curr;
-  uint ctr = 0;
-
-  for (auto linkId : via_manoeuvre_link_id) {
-    bool reverse = false;
-
-    auto it = g_link_id_map.find(linkId);
-    if (it == g_link_id_map.end())
-      return osm_id_vector_type();
-
-    osm_id_vector_type &osm_id_vector = it->second;
-    auto first_osm_id = osm_id_vector.front();
-    const auto &first_way = wayStartEndMap.find(first_osm_id);
-
-    osmium::Location first_way_front = first_way->second.first;
-    auto last_osm_id = osm_id_vector.back();
-    const auto &last_way = wayStartEndMap.find(last_osm_id);
-    osmium::Location last_way_back = last_way->second.second;
-
-    // determine end_points
-    if (ctr == 0) {
-      // assume this is correct
-      end_point_front = first_way_front;
-      end_point_back = last_way_back;
-    } else {
-      if (ctr == 1) {
-        // checks whether assumption is valid and corrects it if necessary
-        if (end_point_front == first_way_front ||
-            end_point_front == last_way_back) {
-          // reverse via_manoeuvre_osm_id
-          std::reverse(via_manoeuvre_osm_id.begin(),
-                       via_manoeuvre_osm_id.end());
-          // switch end_points
-          auto tmp = end_point_front;
-          end_point_front = end_point_back;
-          end_point_back = tmp;
-        }
-      }
-      // detemine new end_point
-      if (end_point_back == last_way_back)
-        end_point_back = first_way_front;
-      else if (end_point_back == first_way_front)
-        end_point_back = last_way_back;
-      else
-        assert(false);
-    }
-
-    // check wether we have to reverse vector
-    if (osm_id_vector.size() > 1) {
-      if (end_point_back == first_way_front)
-        reverse = true;
-      else
-        assert(end_point_back == last_way_back);
-    }
-    if (reverse)
-      via_manoeuvre_osm_id.insert(via_manoeuvre_osm_id.end(),
-                                  osm_id_vector.rbegin(), osm_id_vector.rend());
-    else
-      via_manoeuvre_osm_id.insert(via_manoeuvre_osm_id.end(),
-                                  osm_id_vector.begin(), osm_id_vector.end());
-
-    ctr++;
-  } // end link_id loop
-  return via_manoeuvre_osm_id;
-}
-
 void init_cdms_map(
     DBFHandle cdms_handle,
     std::map<osmium::unsigned_object_id_type, ushort> &cdms_map) {
@@ -1771,53 +1556,6 @@ void init_cdms_map(
         dbf_get_uint_by_field(cdms_handle, i, COND_ID);
     ushort cond_type = dbf_get_uint_by_field(cdms_handle, i, COND_TYPE);
     cdms_map.insert(std::make_pair(cond_id, cond_type));
-  }
-}
-
-/**
- * \brief reads turn restrictions from DBF file and writes them to osmium.
- * \param handle DBF file handle to navteq manoeuvres.
- * */
-
-void add_turn_restrictions(const std::vector<boost::filesystem::path> &dirs,
-                           osmium::io::Writer &writer) {
-  // maps COND_ID to COND_TYPE
-  std::map<osmium::unsigned_object_id_type, ushort> cdms_map;
-  for (auto dir : dirs) {
-    auto handle = read_dbf_file(dir / CDMS_DBF);
-    init_cdms_map(handle, cdms_map);
-    DBFClose(handle);
-  }
-
-  for (auto dir : dirs) {
-    osmium::memory::Buffer rel_buffer(buffer_size);
-    DBFHandle rdms_handle = read_dbf_file(dir / RDMS_DBF);
-    for (int i = 0; i < DBFGetRecordCount(rdms_handle); i++) {
-
-      link_id_type link_id = dbf_get_uint_by_field(rdms_handle, i, LINK_ID);
-      cond_id_type cond_id = dbf_get_uint_by_field(rdms_handle, i, COND_ID);
-
-      auto it = cdms_map.find(cond_id);
-      if (it != cdms_map.end() && it->second != RESTRICTED_DRIVING_MANOEUVRE)
-        continue;
-
-      link_id_vector_type via_manoeuvre_link_id =
-          collect_via_manoeuvre_link_ids(link_id, rdms_handle, cond_id, i);
-
-      osm_id_vector_type via_manoeuvre_osm_id =
-          collect_via_manoeuvre_osm_ids(via_manoeuvre_link_id);
-
-      // only process complete turn relations
-      if (via_manoeuvre_osm_id.empty())
-        continue;
-
-      // todo find out which direction turn restriction has and apply. For
-      // now: always apply 'no_straight_on'
-      build_turn_restriction(via_manoeuvre_osm_id, rel_buffer);
-    }
-    rel_buffer.commit();
-    writer(std::move(rel_buffer));
-    DBFClose(rdms_handle);
   }
 }
 
@@ -2537,7 +2275,6 @@ void add_landuse_shape(boost::filesystem::path landuse_shape_file,
 
 void clear_all() {
   g_osm_id = 1;
-  g_link_id_map.clear();
   g_hwys_ref_map.clear();
 
   g_mtd_area_map.clear();
