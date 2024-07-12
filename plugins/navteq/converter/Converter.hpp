@@ -129,6 +129,10 @@ protected:
 
   static constexpr std::string_view FEAT_COD = "FEAT_COD";
   static constexpr std::string_view POLYGON_NM = "POLYGON_NM";
+
+  static constexpr std::string_view FAC_TYPE = "FAC_TYPE";
+  static constexpr std::string_view POI_NMTYPE = "POI_NMTYPE";
+  static constexpr std::string_view POI_NAME = "POI_NAME";
 };
 
 #endif // CONVERTER_HPP

@@ -16,7 +16,9 @@
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
 
+#include "converter/BuildingConverter.hpp"
 #include "converter/RailwayConverter.hpp"
+#include "converter/RestAreaConverter.hpp"
 #include "converter/WaterConverter.hpp"
 
 #include "navteq.hpp"
@@ -34,6 +36,8 @@ navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
   // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
   g_executable_path = this->executable_path;
 
+  converter.emplace_back(new BuildingConverter());
+  converter.emplace_back(new RestAreaConverter());
   converter.emplace_back(new RailwayConverter());
   converter.emplace_back(new WaterConverter());
 }
@@ -245,12 +249,6 @@ void navteq_plugin::execute() {
 
   BOOST_LOG_TRIVIAL(info) << "Add hamlet nodes";
   add_hamlet_nodes(dataDirs, writer);
-
-  BOOST_LOG_TRIVIAL(info) << "Add buildings";
-  add_buildings(dataDirs, writer);
-
-  BOOST_LOG_TRIVIAL(info) << "Add rest areas";
-  add_rest_area_nodes(dataDirs, writer);
 
   // run converters
   for (auto &c : converter)

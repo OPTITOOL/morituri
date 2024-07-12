@@ -1239,34 +1239,6 @@ void process_hamlets(const OGRFeatureUniquePtr &feat,
   node_buffer.commit();
 }
 
-void process_rest_area(const OGRFeatureUniquePtr &feat,
-                       osmium::memory::Buffer &node_buffer) {
-
-  auto geom = feat->GetGeometryRef();
-  auto geom_type = geom->getGeometryType();
-
-  if (geom_type != wkbPoint) {
-    throw(std::runtime_error(
-        "Rest area item with geometry=" + std::string(geom->getGeometryName()) +
-        " is not yet supported."));
-  }
-
-  auto point = static_cast<OGRPoint *>(geom);
-  osmium::Location location(point->getX(), point->getY());
-  {
-    // scope node_builder
-    // Add new node
-    osmium::builder::NodeBuilder node_builder(node_buffer);
-    build_node(location, &node_builder);
-    osmium::builder::TagListBuilder tl_builder(node_builder);
-
-    std::string name = feat->GetFieldAsString(POI_NAME);
-    tl_builder.add_tag("name", to_camel_case_with_spaces(name));
-    tl_builder.add_tag("highway", "rest_area");
-  }
-  node_buffer.commit();
-}
-
 /**
  * \brief adds tags from administrative boundaries to mtd_area_map.
  * 		  adds tags from administrative boundaries to mtd_area_map
@@ -1430,42 +1402,6 @@ void add_hamlet_nodes(const std::vector<boost::filesystem::path> &dirs,
         continue;
       }
       process_hamlets(feat, node_buffer);
-    }
-    writer(std::move(node_buffer));
-  }
-}
-
-void add_rest_area_nodes(const std::vector<boost::filesystem::path> &dirs,
-                         osmium::io::Writer &writer) {
-
-  for (auto dir : dirs) {
-
-    // hamlets are optional
-    if (!shp_file_exists(dir / TRAVDEST_SHP))
-      continue;
-
-    auto ds = open_shape_file(dir / TRAVDEST_SHP);
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error(dir.string()));
-
-    osmium::memory::Buffer node_buffer(buffer_size);
-
-    int facTypeField = layer->FindFieldIndex(FAC_TYPE, true);
-    int poiNmTypeField = layer->FindFieldIndex(POI_NMTYPE, true);
-
-    for (auto &feat : *layer) {
-      uint fac_type = feat->GetFieldAsInteger(facTypeField);
-      if (fac_type != 7897) {
-        continue;
-      }
-
-      std::string name_type = feat->GetFieldAsString(poiNmTypeField);
-      if (name_type != "B") {
-        // Skip this entry as it's just a translated namePlc of former one
-        continue;
-      }
-      process_rest_area(feat, node_buffer);
     }
     writer(std::move(node_buffer));
   }
