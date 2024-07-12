@@ -94,7 +94,9 @@ protected:
 
   osmium::unsigned_object_id_type
   build_node(const osmium::Location &location,
-             osmium::builder::NodeBuilder *builder);
+             osmium::builder::NodeBuilder &builder);
+
+  template <typename T> void setObjectProperties(T &builder);
 
   static constexpr int BUFFER_SIZE = 10 * 1000 * 1000;
 

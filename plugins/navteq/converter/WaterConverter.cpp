@@ -184,9 +184,6 @@ osmium::unsigned_object_id_type WaterConverter::build_water_relation_with_tags(
   return builder.object().id();
 }
 
-/**
- * \brief adds navteq water tags to Relation
- */
 void WaterConverter::build_water_poly_taglist(
     osmium::builder::RelationBuilder &builder,
     const OGRFeatureUniquePtr &feat) {

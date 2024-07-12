@@ -117,6 +117,13 @@ Converter::create_open_way_nodes(const OGRLineString *line,
   return osm_way_node_ids;
 }
 
+/**
+ * \brief Creates a closed way from OGRLinearRing.
+ *
+ * \param ring OGRLinearRing to create way from.
+ * \param node_buffer Buffer to store nodes.
+ * \param way_buffer Buffer to store ways.
+ * */
 std::vector<osmium::unsigned_object_id_type>
 Converter::build_closed_ways(const OGRLinearRing *ring,
                              osmium::memory::Buffer &node_buffer,
@@ -127,9 +134,8 @@ Converter::build_closed_ways(const OGRLinearRing *ring,
   size_t i = 0;
   do {
     osmium::builder::WayBuilder builder(way_buffer);
-    builder.object().set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(builder.object());
-    builder.set_user(USER.data());
+    setObjectProperties(builder);
+
     osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
     for (size_t j = i;
          j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
@@ -141,6 +147,12 @@ Converter::build_closed_ways(const OGRLinearRing *ring,
   return osm_way_ids;
 }
 
+/**
+ * \brief Creates a closed way from OGRLinearRing.
+ *
+ * \param ring OGRLinearRing to create way from.
+ * \param node_buffer Buffer to store nodes.
+ * */
 std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
 Converter::create_closed_way_nodes(const OGRLinearRing *ring,
                                    osmium::memory::Buffer &node_buffer) {
@@ -168,19 +180,40 @@ Converter::create_closed_way_nodes(const OGRLinearRing *ring,
   return osm_way_node_ids;
 }
 
+/**
+ * \brief Creates a node from location.
+ *
+ * \param location Location to create node from.
+ * \param node_buffer Buffer to store nodes.
+ * */
 osmium::unsigned_object_id_type
 Converter::build_node(const osmium::Location &location,
                       osmium::memory::Buffer &node_buffer) {
   osmium::builder::NodeBuilder builder(node_buffer);
-  return build_node(location, &builder);
+  return build_node(location, builder);
 }
 
+/**
+ * \brief Creates a node from location.
+ *
+ * \param location Location to create node from.
+ * \param builder NodeBuilder to create node from.
+ * */
 osmium::unsigned_object_id_type
 Converter::build_node(const osmium::Location &location,
-                      osmium::builder::NodeBuilder *builder) {
-  builder->object().set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(builder->object());
-  builder->set_user(USER.data());
-  builder->object().set_location(location);
-  return builder->object().id();
+                      osmium::builder::NodeBuilder &builder) {
+  setObjectProperties(builder);
+  builder.object().set_location(location);
+  return builder.object().id();
+}
+
+/**
+ * \brief Sets object properties.
+ *
+ * \param builder Builder to set properties to.
+ * */
+template <typename T> void Converter::setObjectProperties(T &builder) {
+  builder.object().set_id(g_osm_id++);
+  set_dummy_osm_object_attributes(builder.object());
+  builder.set_user(USER.data());
 }
