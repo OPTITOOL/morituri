@@ -14,28 +14,28 @@
  * along with Morituri.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RESTAREACONVERTER_HPP
-#define RESTAREACONVERTER_HPP
+#ifndef HAMELTCONVERTER_HPP
+#define HAMELTCONVERTER_HPP
 
 #include "PointLayerConverter.hpp"
 
 #include <ogrsf_frmts.h>
 
-class RestAreaConverter : public PointLayerConverter {
+class HamletConverter : public PointLayerConverter {
 
 public:
-  RestAreaConverter();
-  virtual ~RestAreaConverter();
+  HamletConverter();
+  virtual ~HamletConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_rest_area(boost::filesystem::path rest_area_file,
-                     osmium::io::Writer &writer);
+  void add_hamlet(boost::filesystem::path hamlet_file,
+                  osmium::io::Writer &writer);
 
-  void process_rest_area(const OGRFeatureUniquePtr &feat,
-                         osmium::memory::Buffer &node_buffer);
+  void process_hamlets(const OGRFeatureUniquePtr &feat,
+                       osmium::memory::Buffer &node_buffer);
 };
 
-#endif // RESTAREACONVERTER_HPP
+#endif // HAMELTCONVERTER_HPP

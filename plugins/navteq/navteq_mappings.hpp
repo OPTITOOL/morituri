@@ -24,7 +24,7 @@ static const boost::filesystem::path ADMINBNDY_5_SHP = "Adminbndy5.shp";
 static const boost::filesystem::path LAND_USE_A_SHP = "LandUseA.shp";
 static const boost::filesystem::path LAND_USE_B_SHP = "LandUseB.shp";
 static const boost::filesystem::path NAMED_PLC_SHP = "NamedPlc.shp";
-static const boost::filesystem::path HAMLET_SHP = "Hamlet.shp";
+
 static const boost::filesystem::path POINT_ADDRESS_SHP = "PointAddress.shp";
 
 static const boost::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";

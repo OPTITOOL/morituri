@@ -14,7 +14,7 @@
  * along with Morituri.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "RestAreaConverter.hpp"
+#include "HamletConverter.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <osmium/builder/osm_object_builder.hpp>
@@ -26,27 +26,27 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-void RestAreaConverter::convert(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
+void HamletConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+                              osmium::io::Writer &writer) {
 
-  const boost::filesystem::path TRAVDEST_SHP = "TravDest.shp";
-  for (auto dir : dirs) {
-    add_rest_area(dir / TRAVDEST_SHP, writer);
+  const boost::filesystem::path HAMLET_SHP = "Hamlet.shp";
+
+  for (const auto &dir : dirs) {
+    add_hamlet(dir / HAMLET_SHP, writer);
   }
 }
 
-void RestAreaConverter::add_rest_area(boost::filesystem::path rest_area_file,
-                                      osmium::io::Writer &writer) {
+void HamletConverter::add_hamlet(boost::filesystem::path hamlet_file,
+                                 osmium::io::Writer &writer) {
 
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(rest_area_file.c_str()));
+  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(hamlet_file.c_str()));
   if (!ds) {
-    BOOST_LOG_TRIVIAL(debug) << "No rest area shp found in " << rest_area_file;
+    BOOST_LOG_TRIVIAL(debug) << "No hamlet shp found in " << hamlet_file;
     return;
   }
   auto layer = ds->GetLayer(0);
   if (!layer) {
-    throw(shp_empty_error(rest_area_file.string()));
+    throw(shp_empty_error(hamlet_file.string()));
   }
 
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
@@ -56,7 +56,9 @@ void RestAreaConverter::add_rest_area(boost::filesystem::path rest_area_file,
 
   for (auto &feat : *layer) {
     uint fac_type = feat->GetFieldAsInteger(facTypeField);
-    if (fac_type != 7897) {
+    if (fac_type != 9998) {
+      BOOST_LOG_TRIVIAL(error)
+          << "Skipping hamlet node because of wrong POI type";
       continue;
     }
 
@@ -65,20 +67,20 @@ void RestAreaConverter::add_rest_area(boost::filesystem::path rest_area_file,
       // Skip this entry as it's just a translated namePlc of former one
       continue;
     }
-    process_rest_area(feat, node_buffer);
+    process_hamlets(feat, node_buffer);
   }
   writer(std::move(node_buffer));
 }
 
-void RestAreaConverter::process_rest_area(const OGRFeatureUniquePtr &feat,
-                                          osmium::memory::Buffer &node_buffer) {
+void HamletConverter::process_hamlets(const OGRFeatureUniquePtr &feat,
+                                      osmium::memory::Buffer &node_buffer) {
 
   auto geom = feat->GetGeometryRef();
   auto geom_type = geom->getGeometryType();
 
   if (geom_type != wkbPoint) {
     throw(std::runtime_error(
-        "Rest area item with geometry=" + std::string(geom->getGeometryName()) +
+        "Hamlet item with geometry=" + std::string(geom->getGeometryName()) +
         " is not yet supported."));
   }
 
@@ -93,7 +95,7 @@ void RestAreaConverter::process_rest_area(const OGRFeatureUniquePtr &feat,
 
     std::string name = feat->GetFieldAsString(POI_NAME.data());
     tl_builder.add_tag("name", to_camel_case_with_spaces(name));
-    tl_builder.add_tag("highway", "rest_area");
+    tl_builder.add_tag("place", "hamlet");
   }
   node_buffer.commit();
 }

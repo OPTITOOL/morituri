@@ -14,28 +14,23 @@
  * along with Morituri.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RESTAREACONVERTER_HPP
-#define RESTAREACONVERTER_HPP
+#ifndef POINTLAYERCONVERTER_HPP
+#define POINTLAYERCONVERTER_HPP
 
-#include "PointLayerConverter.hpp"
+#include "Converter.hpp"
 
 #include <ogrsf_frmts.h>
 
-class RestAreaConverter : public PointLayerConverter {
+class PointLayerConverter : public Converter {
 
 public:
-  RestAreaConverter();
-  virtual ~RestAreaConverter();
+  PointLayerConverter();
+  virtual ~PointLayerConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_rest_area(boost::filesystem::path rest_area_file,
-                     osmium::io::Writer &writer);
-
-  void process_rest_area(const OGRFeatureUniquePtr &feat,
-                         osmium::memory::Buffer &node_buffer);
 };
 
-#endif // RESTAREACONVERTER_HPP
+#endif // POINTLAYERCONVERTER_HPP
