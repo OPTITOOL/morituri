@@ -890,41 +890,6 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
   tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(level));
 }
 
-/**
- * \brief adds navteq water tags to Relation
- */
-void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
-                              const OGRFeatureUniquePtr &feat) {
-  // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(builder);
-  tl_builder.add_tag("type", "multipolygon");
-  tl_builder.add_tag("natural", "water");
-
-  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
-  if (!polygonName.empty()) {
-    std::string waters_name = to_camel_case_with_spaces(polygonName);
-    if (!waters_name.empty())
-      tl_builder.add_tag("name", waters_name);
-  }
-
-  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
-  if (featureCode == "500412") {
-    // FEAT_TYPE 'RIVER'
-    tl_builder.add_tag("water", "river");
-  } else if (featureCode == "500414") {
-    // FEAT_TYPE 'CANAL/WATER CHANNEL'
-    tl_builder.add_tag("water", "canal");
-  } else if (featureCode == "500421") {
-    // FEAT_TYPE 'LAKE'
-    tl_builder.add_tag("water", "lake");
-  } else if (featureCode == "507116") {
-    // Type 'BAY/HARBOUR' just gets the 'natural=water' tag
-  } else {
-    BOOST_LOG_TRIVIAL(error)
-        << "Skipping unknown water poly type " << featureCode;
-  }
-}
-
 void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
                                  const OGRFeatureUniquePtr &feat) {
   // Mind tl_builder scope!
@@ -935,44 +900,6 @@ void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
   std::string building_name = to_camel_case_with_spaces(name);
   if (!building_name.empty())
     tl_builder.add_tag("name", building_name);
-}
-
-/**
- * \brief adds navteq water tags to way
- */
-void build_water_way_taglist(osmium::builder::WayBuilder &builder,
-                             const OGRFeatureUniquePtr &feat) {
-  // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(builder);
-  //    tl_builder.add_tag("natural", "water");
-
-  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
-  if (!polygonName.empty()) {
-    std::string waters_name = to_camel_case_with_spaces(polygonName);
-    if (!waters_name.empty())
-      tl_builder.add_tag("name", waters_name);
-  }
-
-  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
-  if (featureCode == "500412") {
-    // FEAT_TYPE 'RIVER'
-    tl_builder.add_tag("waterway", "river");
-  } else if (featureCode == "500414") {
-    // FEAT_TYPE 'CANAL/WATER CHANNEL'
-    tl_builder.add_tag("waterway", "canal");
-  } else if (featureCode == "500421") {
-    // FEAT_TYPE 'LAKE'
-    BOOST_LOG_TRIVIAL(error)
-        << "Skipping water way as type LAKE should only exist as polygon";
-  } else if (featureCode == "507116") {
-    // FEAT_TYPE 'BAY/HARBOUR'
-    BOOST_LOG_TRIVIAL(error)
-        << "Skipping water way as type BAY/HARBOUR should only exist as "
-           "polygon";
-  } else {
-    BOOST_LOG_TRIVIAL(error)
-        << "Skipping unknown water way type " << featureCode;
-  }
 }
 
 /**
@@ -1086,30 +1013,6 @@ void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
   }
 }
 
-osm_id_vector_type build_water_ways_with_tagList(
-    const OGRFeatureUniquePtr &feat, OGRLineString *line,
-    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
-  node_vector_type osm_way_node_ids = create_open_way_nodes(line, node_buffer);
-
-  osm_id_vector_type osm_way_ids;
-  size_t i = 0;
-  do {
-    osmium::builder::WayBuilder builder(way_buffer);
-    builder.object().set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(builder.object());
-    builder.set_user(USER);
-    build_water_way_taglist(builder, feat);
-    osmium::builder::WayNodeListBuilder wnl_builder(builder);
-    for (size_t j = i;
-         j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
-      wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
-                               osm_way_node_ids.at(j).first);
-    osm_way_ids.push_back(builder.object().id());
-    i += OSM_MAX_WAY_NODES - 1;
-  } while (i < osm_way_node_ids.size());
-  return osm_way_ids;
-}
-
 void build_relation_members(osmium::builder::RelationBuilder &builder,
                             const osm_id_vector_type &ext_osm_way_ids,
                             const osm_id_vector_type &int_osm_way_ids) {
@@ -1145,18 +1048,6 @@ osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
   build_admin_boundary_taglist(builder, feat);
-  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
-  return builder.object().id();
-}
-
-osmium::unsigned_object_id_type build_water_relation_with_tags(
-    const OGRFeatureUniquePtr &feat, osm_id_vector_type ext_osm_way_ids,
-    osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
-  osmium::builder::RelationBuilder builder(rel_buffer);
-  builder.object().set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(builder.object());
-  builder.set_user(USER);
-  build_water_poly_taglist(builder, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
@@ -1242,42 +1133,6 @@ void process_admin_boundary(
 
   node_buffer.commit();
   way_buffer.commit();
-}
-
-/**
- * \brief adds water polygons as Relations to m_buffer
- */
-void process_water(const OGRFeatureUniquePtr &feat,
-                   osmium::memory::Buffer &node_buffer,
-                   osmium::memory::Buffer &way_buffer,
-                   osmium::memory::Buffer &rel_buffer) {
-  auto geom = feat->GetGeometryRef();
-  auto geom_type = geom->getGeometryType();
-
-  if (geom_type == wkbLineString) {
-    OGRLineString *line = static_cast<OGRLineString *>(geom);
-    build_water_ways_with_tagList(feat, line, node_buffer, way_buffer);
-  } else {
-    osm_id_vector_type exterior_way_ids, interior_way_ids;
-    if (geom_type == wkbMultiPolygon) {
-      create_multi_polygon(static_cast<OGRMultiPolygon *>(geom),
-                           exterior_way_ids, interior_way_ids, node_buffer,
-                           way_buffer);
-    } else if (geom_type == wkbPolygon) {
-      create_polygon(static_cast<OGRPolygon *>(geom), exterior_way_ids,
-                     interior_way_ids, node_buffer, way_buffer);
-    } else {
-      throw(std::runtime_error(
-          "Water item with geometry=" + std::string(geom->getGeometryName()) +
-          " is not yet supported."));
-    }
-    build_water_relation_with_tags(feat, exterior_way_ids, interior_way_ids,
-                                   rel_buffer);
-  }
-
-  node_buffer.commit();
-  way_buffer.commit();
-  rel_buffer.commit();
 }
 
 /**
@@ -2183,27 +2038,6 @@ void add_admin_shape(
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-}
-
-void add_water_shape(boost::filesystem::path water_shape_file,
-                     osmium::io::Writer &writer) {
-  g_way_end_points_map.clear();
-  auto ds = open_shape_file(water_shape_file);
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(water_shape_file.string()));
-  assert(layer->GetGeomType() == wkbPolygon ||
-         layer->GetGeomType() == wkbLineString);
-  osmium::memory::Buffer node_buffer(buffer_size);
-  osmium::memory::Buffer way_buffer(buffer_size);
-  osmium::memory::Buffer rel_buffer(buffer_size);
-  for (auto &feat : *layer) {
-    process_water(feat, node_buffer, way_buffer, rel_buffer);
-  }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-  writer(std::move(rel_buffer));
-  g_way_end_points_map.clear();
 }
 
 void add_building_shape(boost::filesystem::path landmark_shape_file,

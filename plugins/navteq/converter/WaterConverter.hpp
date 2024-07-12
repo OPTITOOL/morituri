@@ -19,6 +19,23 @@
 
 #include "Converter.hpp"
 
+#include <map>
+#include <ogrsf_frmts.h>
+#include <osmium/osm/location.hpp>
+#include <osmium/osm/types.hpp>
+
+namespace osmium {
+namespace memory {
+class Buffer;
+} // namespace memory
+namespace builder {
+class WayBuilder;
+class RelationBuilder;
+} // namespace builder
+} // namespace osmium
+
+class OGRLineString;
+
 class WaterConverter : public Converter {
 
 public:
@@ -27,7 +44,38 @@ public:
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
+
+private:
+  void add_water_shape(boost::filesystem::path water_shape_file,
+                       osmium::io::Writer &writer);
+
+  void process_water(const OGRFeatureUniquePtr &feat,
+                     osmium::memory::Buffer &node_buffer,
+                     osmium::memory::Buffer &way_buffer,
+                     osmium::memory::Buffer &rel_buffer);
+
+  std::vector<osmium::unsigned_object_id_type> build_water_ways_with_tagList(
+      const OGRFeatureUniquePtr &feat, OGRLineString *line,
+      osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer);
+
+  void build_water_way_taglist(osmium::builder::WayBuilder &builder,
+                               const OGRFeatureUniquePtr &feat);
+
+  osmium::unsigned_object_id_type build_water_relation_with_tags(
+      const OGRFeatureUniquePtr &feat,
+      std::vector<osmium::unsigned_object_id_type> ext_osm_way_ids,
+      std::vector<osmium::unsigned_object_id_type> int_osm_way_ids,
+      osmium::memory::Buffer &rel_buffer);
+
+  void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
+                                const OGRFeatureUniquePtr &feat);
+
+  // maps location of way end nodes to node ids
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+      g_way_end_points_map;
+
+  static constexpr std::string_view POLYGON_NM = "POLYGON_NM";
+  static constexpr std::string_view FEAT_COD = "FEAT_COD";
 };
-;
 
 #endif // WATERCONVERTER_HPP

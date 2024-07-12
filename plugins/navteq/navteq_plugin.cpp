@@ -32,7 +32,7 @@ navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
   // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
   g_executable_path = this->executable_path;
 
-  converter.push_back(std::make_unique<WaterConverter>());
+  converter.emplace_back(new WaterConverter());
 }
 
 navteq_plugin::~navteq_plugin() {}
@@ -198,16 +198,6 @@ void navteq_plugin::add_administrative_boundaries(
   g_mtd_area_map.clear();
 
   g_way_end_points_map.clear();
-}
-
-void navteq_plugin::add_water(const std::vector<boost::filesystem::path> &dirs,
-                              osmium::io::Writer &writer) {
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / WATER_POLY_SHP))
-      add_water_shape(dir / WATER_POLY_SHP, writer);
-    if (shp_file_exists(dir / WATER_SEG_SHP))
-      add_water_shape(dir / WATER_SEG_SHP, writer);
-  }
 }
 
 void navteq_plugin::add_railways(
