@@ -26,17 +26,23 @@ private:
   void recurse_dir(const boost::filesystem::path &dir);
   bool check_files(const boost::filesystem::path &dir);
   void write_output();
-  void add_administrative_boundaries(osmium::io::Writer &writer);
-  void add_water(osmium::io::Writer &writer);
-  void add_landuse(osmium::io::Writer &writer);
-  void add_railways(osmium::io::Writer &writer);
-  void add_buildings(osmium::io::Writer &writer);
+  void add_administrative_boundaries(
+      const std::vector<boost::filesystem::path> &dirs,
+      osmium::io::Writer &writer);
+  void add_water(const std::vector<boost::filesystem::path> &dirs,
+                 osmium::io::Writer &writer);
+  void add_landuse(const std::vector<boost::filesystem::path> &dirs,
+                   osmium::io::Writer &writer);
+  void add_railways(const std::vector<boost::filesystem::path> &dirs,
+                    osmium::io::Writer &writer);
+  void add_buildings(const std::vector<boost::filesystem::path> &dirs,
+                     osmium::io::Writer &writer);
 
   void sortPBF();
   void copyType(osmium::io::Writer &writer, osmium::io::File &file,
                 osmium::osm_entity_bits::type bits);
 
-  std::vector<boost::filesystem::path> dirs;
+  std::vector<boost::filesystem::path> dataDirs;
 
   OGREnvelope boundingBox;
 

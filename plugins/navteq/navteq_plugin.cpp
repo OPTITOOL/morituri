@@ -125,7 +125,7 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
 
 void navteq_plugin::recurse_dir(const boost::filesystem::path &dir) {
   if (check_files(dir))
-    dirs.push_back(dir);
+    dataDirs.push_back(dir);
 
   for (auto &itr : boost::make_iterator_range(
            boost::filesystem::directory_iterator(dir), {})) {
@@ -158,11 +158,11 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
         << "Countries found :" << boost::join(foundCountries, " ");
   }
 
-  if (dirs.empty())
+  if (dataDirs.empty())
     return false;
 
   BOOST_LOG_TRIVIAL(info) << "dirs: ";
-  for (auto &dir : dirs)
+  for (auto &dir : dataDirs)
     BOOST_LOG_TRIVIAL(info) << dir;
 
   this->plugin_setup(input_path, output_file);
@@ -172,7 +172,9 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
 
 void navteq_plugin::write_output() {}
 
-void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
+void navteq_plugin::add_administrative_boundaries(
+    const std::vector<boost::filesystem::path> &dirs,
+    osmium::io::Writer &writer) {
   // todo admin-levels only apply to the US => more generic for all countries
 
   g_way_end_points_map.clear();
@@ -195,7 +197,8 @@ void navteq_plugin::add_administrative_boundaries(osmium::io::Writer &writer) {
   g_way_end_points_map.clear();
 }
 
-void navteq_plugin::add_water(osmium::io::Writer &writer) {
+void navteq_plugin::add_water(const std::vector<boost::filesystem::path> &dirs,
+                              osmium::io::Writer &writer) {
   for (auto dir : dirs) {
     if (shp_file_exists(dir / WATER_POLY_SHP))
       add_water_shape(dir / WATER_POLY_SHP, writer);
@@ -204,14 +207,18 @@ void navteq_plugin::add_water(osmium::io::Writer &writer) {
   }
 }
 
-void navteq_plugin::add_railways(osmium::io::Writer &writer) {
+void navteq_plugin::add_railways(
+    const std::vector<boost::filesystem::path> &dirs,
+    osmium::io::Writer &writer) {
   for (auto dir : dirs) {
     if (shp_file_exists(dir / RAILWAYS_POLY_SHP))
       add_railways_shape(dir / RAILWAYS_POLY_SHP, writer);
   }
 }
 
-void navteq_plugin::add_buildings(osmium::io::Writer &writer) {
+void navteq_plugin::add_buildings(
+    const std::vector<boost::filesystem::path> &dirs,
+    osmium::io::Writer &writer) {
   g_way_end_points_map.clear();
   for (auto dir : dirs) {
     if (shp_file_exists(dir / LANDMARK_SHP))
@@ -220,7 +227,9 @@ void navteq_plugin::add_buildings(osmium::io::Writer &writer) {
   g_way_end_points_map.clear();
 }
 
-void navteq_plugin::add_landuse(osmium::io::Writer &writer) {
+void navteq_plugin::add_landuse(
+    const std::vector<boost::filesystem::path> &dirs,
+    osmium::io::Writer &writer) {
   for (auto dir : dirs) {
     if (shp_file_exists(dir / LAND_USE_A_SHP))
       add_landuse_shape(dir / LAND_USE_A_SHP, writer);
@@ -241,37 +250,37 @@ void navteq_plugin::execute() {
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
 
   BOOST_LOG_TRIVIAL(info) << "Procesing Meta areas";
-  preprocess_meta_areas(dirs);
+  preprocess_meta_areas(dataDirs);
 
   BOOST_LOG_TRIVIAL(info) << "Procesing alt street rout types";
-  process_alt_steets_route_types(dirs);
+  process_alt_steets_route_types(dataDirs);
 
   BOOST_LOG_TRIVIAL(info) << "Add street shapes";
-  add_street_shapes(dirs, writer);
+  add_street_shapes(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add administrative boundaries";
-  add_administrative_boundaries(writer);
+  add_administrative_boundaries(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add water";
-  add_water(writer);
+  add_water(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add landuse";
-  add_landuse(writer);
+  add_landuse(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add city nodes";
-  add_city_nodes(dirs, writer);
+  add_city_nodes(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add hamlet nodes";
-  add_hamlet_nodes(dirs, writer);
+  add_hamlet_nodes(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add railways";
-  add_railways(writer);
+  add_railways(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add buildings";
-  add_buildings(writer);
+  add_buildings(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add rest areas";
-  add_rest_area_nodes(dirs, writer);
+  add_rest_area_nodes(dataDirs, writer);
 
   writer.close();
 

@@ -2345,7 +2345,7 @@ add_admin_lines(boost::filesystem::path admin_line_shape_file,
   return result;
 }
 
-void addLevel1Boundaries(std::vector<boost::filesystem::path> &dirs,
+void addLevel1Boundaries(const std::vector<boost::filesystem::path> &dirs,
                          osmium::io::Writer &writer) {
   std::map<int, std::pair<osm_id_vector_type, osm_id_vector_type>> map;
 
