@@ -19,6 +19,7 @@
 #include "converter/BuildingConverter.hpp"
 #include "converter/CityConverter.hpp"
 #include "converter/HamletConverter.hpp"
+#include "converter/LanduseConverter.hpp"
 #include "converter/RailwayConverter.hpp"
 #include "converter/RestAreaConverter.hpp"
 #include "converter/WaterConverter.hpp"
@@ -38,6 +39,7 @@ navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
   // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
   g_executable_path = this->executable_path;
 
+  converter.emplace_back(new LanduseConverter());
   converter.emplace_back(new CityConverter());
   converter.emplace_back(new HamletConverter());
   converter.emplace_back(new BuildingConverter());
@@ -81,8 +83,6 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
   if (!shp_file_exists(dir / POINT_ADDRESS_SHP))
     BOOST_LOG_TRIVIAL(warning) << "  point addresses are missing";
 
-  if (!shp_file_exists(dir / NAMED_PLC_SHP))
-    BOOST_LOG_TRIVIAL(warning) << "  named places are missing";
   if (!shp_file_exists(dir / ADMINBNDY_1_SHP))
     BOOST_LOG_TRIVIAL(warning)
         << "  administrative boundaries level 1 are missing";
@@ -211,17 +211,6 @@ void navteq_plugin::add_administrative_boundaries(
   g_way_end_points_map.clear();
 }
 
-void navteq_plugin::add_landuse(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / LAND_USE_A_SHP))
-      add_landuse_shape(dir / LAND_USE_A_SHP, writer);
-    if (shp_file_exists(dir / LAND_USE_B_SHP))
-      add_landuse_shape(dir / LAND_USE_B_SHP, writer);
-  }
-}
-
 void navteq_plugin::execute() {
   if (output_path.empty())
     throw std::exception();
@@ -244,9 +233,6 @@ void navteq_plugin::execute() {
 
   BOOST_LOG_TRIVIAL(info) << "Add administrative boundaries";
   add_administrative_boundaries(dataDirs, writer);
-
-  BOOST_LOG_TRIVIAL(info) << "Add landuse";
-  add_landuse(dataDirs, writer);
 
   // run converters
   for (auto &c : converter)

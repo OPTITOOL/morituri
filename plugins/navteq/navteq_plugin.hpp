@@ -31,9 +31,6 @@ private:
       const std::vector<boost::filesystem::path> &dirs,
       osmium::io::Writer &writer);
 
-  void add_landuse(const std::vector<boost::filesystem::path> &dirs,
-                   osmium::io::Writer &writer);
-
   void sortPBF();
   void copyType(osmium::io::Writer &writer, osmium::io::File &file,
                 osmium::osm_entity_bits::type bits);

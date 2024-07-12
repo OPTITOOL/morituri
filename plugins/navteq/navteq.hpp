@@ -893,113 +893,6 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
 /**
  * \brief adds navteq landuse tags to Relation
  */
-void build_landuse_taglist(osmium::builder::RelationBuilder &builder,
-                           const OGRFeatureUniquePtr &feat) {
-  // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(builder);
-  tl_builder.add_tag("type", "multipolygon");
-
-  std::string polygonName = feat->GetFieldAsString(POLYGON_NM);
-  if (!polygonName.empty()) {
-    std::string poly_name = to_camel_case_with_spaces(polygonName);
-    if (!poly_name.empty())
-      tl_builder.add_tag("name", poly_name);
-  }
-
-  std::string featureCode = feat->GetFieldAsString(FEAT_COD);
-
-  // Land Use A types
-  if (featureCode == "509998") {
-    // FEAT_TYPE 'BEACH'
-    tl_builder.add_tag("natural", "beach");
-  } else if (featureCode == "900103") {
-    // FEAT_TYPE 'PARK/MONUMENT (NATIONAL)'
-    tl_builder.add_tag("boundary", "national_park");
-  } else if (featureCode == "900130") {
-    // FEAT_TYPE 'PARK (STATE)'
-    // In many cases this is meant to be a national park or
-    // protected area but this is not guaranteed
-    tl_builder.add_tag("leisure", "park");
-  } else if (featureCode == "900140") {
-    // FEAT_TYPE 'PARK IN WATER'
-    tl_builder.add_tag("boundary", "national_park");
-  } else if (featureCode == "900150") {
-    // FEAT_TYPE 'PARK (CITY/COUNTY)'
-    tl_builder.add_tag("leisure", "park");
-  } else if (featureCode == "900159") {
-    // FEAT_TYPE 'UNDEFINED TRAFFIC AREA'
-    // Possible handling: area=yes, highway=pedestrian
-  } else if (featureCode == "900202") {
-    // FEAT_TYPE 'WOODLAND'
-    tl_builder.add_tag("landuse", "forest");
-  } else if (featureCode == "1700215") {
-    // FEAT_TYPE 'PARKING LOT'
-    tl_builder.add_tag("amenity", "parking");
-  } else if (featureCode == "1900403") {
-    // FEAT_TYPE 'AIRPORT'
-    tl_builder.add_tag("aeroway", "aerodrome");
-  } else if (featureCode == "2000124") {
-    // FEAT_TYPE 'SHOPPING CENTRE'
-    tl_builder.add_tag("shop", "mall");
-    tl_builder.add_tag("building", "retail");
-  } else if (featureCode == "2000200") {
-    // FEAT_TYPE 'INDUSTRIAL COMPLEX'
-    tl_builder.add_tag("landuse", "commercial");
-  } else if (featureCode == "2000403") {
-    // FEAT_TYPE 'UNIVERSITY/COLLEGE'
-    tl_builder.add_tag("amenity", "university");
-  } else if (featureCode == "2000408") {
-    // FEAT_TYPE 'HOSPITAL'
-    tl_builder.add_tag("amenity", "hospital");
-  } else if (featureCode == "2000420") {
-    // FEAT_TYPE 'CEMETERY'
-    tl_builder.add_tag("landuse", "cemetery");
-  } else if (featureCode == "2000457") {
-    // FEAT_TYPE 'SPORTS COMPLEX'
-    tl_builder.add_tag("leisure", "stadium");
-    // tl_builder.add_tag("building", "yes");
-  } else if (featureCode == "2000460") {
-    // FEAT_TYPE 'AMUSEMENT PARK'
-    tl_builder.add_tag("leisure", "park");
-    tl_builder.add_tag("tourism", "theme_park");
-  } else if (featureCode == "908002") {
-    // FEAT_TYPE 'Neighbourhood'
-    tl_builder.add_tag("place", "suburb");
-  } else if (featureCode == "2000461") {
-    // FEAT_TYPE 'ANIMAL PARK'
-    tl_builder.add_tag("tourism", "zoo");
-  }
-
-  // Not implemented so far due to missing sample in data:
-  // MILITARY BASE (900108), NATIVE AMERICAN
-  // RESERVATION (900107), RAILYARD (9997007)
-  // Land Use B types
-  else if (featureCode == "900158") {
-    // FEAT_TYPE 'PEDESTRIAN ZONE'
-    tl_builder.add_tag("highway", "pedestrian");
-  } else if (featureCode == "1907403") {
-    // FEAT_TYPE 'AIRCRAFT ROADS'
-    tl_builder.add_tag("aeroway", "runway");
-  } else if (featureCode == "2000123") {
-    // FEAT_TYPE 'GOLF COURSE'
-    tl_builder.add_tag("leisure", "golf_course");
-    tl_builder.add_tag("sport", "golf");
-  } else if (featureCode == "9997004") {
-    // FEAT_TYPE 'CONGESTION ZONE'
-    // skipping due to no osm equivalent
-  } else if (featureCode == "9997010") {
-    // FEAT_TYPE 'ENVIRONMENTAL ZONE'
-    tl_builder.add_tag("boundary", "low_emission_zone");
-    tl_builder.add_tag("type", "boundary");
-  }
-  // Unknown if Land Use A or B types, but seems to appear somewhere
-  else if (featureCode == "509997") {
-    // FEAT_TYPE 'GLACIER'
-    tl_builder.add_tag("natural", "glacier");
-  } else {
-    BOOST_LOG_TRIVIAL(error) << "Skipping unknown landuse type " << featureCode;
-  }
-}
 
 void build_relation_members(osmium::builder::RelationBuilder &builder,
                             const osm_id_vector_type &ext_osm_way_ids,
@@ -1036,18 +929,6 @@ osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER);
   build_admin_boundary_taglist(builder, feat);
-  build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
-  return builder.object().id();
-}
-
-osmium::unsigned_object_id_type build_landuse_relation_with_tags(
-    const OGRFeatureUniquePtr &feat, osm_id_vector_type ext_osm_way_ids,
-    osm_id_vector_type int_osm_way_ids, osmium::memory::Buffer &rel_buffer) {
-  osmium::builder::RelationBuilder builder(rel_buffer);
-  builder.object().set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(builder.object());
-  builder.set_user(USER);
-  build_landuse_taglist(builder, feat);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
@@ -1126,33 +1007,6 @@ void process_admin_boundary(
 /**
  * \brief adds landuse polygons as Relations to m_buffer
  */
-void process_landuse(const OGRFeatureUniquePtr &feat,
-                     osmium::memory::Buffer &node_buffer,
-                     osmium::memory::Buffer &way_buffer,
-                     osmium::memory::Buffer &rel_buffer) {
-  auto geom = feat->GetGeometryRef();
-  auto geom_type = geom->getGeometryType();
-
-  osm_id_vector_type exterior_way_ids, interior_way_ids;
-  if (geom_type == wkbMultiPolygon) {
-    create_multi_polygon(static_cast<OGRMultiPolygon *>(geom), exterior_way_ids,
-                         interior_way_ids, node_buffer, way_buffer);
-  } else if (geom_type == wkbPolygon) {
-    create_polygon(static_cast<OGRPolygon *>(geom), exterior_way_ids,
-                   interior_way_ids, node_buffer, way_buffer);
-  } else {
-    throw(std::runtime_error(
-        "Landuse item with geometry=" + std::string(geom->getGeometryName()) +
-        " is not yet supported."));
-  }
-
-  build_landuse_relation_with_tags(feat, exterior_way_ids, interior_way_ids,
-                                   rel_buffer);
-
-  node_buffer.commit();
-  way_buffer.commit();
-  rel_buffer.commit();
-}
 
 /**
  * \brief adds tags from administrative boundaries to mtd_area_map.
@@ -1708,27 +1562,6 @@ void add_admin_shape(
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-}
-
-void add_landuse_shape(boost::filesystem::path landuse_shape_file,
-                       osmium::io::Writer &writer) {
-  g_way_end_points_map.clear();
-  auto ds = open_shape_file(landuse_shape_file);
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(landuse_shape_file.string()));
-  assert(layer->GetGeomType() == wkbPolygon);
-  osmium::memory::Buffer node_buffer(buffer_size);
-  osmium::memory::Buffer way_buffer(buffer_size);
-  osmium::memory::Buffer rel_buffer(buffer_size);
-  for (auto &feat : *layer) {
-    process_landuse(feat, node_buffer, way_buffer, rel_buffer);
-  }
-
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-  writer(std::move(rel_buffer));
-  g_way_end_points_map.clear();
 }
 
 /****************************************************
