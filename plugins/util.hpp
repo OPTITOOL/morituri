@@ -245,4 +245,10 @@ bool checkInBoundingBox(const OGREnvelope &boundingBox,
   return result;
 }
 
+bool parse_bool(const char *value) {
+  if (!strcmp(value, "Y"))
+    return true;
+  return false;
+}
+
 #endif /* UTIL_HPP_ */

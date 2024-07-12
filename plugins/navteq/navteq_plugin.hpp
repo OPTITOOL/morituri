@@ -30,8 +30,7 @@ private:
   void add_administrative_boundaries(
       const std::vector<boost::filesystem::path> &dirs,
       osmium::io::Writer &writer);
-  void add_water(const std::vector<boost::filesystem::path> &dirs,
-                 osmium::io::Writer &writer);
+
   void add_landuse(const std::vector<boost::filesystem::path> &dirs,
                    osmium::io::Writer &writer);
   void add_railways(const std::vector<boost::filesystem::path> &dirs,

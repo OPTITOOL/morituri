@@ -108,6 +108,9 @@ protected:
   static constexpr std::string_view USERID = "1";
   static constexpr int TIMESTAMP = 1;
 
+  static constexpr std::string_view YES = "yes";
+  static constexpr std::string_view NO = "no";
+
   static osmium::unsigned_object_id_type g_osm_id;
 };
 

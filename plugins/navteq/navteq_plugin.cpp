@@ -16,7 +16,9 @@
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
 
+#include "converter/RailwayConverter.hpp"
 #include "converter/WaterConverter.hpp"
+
 #include "navteq.hpp"
 #include "navteq_plugin.hpp"
 #include "navteq_util.hpp"
@@ -32,6 +34,7 @@ navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
   // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
   g_executable_path = this->executable_path;
 
+  converter.emplace_back(new RailwayConverter());
   converter.emplace_back(new WaterConverter());
 }
 
@@ -254,9 +257,6 @@ void navteq_plugin::execute() {
   BOOST_LOG_TRIVIAL(info) << "Add administrative boundaries";
   add_administrative_boundaries(dataDirs, writer);
 
-  BOOST_LOG_TRIVIAL(info) << "Add water";
-  add_water(dataDirs, writer);
-
   BOOST_LOG_TRIVIAL(info) << "Add landuse";
   add_landuse(dataDirs, writer);
 
@@ -266,14 +266,15 @@ void navteq_plugin::execute() {
   BOOST_LOG_TRIVIAL(info) << "Add hamlet nodes";
   add_hamlet_nodes(dataDirs, writer);
 
-  BOOST_LOG_TRIVIAL(info) << "Add railways";
-  add_railways(dataDirs, writer);
-
   BOOST_LOG_TRIVIAL(info) << "Add buildings";
   add_buildings(dataDirs, writer);
 
   BOOST_LOG_TRIVIAL(info) << "Add rest areas";
   add_rest_area_nodes(dataDirs, writer);
+
+  // run converters
+  for (auto &c : converter)
+    c->convert(dataDirs, writer);
 
   writer.close();
 
