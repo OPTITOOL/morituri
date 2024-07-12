@@ -33,8 +33,7 @@ private:
 
   void add_landuse(const std::vector<boost::filesystem::path> &dirs,
                    osmium::io::Writer &writer);
-  void add_railways(const std::vector<boost::filesystem::path> &dirs,
-                    osmium::io::Writer &writer);
+
   void add_buildings(const std::vector<boost::filesystem::path> &dirs,
                      osmium::io::Writer &writer);
 

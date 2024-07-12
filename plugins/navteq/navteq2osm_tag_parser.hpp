@@ -13,13 +13,6 @@ const boost::filesystem::path
     PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT("plugins/navteq/ISO-639-2_utf-8.txt");
 int ctr = 0;
 
-// helper
-bool parse_bool(const char *value) {
-  if (!strcmp(value, "Y"))
-    return true;
-  return false;
-}
-
 bool fits_street_ref(const std::string &st_name) {
   if (st_name.empty())
     return false;

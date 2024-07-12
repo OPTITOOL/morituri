@@ -43,13 +43,15 @@ void WaterConverter::convert(const std::vector<boost::filesystem::path> &dirs,
 
 void WaterConverter::add_water_shape(boost::filesystem::path water_shape_file,
                                      osmium::io::Writer &writer) {
-  g_way_end_points_map.clear();
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(water_shape_file.c_str()));
+  if (!ds) {
+    BOOST_LOG_TRIVIAL(debug) << "No water shp found in " << water_shape_file;
+    return;
+  }
   auto layer = ds->GetLayer(0);
   if (layer == nullptr) {
-    BOOST_LOG_TRIVIAL(debug) << "No water layer found in " << water_shape_file;
-    return;
+    throw(shp_empty_error(water_shape_file.string()));
   }
 
   assert(layer->GetGeomType() == wkbPolygon ||
@@ -57,40 +59,47 @@ void WaterConverter::add_water_shape(boost::filesystem::path water_shape_file,
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
   osmium::memory::Buffer way_buffer(BUFFER_SIZE);
   osmium::memory::Buffer rel_buffer(BUFFER_SIZE);
+
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+      g_way_end_points_map;
   for (const auto &feat : *layer) {
-    process_water(feat, node_buffer, way_buffer, rel_buffer);
+    process_water(feat, g_way_end_points_map, node_buffer, way_buffer,
+                  rel_buffer);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-  g_way_end_points_map.clear();
 }
 
 /**
  * \brief adds water polygons as Relations to m_buffer
  */
-void WaterConverter::process_water(const OGRFeatureUniquePtr &feat,
-                                   osmium::memory::Buffer &node_buffer,
-                                   osmium::memory::Buffer &way_buffer,
-                                   osmium::memory::Buffer &rel_buffer) {
+void WaterConverter::process_water(
+    const OGRFeatureUniquePtr &feat,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer,
+    osmium::memory::Buffer &rel_buffer) {
   auto geom = feat->GetGeometryRef();
   auto geom_type = geom->getGeometryType();
 
   if (geom_type == OGRwkbGeometryType::wkbLineString) {
     // handle water ways
     build_water_ways_with_tagList(feat, static_cast<OGRLineString *>(geom),
-                                  node_buffer, way_buffer);
+                                  g_way_end_points_map, node_buffer,
+                                  way_buffer);
   } else {
     // handle water polygons
     std::vector<osmium::unsigned_object_id_type> exterior_way_ids;
     std::vector<osmium::unsigned_object_id_type> interior_way_ids;
     if (geom_type == OGRwkbGeometryType::wkbMultiPolygon) {
       create_multi_polygon(static_cast<OGRMultiPolygon *>(geom),
-                           exterior_way_ids, interior_way_ids, node_buffer,
-                           way_buffer);
+                           exterior_way_ids, interior_way_ids,
+                           g_way_end_points_map, node_buffer, way_buffer);
     } else if (geom_type == OGRwkbGeometryType::wkbPolygon) {
       create_polygon(static_cast<OGRPolygon *>(geom), exterior_way_ids,
-                     interior_way_ids, node_buffer, way_buffer);
+                     interior_way_ids, g_way_end_points_map, node_buffer,
+                     way_buffer);
     } else {
       throw(std::runtime_error(
           "Water item with geometry=" + std::string(geom->getGeometryName()) +
@@ -108,26 +117,29 @@ void WaterConverter::process_water(const OGRFeatureUniquePtr &feat,
 std::vector<osmium::unsigned_object_id_type>
 WaterConverter::build_water_ways_with_tagList(
     const OGRFeatureUniquePtr &feat, OGRLineString *line,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
     osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
 
-  auto osm_way_node_ids = create_open_way_nodes(line, node_buffer);
+  auto osm_way_node_ids =
+      create_open_way_nodes(line, g_way_end_points_map, node_buffer);
 
   std::vector<osmium::unsigned_object_id_type> osm_way_ids;
   size_t i = 0;
   do {
     osmium::builder::WayBuilder builder(way_buffer);
-    builder.object().set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(builder.object());
-    builder.set_user(USER.data());
+    setObjectProperties(builder);
     build_water_way_taglist(builder, feat);
     osmium::builder::WayNodeListBuilder wnl_builder(builder);
     for (size_t j = i;
-         j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
-      wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
-                               osm_way_node_ids.at(j).first);
+         j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++) {
+      const auto [location, osm_id] = osm_way_node_ids.at(j);
+      wnl_builder.add_node_ref(osm_id, location);
+    }
     osm_way_ids.push_back(builder.object().id());
     i += OSM_MAX_WAY_NODES - 1;
   } while (i < osm_way_node_ids.size());
+
   return osm_way_ids;
 }
 
@@ -175,9 +187,7 @@ osmium::unsigned_object_id_type WaterConverter::build_water_relation_with_tags(
     std::vector<osmium::unsigned_object_id_type> int_osm_way_ids,
     osmium::memory::Buffer &rel_buffer) {
   osmium::builder::RelationBuilder builder(rel_buffer);
-  builder.object().set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(builder.object());
-  builder.set_user(USER.data());
+  setObjectProperties(builder);
   build_water_poly_taglist(builder, feat);
 
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);

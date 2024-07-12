@@ -55,11 +55,13 @@ void Converter::create_multi_polygon(
     OGRMultiPolygon *mp,
     std::vector<osmium::unsigned_object_id_type> &mp_ext_ring_osm_ids,
     std::vector<osmium::unsigned_object_id_type> &mp_int_ring_osm_ids,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
     osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
 
   for (const OGRPolygon *poly : mp) {
-    create_polygon(poly, mp_ext_ring_osm_ids, mp_int_ring_osm_ids, node_buffer,
-                   way_buffer);
+    create_polygon(poly, mp_ext_ring_osm_ids, mp_int_ring_osm_ids,
+                   g_way_end_points_map, node_buffer, way_buffer);
   }
 }
 
@@ -76,10 +78,13 @@ void Converter::create_polygon(
     const OGRPolygon *poly,
     std::vector<osmium::unsigned_object_id_type> &exterior_way_ids,
     std::vector<osmium::unsigned_object_id_type> &interior_way_ids,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
     osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
   bool isExteriorRing = true; // first ring is the exterior ring
   for (const auto ring : *poly) {
-    auto tmp = build_closed_ways(ring, node_buffer, way_buffer);
+    auto tmp =
+        build_closed_ways(ring, g_way_end_points_map, node_buffer, way_buffer);
     if (isExteriorRing) {
       std::move(tmp.begin(), tmp.end(), std::back_inserter(exterior_way_ids));
     } else {
@@ -97,8 +102,11 @@ void Converter::create_polygon(
  * \param way_buffer Buffer to store ways.
  * */
 std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
-Converter::create_open_way_nodes(const OGRLineString *line,
-                                 osmium::memory::Buffer &node_buffer) {
+Converter::create_open_way_nodes(
+    const OGRLineString *line,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::memory::Buffer &node_buffer) {
   std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
       osm_way_node_ids;
 
@@ -124,11 +132,13 @@ Converter::create_open_way_nodes(const OGRLineString *line,
  * \param node_buffer Buffer to store nodes.
  * \param way_buffer Buffer to store ways.
  * */
-std::vector<osmium::unsigned_object_id_type>
-Converter::build_closed_ways(const OGRLinearRing *ring,
-                             osmium::memory::Buffer &node_buffer,
-                             osmium::memory::Buffer &way_buffer) {
-  auto osm_way_node_ids = create_closed_way_nodes(ring, node_buffer);
+std::vector<osmium::unsigned_object_id_type> Converter::build_closed_ways(
+    const OGRLinearRing *ring,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
+  auto osm_way_node_ids =
+      create_closed_way_nodes(ring, g_way_end_points_map, node_buffer);
 
   std::vector<osmium::unsigned_object_id_type> osm_way_ids;
   size_t i = 0;
@@ -138,9 +148,10 @@ Converter::build_closed_ways(const OGRLinearRing *ring,
 
     osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
     for (size_t j = i;
-         j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
-      wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
-                               osm_way_node_ids.at(j).first);
+         j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++) {
+      const auto [location, osm_id] = osm_way_node_ids.at(j);
+      wnl_builder.add_node_ref(osm_id, location);
+    }
     osm_way_ids.push_back(builder.object().id());
     i += OSM_MAX_WAY_NODES - 1;
   } while (i < osm_way_node_ids.size());
@@ -154,8 +165,11 @@ Converter::build_closed_ways(const OGRLinearRing *ring,
  * \param node_buffer Buffer to store nodes.
  * */
 std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
-Converter::create_closed_way_nodes(const OGRLinearRing *ring,
-                                   osmium::memory::Buffer &node_buffer) {
+Converter::create_closed_way_nodes(
+    const OGRLinearRing *ring,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::memory::Buffer &node_buffer) {
   std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
       osm_way_node_ids;
   for (auto &point : *ring) {

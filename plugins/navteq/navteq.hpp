@@ -890,18 +890,6 @@ void build_admin_boundary_taglist(osmium::builder::Builder &builder,
   tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(level));
 }
 
-void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
-                                 const OGRFeatureUniquePtr &feat) {
-  // Mind tl_builder scope!
-  osmium::builder::TagListBuilder tl_builder(builder);
-  tl_builder.add_tag("building", "yes");
-
-  std::string name = feat->GetFieldAsString(POLYGON_NM);
-  std::string building_name = to_camel_case_with_spaces(name);
-  if (!building_name.empty())
-    tl_builder.add_tag("name", building_name);
-}
-
 /**
  * \brief adds navteq landuse tags to Relation
  */
@@ -1131,39 +1119,6 @@ void process_admin_boundary(
     rel_buffer.commit();
   }
 
-  node_buffer.commit();
-  way_buffer.commit();
-}
-
-/**
- * \brief adds water polygons as Relations to m_buffer
- */
-void process_building(const OGRFeatureUniquePtr &feat,
-                      osmium::memory::Buffer &node_buffer,
-                      osmium::memory::Buffer &way_buffer) {
-  auto geom = feat->GetGeometryRef();
-
-  node_vector_type osm_way_node_ids = create_closed_way_nodes(
-      static_cast<OGRPolygon *>(geom)->getExteriorRing(), node_buffer);
-
-  osm_id_vector_type osm_way_ids;
-  size_t i = 0;
-  do {
-    osmium::builder::WayBuilder builder(way_buffer);
-    builder.object().set_id(g_osm_id++);
-    set_dummy_osm_object_attributes(builder.object());
-    builder.set_user(USER);
-    {
-      osmium::builder::WayNodeListBuilder wnl_builder(builder);
-      for (size_t j = i;
-           j < std::min(i + OSM_MAX_WAY_NODES, osm_way_node_ids.size()); j++)
-        wnl_builder.add_node_ref(osm_way_node_ids.at(j).second,
-                                 osm_way_node_ids.at(j).first);
-    }
-    osm_way_ids.push_back(builder.object().id());
-    i += OSM_MAX_WAY_NODES - 1;
-    build_building_poly_taglist(builder, feat);
-  } while (i < osm_way_node_ids.size());
   node_buffer.commit();
   way_buffer.commit();
 }
@@ -2003,44 +1958,6 @@ void add_admin_shape(
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
   writer(std::move(rel_buffer));
-}
-
-void add_building_shape(boost::filesystem::path landmark_shape_file,
-                        osmium::io::Writer &writer) {
-  auto ds = open_shape_file(landmark_shape_file);
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(landmark_shape_file.string()));
-  assert(layer->GetGeomType() == wkbPolygon ||
-         layer->GetGeomType() == wkbLineString);
-  osmium::memory::Buffer node_buffer(buffer_size);
-  osmium::memory::Buffer way_buffer(buffer_size);
-  for (auto &feat : *layer) {
-    if (!strcmp(feat->GetFieldAsString(FEAT_COD), "2005999")) {
-      process_building(feat, node_buffer, way_buffer);
-    }
-  }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-}
-
-void add_railways_shape(boost::filesystem::path water_shape_file,
-                        osmium::io::Writer &writer) {
-  g_way_end_points_map.clear();
-  auto ds = open_shape_file(water_shape_file);
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(water_shape_file.string()));
-  assert(layer->GetGeomType() == wkbPolygon ||
-         layer->GetGeomType() == wkbLineString);
-  osmium::memory::Buffer node_buffer(buffer_size);
-  osmium::memory::Buffer way_buffer(buffer_size);
-  for (auto &feat : *layer) {
-    process_railways(feat, node_buffer, way_buffer);
-  }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-  g_way_end_points_map.clear();
 }
 
 void add_landuse_shape(boost::filesystem::path landuse_shape_file,

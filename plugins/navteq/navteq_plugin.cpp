@@ -203,26 +203,6 @@ void navteq_plugin::add_administrative_boundaries(
   g_way_end_points_map.clear();
 }
 
-void navteq_plugin::add_railways(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / RAILWAYS_POLY_SHP))
-      add_railways_shape(dir / RAILWAYS_POLY_SHP, writer);
-  }
-}
-
-void navteq_plugin::add_buildings(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
-  g_way_end_points_map.clear();
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / LANDMARK_SHP))
-      add_building_shape(dir / LANDMARK_SHP, writer);
-  }
-  g_way_end_points_map.clear();
-}
-
 void navteq_plugin::add_landuse(
     const std::vector<boost::filesystem::path> &dirs,
     osmium::io::Writer &writer) {

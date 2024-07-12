@@ -50,12 +50,16 @@ private:
                        osmium::io::Writer &writer);
 
   void process_water(const OGRFeatureUniquePtr &feat,
+                     std::map<osmium::Location, osmium::unsigned_object_id_type>
+                         &g_way_end_points_map,
                      osmium::memory::Buffer &node_buffer,
                      osmium::memory::Buffer &way_buffer,
                      osmium::memory::Buffer &rel_buffer);
 
   std::vector<osmium::unsigned_object_id_type> build_water_ways_with_tagList(
       const OGRFeatureUniquePtr &feat, OGRLineString *line,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
       osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer);
 
   void build_water_way_taglist(osmium::builder::WayBuilder &builder,
@@ -69,13 +73,6 @@ private:
 
   void build_water_poly_taglist(osmium::builder::RelationBuilder &builder,
                                 const OGRFeatureUniquePtr &feat);
-
-  // maps location of way end nodes to node ids
-  std::map<osmium::Location, osmium::unsigned_object_id_type>
-      g_way_end_points_map;
-
-  static constexpr std::string_view POLYGON_NM = "POLYGON_NM";
-  static constexpr std::string_view FEAT_COD = "FEAT_COD";
 };
 
 #endif // WATERCONVERTER_HPP

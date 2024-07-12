@@ -18,6 +18,7 @@
 #define CONVERTER_HPP
 
 #include <boost/filesystem/path.hpp>
+#include <map>
 #include <osmium/osm/types.hpp>
 #include <string_view>
 #include <vector>
@@ -33,6 +34,7 @@ class Writer;
 namespace builder {
 class RelationBuilder;
 class NodeBuilder;
+class WayBuilder;
 } // namespace builder
 
 namespace memory {
@@ -66,27 +68,39 @@ protected:
       OGRMultiPolygon *mp,
       std::vector<osmium::unsigned_object_id_type> &mp_ext_ring_osm_ids,
       std::vector<osmium::unsigned_object_id_type> &mp_int_ring_osm_ids,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
       osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer);
 
   void
   create_polygon(const OGRPolygon *poly,
                  std::vector<osmium::unsigned_object_id_type> &exterior_way_ids,
                  std::vector<osmium::unsigned_object_id_type> &interior_way_ids,
+                 std::map<osmium::Location, osmium::unsigned_object_id_type>
+                     &g_way_end_points_map,
                  osmium::memory::Buffer &node_buffer,
                  osmium::memory::Buffer &way_buffer);
 
   std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
-  create_open_way_nodes(const OGRLineString *line,
-                        osmium::memory::Buffer &node_buffer);
+  create_open_way_nodes(
+      const OGRLineString *line,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
+      osmium::memory::Buffer &node_buffer);
 
   std::vector<osmium::unsigned_object_id_type>
   build_closed_ways(const OGRLinearRing *ring,
+                    std::map<osmium::Location, osmium::unsigned_object_id_type>
+                        &g_way_end_points_map,
                     osmium::memory::Buffer &node_buffer,
                     osmium::memory::Buffer &way_buffer);
 
   std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
-  create_closed_way_nodes(const OGRLinearRing *ring,
-                          osmium::memory::Buffer &node_buffer);
+  create_closed_way_nodes(
+      const OGRLinearRing *ring,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
+      osmium::memory::Buffer &node_buffer);
 
   osmium::unsigned_object_id_type
   build_node(const osmium::Location &location,
@@ -112,6 +126,9 @@ protected:
   static constexpr std::string_view NO = "no";
 
   static osmium::unsigned_object_id_type g_osm_id;
+
+  static constexpr std::string_view FEAT_COD = "FEAT_COD";
+  static constexpr std::string_view POLYGON_NM = "POLYGON_NM";
 };
 
 #endif // CONVERTER_HPP

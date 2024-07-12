@@ -14,35 +14,35 @@
  * along with Morituri.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RAILWAYCONVERTER_HPP
-#define RAILWAYCONVERTER_HPP
+#ifndef BUILDINGCONVERTER_HPP
+#define BUILDINGCONVERTER_HPP
 
 #include "Converter.hpp"
 
 #include <ogrsf_frmts.h>
 
-class RailwayConverter : public Converter {
+class BuildingConverter : public Converter {
 
 public:
-  RailwayConverter();
-  virtual ~RailwayConverter();
+  BuildingConverter();
+  virtual ~BuildingConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_railways_shape(boost::filesystem::path railway_shape_file,
+  void add_building_shape(boost::filesystem::path landmark_shape_file,
                           osmium::io::Writer &writer);
 
   void
-  process_railways(const OGRFeatureUniquePtr &feat,
+  process_building(const OGRFeatureUniquePtr &feat,
                    std::map<osmium::Location, osmium::unsigned_object_id_type>
                        &g_way_end_points_map,
                    osmium::memory::Buffer &node_buffer,
                    osmium::memory::Buffer &way_buffer);
 
-  static constexpr std::string_view BRIDGE = "BRIDGE";
-  static constexpr std::string_view TUNNEL = "TUNNEL";
+  void build_building_poly_taglist(osmium::builder::WayBuilder &builder,
+                                   const OGRFeatureUniquePtr &feat);
 };
 
-#endif // RAILWAYCONVERTER_HPP
+#endif // BUILDINGCONVERTER_HPP
