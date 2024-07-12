@@ -16,6 +16,7 @@
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
 
+#include "converter/WaterConverter.hpp"
 #include "navteq.hpp"
 #include "navteq_plugin.hpp"
 #include "navteq_util.hpp"
@@ -30,6 +31,8 @@ navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
   // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
   g_executable_path = this->executable_path;
+
+  converter.push_back(std::make_unique<WaterConverter>());
 }
 
 navteq_plugin::~navteq_plugin() {}

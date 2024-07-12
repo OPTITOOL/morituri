@@ -9,6 +9,7 @@
 #define NAVTEQPLUGIN_HPP_
 
 #include "../base_plugin.hpp"
+#include "converter/Converter.hpp"
 #include "navteq_types.hpp"
 #include <boost/filesystem/path.hpp>
 #include <osmium/osm/entity_bits.hpp>
@@ -43,6 +44,8 @@ private:
                 osmium::osm_entity_bits::type bits);
 
   std::vector<boost::filesystem::path> dataDirs;
+
+  std::vector<std::unique_ptr<Converter>> converter;
 
   OGREnvelope boundingBox;
 
