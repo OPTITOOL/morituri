@@ -728,23 +728,6 @@ link_id_type parse_street_tags(
   return link_id;
 }
 
-const char *get_place_value(uint population, uint capital) {
-  if (capital == 1 || capital == 2 || population > 100000)
-    return "city";
-
-  if (capital == 3 || capital == 4 || population > 10000)
-    return "town";
-
-  if (capital == 5 || population > 100)
-    return "village";
-
-  if (population > 0)
-    return "hamlet";
-
-  // population = 0 is more often a village than a hamlet
-  return "village";
-}
-
 // matching from http://www.loc.gov/standards/iso639-2/php/code_list.php
 // http://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt
 // ISO-639 conversion

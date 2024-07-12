@@ -1155,60 +1155,6 @@ void process_landuse(const OGRFeatureUniquePtr &feat,
 }
 
 /**
- * \brief adds cities to the node buffer
- */
-void process_city(const OGRFeatureUniquePtr &feat, uint fac_type,
-                  osmium::memory::Buffer &node_buffer,
-                  const std::map<std::string, std::string> &translations) {
-
-  auto geom = feat->GetGeometryRef();
-  auto geom_type = geom->getGeometryType();
-
-  osm_id_vector_type exterior_way_ids, interior_way_ids;
-  if (geom_type != wkbPoint) {
-    throw(std::runtime_error(
-        "City item with geometry=" + std::string(geom->getGeometryName()) +
-        " is not yet supported."));
-  }
-
-  auto point = static_cast<OGRPoint *>(geom);
-  osmium::Location location(point->getX(), point->getY());
-  {
-    // scope node_builder
-    // Add new node
-    osmium::builder::NodeBuilder node_builder(node_buffer);
-    build_node(location, &node_builder);
-    osmium::builder::TagListBuilder tl_builder(node_builder);
-
-    std::string name = feat->GetFieldAsString(POI_NAME);
-    tl_builder.add_tag("name", to_camel_case_with_spaces(name));
-    if (fac_type == 9709) {
-      // 9709 means 'neighbourhood'
-      tl_builder.add_tag("place", "suburb");
-    } else { //=> fac_type = 4444 means 'named place' which is the city centre
-      int population = feat->GetFieldAsInteger(POPULATION);
-      if (population > 0)
-        tl_builder.add_tag("population", std::to_string(population));
-      uint capital = feat->GetFieldAsInteger(CAPITAL);
-      tl_builder.add_tag("place", get_place_value(population, capital));
-      if (capital == 1) {
-        // for capitals of countries use 'capital' = 'yes'
-        tl_builder.add_tag("capital", "yes");
-      } else if (capital > 1) {
-        // for subdivisions of countries use 'capital' = admin_lvl
-        tl_builder.add_tag("capital", navteq_2_osm_admin_lvl(capital));
-      }
-    }
-
-    // add translation tags
-    for (auto loc : translations) {
-      tl_builder.add_tag("name:" + loc.first, loc.second);
-    }
-  }
-  node_buffer.commit();
-}
-
-/**
  * \brief adds tags from administrative boundaries to mtd_area_map.
  * 		  adds tags from administrative boundaries to mtd_area_map
  * 		  to be accesible when creating the Relations of
@@ -1272,69 +1218,6 @@ void init_cdms_map(
         dbf_get_uint_by_field(cdms_handle, i, COND_ID);
     ushort cond_type = dbf_get_uint_by_field(cdms_handle, i, COND_TYPE);
     cdms_map.insert(std::make_pair(cond_id, cond_type));
-  }
-}
-
-void add_city_nodes(const std::vector<boost::filesystem::path> &dirs,
-                    osmium::io::Writer &writer) {
-
-  for (auto dir : dirs) {
-    auto ds = open_shape_file(dir / NAMED_PLC_SHP);
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error(dir.string()));
-
-    osmium::memory::Buffer node_buffer(buffer_size);
-
-    int facTypeField = layer->FindFieldIndex(FAC_TYPE, true);
-    int poiNmTypeField = layer->FindFieldIndex(POI_NMTYPE, true);
-    int poiLangCodeField = layer->FindFieldIndex(POI_LANGCD, true);
-    int poiIdField = layer->FindFieldIndex(POI_ID, true);
-    int poiNameField = layer->FindFieldIndex(POI_NAME, true);
-
-    std::map<uint64_t, std::map<std::string, std::string>> translations;
-    // read translations
-    for (auto &feat : *layer) {
-      uint fac_type = feat->GetFieldAsInteger(facTypeField);
-      if (fac_type != 4444 && fac_type != 9709) {
-        BOOST_LOG_TRIVIAL(error)
-            << "Skipping city node because of wrong POI type";
-        continue;
-      }
-      std::string name_type = feat->GetFieldAsString(poiNmTypeField);
-      if (name_type == "B") {
-        // Skip this entry as it's just a translated namePlc of former one
-        continue;
-      }
-      int poiId = feat->GetFieldAsInteger(poiIdField);
-      std::string langCode = feat->GetFieldAsString(poiLangCodeField);
-      std::string locName = feat->GetFieldAsString(poiNameField);
-
-      translations[poiId].emplace(parse_lang_code(langCode),
-                                  to_camel_case_with_spaces(locName));
-    }
-
-    layer->ResetReading();
-
-    for (auto &feat : *layer) {
-      uint fac_type = feat->GetFieldAsInteger(facTypeField);
-      if (fac_type != 4444 && fac_type != 9709) {
-        BOOST_LOG_TRIVIAL(error)
-            << "Skipping city node because of wrong POI type";
-        continue;
-      }
-
-      std::string name_type = feat->GetFieldAsString(poiNmTypeField);
-      if (name_type != "B") {
-        // Skip this entry as it's just a translated namePlc of former one
-        continue;
-      }
-      int poiId = feat->GetFieldAsInteger(poiIdField);
-
-      process_city(feat, fac_type, node_buffer, translations[poiId]);
-    }
-    node_buffer.commit();
-    writer(std::move(node_buffer));
   }
 }
 

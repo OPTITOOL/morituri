@@ -17,11 +17,11 @@
 #ifndef HAMELTCONVERTER_HPP
 #define HAMELTCONVERTER_HPP
 
-#include "PointLayerConverter.hpp"
+#include "Converter.hpp"
 
 #include <ogrsf_frmts.h>
 
-class HamletConverter : public PointLayerConverter {
+class HamletConverter : public Converter {
 
 public:
   HamletConverter();

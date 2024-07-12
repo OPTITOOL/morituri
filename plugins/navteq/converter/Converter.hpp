@@ -112,6 +112,8 @@ protected:
 
   template <typename T> void setObjectProperties(T &builder);
 
+  std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int);
+
   static constexpr int BUFFER_SIZE = 10 * 1000 * 1000;
 
   static constexpr int OSM_MAX_WAY_NODES = 1000;
@@ -133,6 +135,9 @@ protected:
   static constexpr std::string_view FAC_TYPE = "FAC_TYPE";
   static constexpr std::string_view POI_NMTYPE = "POI_NMTYPE";
   static constexpr std::string_view POI_NAME = "POI_NAME";
+
+  static constexpr int NAVTEQ_ADMIN_LVL_MIN = 1;
+  static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
 };
 
 #endif // CONVERTER_HPP

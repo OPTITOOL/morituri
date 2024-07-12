@@ -17,11 +17,11 @@
 #ifndef RESTAREACONVERTER_HPP
 #define RESTAREACONVERTER_HPP
 
-#include "PointLayerConverter.hpp"
+#include "Converter.hpp"
 
 #include <ogrsf_frmts.h>
 
-class RestAreaConverter : public PointLayerConverter {
+class RestAreaConverter : public Converter {
 
 public:
   RestAreaConverter();

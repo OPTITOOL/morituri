@@ -14,23 +14,36 @@
  * along with Morituri.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef POINTLAYERCONVERTER_HPP
-#define POINTLAYERCONVERTER_HPP
+#ifndef CITYCONVERTER_HPP
+#define CITYCONVERTER_HPP
 
 #include "Converter.hpp"
 
 #include <ogrsf_frmts.h>
 
-class PointLayerConverter : public Converter {
+class CityConverter : public Converter {
 
 public:
-  PointLayerConverter();
-  virtual ~PointLayerConverter();
+  CityConverter();
+  virtual ~CityConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
+  void add_city_shape(boost::filesystem::path city_shape_file,
+                      osmium::io::Writer &writer);
+
+  void process_city(const OGRFeatureUniquePtr &feat, uint fac_type,
+                    osmium::memory::Buffer &node_buffer,
+                    const std::map<std::string, std::string> &translations);
+
+  std::string get_place_value(uint population, uint capital);
+
+  static constexpr std::string_view POI_LANGCD = "POI_LANGCD";
+  static constexpr std::string_view POI_ID = "POI_ID";
+  static constexpr std::string_view POPULATION = "POPULATION";
+  static constexpr std::string_view CAPITAL = "CAPITAL";
 };
 
-#endif // POINTLAYERCONVERTER_HPP
+#endif // CITYCONVERTER_HPP

@@ -26,6 +26,10 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
+HamletConverter::HamletConverter() {}
+
+HamletConverter::~HamletConverter() {}
+
 void HamletConverter::convert(const std::vector<boost::filesystem::path> &dirs,
                               osmium::io::Writer &writer) {
 

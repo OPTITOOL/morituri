@@ -231,3 +231,13 @@ template <typename T> void Converter::setObjectProperties(T &builder) {
   set_dummy_osm_object_attributes(builder.object());
   builder.set_user(USER.data());
 }
+
+std::string Converter::navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
+  if (NAVTEQ_ADMIN_LVL_MIN > navteq_admin_lvl_int ||
+      navteq_admin_lvl_int > NAVTEQ_ADMIN_LVL_MAX)
+    throw std::runtime_error("invalid admin level. admin level '" +
+                             std::to_string(navteq_admin_lvl_int) +
+                             "' is out of range.");
+
+  return std::to_string(2 * navteq_admin_lvl_int);
+}

@@ -26,6 +26,10 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
+RestAreaConverter::RestAreaConverter() {}
+
+RestAreaConverter::~RestAreaConverter() {}
+
 void RestAreaConverter::convert(
     const std::vector<boost::filesystem::path> &dirs,
     osmium::io::Writer &writer) {
