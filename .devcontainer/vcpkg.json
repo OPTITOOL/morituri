@@ -2,7 +2,6 @@
     "dependencies": [
         "boost-log",
         "boost-program-options",
-        "boost-filesystem",
         "icu",
         "boost-timer",
         "shapelib",

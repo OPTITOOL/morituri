@@ -26,7 +26,7 @@ ENDIF()
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
-find_package(Boost REQUIRED COMPONENTS system filesystem log program_options)
+find_package(Boost REQUIRED COMPONENTS system log program_options)
 find_package(GDAL REQUIRED)
 find_package(geos REQUIRED)
 find_path(OSMIUM_INCLUDE_DIRS "osmium/version.hpp")
