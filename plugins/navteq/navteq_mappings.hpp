@@ -32,17 +32,6 @@ static const boost::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
 
 static const boost::filesystem::path STREETS_DBF = "Streets.dbf";
 
-// STREETS columns
-const char *LINK_ID = "LINK_ID";
-
-const char *ADDR_TYPE = "ADDR_TYPE";
-const char *L_REFADDR = "L_REFADDR";
-const char *L_NREFADDR = "L_NREFADDR";
-const char *L_ADDRSCH = "L_ADDRSCH";
-// const char *L_ADDRFORM = "L_ADDRFORM";
-const char *R_REFADDR = "R_REFADDR";
-const char *R_NREFADDR = "R_NREFADDR";
-const char *R_ADDRSCH = "R_ADDRSCH";
 // const char *R_ADDRFORM = "R_ADDRFORM";
 
 // const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
