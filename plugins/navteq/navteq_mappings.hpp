@@ -46,39 +46,6 @@ const char *R_NREFADDR = "R_NREFADDR";
 const char *R_ADDRSCH = "R_ADDRSCH";
 // const char *R_ADDRFORM = "R_ADDRFORM";
 
-const char *FUNC_CLASS = "FUNC_CLASS";
-const char *SPEED_CAT = "SPEED_CAT";
-const char *FR_SPEED_LIMIT = "FR_SPD_LIM";
-const char *TO_SPEED_LIMIT = "TO_SPD_LIM";
-const char *DIR_TRAVEL = "DIR_TRAVEL";
-const char *AR_AUTO = "AR_AUTO";
-const char *AR_BUS = "AR_BUS";
-const char *AR_TAXIS = "AR_TAXIS";
-// const char *AR_CARPOOL = "AR_CARPOOL";
-const char *AR_PEDESTRIANS = "AR_PEDEST";
-const char *AR_TRUCKS = "AR_TRUCKS";
-const char *AR_DELIV = "AR_DELIV";
-const char *AR_EMERVEH = "AR_EMERVEH";
-const char *AR_MOTORCYCLES = "AR_MOTOR";
-const char *AR_THROUGH_TRAFFIC = "AR_TRAFF";
-const char *PAVED = "PAVED";
-const char *PRIVATE = "PRIVATE";
-const char *BRIDGE = "BRIDGE";
-const char *TUNNEL = "TUNNEL";
-const char *TOLLWAY = "TOLLWAY";
-const char *CONTRACC = "CONTRACC";
-const char *ROUNDABOUT = "ROUNDABOUT";
-const char *FERRY = "FERRY_TYPE";
-const char *URBAN = "URBAN";
-const char *ROUTE = "ROUTE_TYPE";
-const char *FOURWHLDR = "FOURWHLDR";
-const char *PHYS_LANES = "PHYS_LANES";
-const char *PUB_ACCESS = "PUB_ACCESS";
-
-const char *L_POSTCODE = "L_POSTCODE";
-const char *R_POSTCODE = "R_POSTCODE";
-const char *RAMP = "RAMP";
-
 // const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
 
 // RDMS_DBF columns
@@ -129,42 +96,6 @@ static const char *speed_cat_metric[] = {
 #define USERID "1"
 #define TIMESTAMP 1
 } // namespace
-
-// highway OSM tags
-const char *MOTORWAY = "motorway";
-const char *MOTORWAY_LINK = "motorway_link";
-const char *TRUNK = "trunk";
-const char *PRIMARY = "primary";
-const char *PRIMARY_LINK = "primary_link";
-const char *SECONDARY = "secondary";
-const char *SECONDARY_LINK = "secondary_link";
-const char *TERTIARY = "tertiary";
-const char *UNCLASSIFIED = "unclassified";
-const char *RESIDENTIAL = "residential";
-const char *TRACK = "track";
-const char *PATH = "path";
-const char *FOOTWAY = "footway";
-const char *HIGHWAY = "highway";
-const char *CONSTRUCTION = "construction";
-
-const std::vector<std::string> DEFAULT_HWY_FUNC_TYPE = {
-    "", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL};
-
-std::map<int, std::vector<std::string>> const HWY_FUNC_CLASS_MAP = {
-    /* Applied with functional classes:
-     *                         1,       2,         3,        4,        5 +
-     * rural,    5 + urban */
-    {0 /*"DEFAULT"*/, DEFAULT_HWY_FUNC_TYPE},
-    {3 /*"GER"*/,
-     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
-    {8 /*"CHE"*/,
-     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
-    {108 /*"DEN"*/,
-     {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
-    {107 /*"SWE"*/,
-     {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
-    {9 /*"AUT"*/,
-     {"", PRIMARY, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}}};
 
 const double HOUSENUMBER_CURVE_OFFSET = 0.00005;
 

@@ -115,13 +115,18 @@ uint64_t dbf_get_uint_by_field(DBFHandle handle, int row,
  * \param field field name as key
  * \return const char* of field value
  */
-const char *get_field_from_feature(const OGRFeature *feat, const char *field) {
+const char *get_field_from_feature(const OGRFeatureUniquePtr &feat,
+                                   const char *field) {
   int field_index = feat->GetFieldIndex(field);
   if (field_index == -1)
     std::cerr << field << std::endl;
   return feat->GetFieldAsString(field_index);
 }
 
+const char *get_field_from_feature(const OGRFeatureUniquePtr &feat,
+                                   const std::string_view &field) {
+  return get_field_from_feature(feat, field.data());
+}
 /**
  * \brief returns field from OGRFeature
  *        throws exception if field_value is not
@@ -129,7 +134,8 @@ const char *get_field_from_feature(const OGRFeature *feat, const char *field) {
  * \param field field name as key
  * \return field value as uint
  */
-uint64_t get_uint_from_feature(const OGRFeature *feat, const char *field) {
+uint64_t get_uint_from_feature(const OGRFeatureUniquePtr &feat,
+                               const char *field) {
   const char *value = get_field_from_feature(feat, field);
   assert(value);
   try {
@@ -138,6 +144,11 @@ uint64_t get_uint_from_feature(const OGRFeature *feat, const char *field) {
     throw format_error("Could not parse field='" + std::string(field) +
                        "' with value='" + std::string(value) + "'");
   }
+}
+
+uint64_t get_uint_from_feature(const OGRFeatureUniquePtr &feat,
+                               const std::string_view &field) {
+  return get_uint_from_feature(feat, field.data());
 }
 
 /* getting fields from OGRFeatures -- end */
@@ -212,11 +223,11 @@ std::string to_camel_case_with_spaces(const std::string &camel) {
   return to_camel_case_with_spaces(camel.c_str());
 }
 
-void add_uint_tag(osmium::builder::TagListBuilder *tl_builder,
+void add_uint_tag(osmium::builder::TagListBuilder &tl_builder,
                   const char *tag_key, uint uint_tag_val) {
   std::string val_s = std::to_string(uint_tag_val);
   if (tag_key) {
-    tl_builder->add_tag(tag_key, val_s);
+    tl_builder.add_tag(tag_key, val_s);
   }
 }
 
@@ -307,6 +318,28 @@ bool is_superior(short superior, short than) {
   if (abs(superior) > abs(than))
     return true;
   return false;
+}
+
+uint get_number_after(const std::string &str, const char *start_str) {
+  if (!str.starts_with(start_str))
+    return 0; /* doesn't start with start_str */
+
+  /* Get number string after start_str until first non-digit appears */
+  std::string end_str = str.substr(strlen(start_str));
+  std::string number_str;
+  for (auto it = end_str.begin(); it != end_str.end(); ++it) {
+    if (!std::isdigit(*it)) {
+      /* break because B107a should return 107*/
+      break;
+    }
+    number_str += *it;
+  }
+
+  try {
+    return std::stoul(number_str);
+  } catch (const std::invalid_argument &) {
+    return 0;
+  }
 }
 
 #endif /* UTIL_HPP_ */

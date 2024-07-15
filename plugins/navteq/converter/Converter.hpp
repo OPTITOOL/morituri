@@ -51,9 +51,8 @@ class OGRLinearRing;
 class Converter {
 
 public:
-  Converter(const boost::filesystem::path &_executable_path) {
-    executable_path = _executable_path;
-  }
+  Converter(const boost::filesystem::path &_executable_path)
+      : executable_path(_executable_path) {}
   virtual ~Converter() {}
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
@@ -61,8 +60,6 @@ public:
 
   void set_dummy_osm_object_attributes(osmium::OSMObject &obj);
 
-protected:
-  // data structure to store admin boundary tags
   struct mtd_area_dataset {
     osmium::unsigned_object_id_type area_id;
     std::string admin_lvl;
@@ -71,6 +68,9 @@ protected:
     std::string short_name;
     std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
   };
+
+protected:
+  // data structure to store admin boundary tags
 
   void build_relation_members(
       osmium::builder::RelationBuilder &builder,
@@ -171,7 +171,7 @@ protected:
 
 private:
   static std::map<std::string, std::string> lang_code_map;
-  boost::filesystem::path &executable_path;
+  boost::filesystem::path executable_path;
 };
 
 #endif // CONVERTER_HPP
