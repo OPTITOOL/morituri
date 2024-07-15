@@ -2,6 +2,7 @@
 #include "Converter.hpp"
 
 #include <boost/log/trivial.hpp>
+#include <fstream>
 #include <ogrsf_frmts.h>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/object.hpp>
@@ -357,7 +358,6 @@ uint Converter::get_area_code_l(
     return r_area->second.area_code_1;
 
   throw(out_of_range_exception("could not find area_id " +
-                               std::to_string(++ctr) + ", " +
                                std::to_string(mtd_area_map.size())));
 }
 

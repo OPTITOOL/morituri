@@ -40,28 +40,41 @@ public:
                        osmium::io::Writer &writer);
 
 private:
-  void addLevel1Boundaries(const std::vector<boost::filesystem::path> &dirs,
-                           osmium::io::Writer &writer);
+  void addLevel1Boundaries(
+      const std::vector<boost::filesystem::path> &dirs,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
+      osmium::io::Writer &writer);
 
   void add_admin_shape(
-      boost::filesystem::path admin_shape_file, osmium::io::Writer &writer,
+      boost::filesystem::path admin_shape_file,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
+      osmium::io::Writer &writer,
       std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                               std::vector<osmium::unsigned_object_id_type>>>
           &adminLineMap);
 
   std::map<int, std::vector<osmium::unsigned_object_id_type>>
   add_admin_lines(boost::filesystem::path admin_line_shape_file,
+                  std::map<osmium::Location, osmium::unsigned_object_id_type>
+                      &g_way_end_points_map,
                   osmium::io::Writer &writer);
 
   void process_admin_boundary(
-      const OGRFeatureUniquePtr &feat, osmium::memory::Buffer &node_buffer,
-      osmium::memory::Buffer &way_buffer, osmium::memory::Buffer &rel_buffer,
+      const OGRFeatureUniquePtr &feat,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
+      osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer,
+      osmium::memory::Buffer &rel_buffer,
       std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                               std::vector<osmium::unsigned_object_id_type>>>
           &adminLineMap);
 
   std::vector<osmium::unsigned_object_id_type>
   build_admin_line(OGRFeatureUniquePtr &feat,
+                   std::map<osmium::Location, osmium::unsigned_object_id_type>
+                       &g_way_end_points_map,
                    osmium::memory::Buffer &node_buffer,
                    osmium::memory::Buffer &way_buffer);
 
@@ -77,8 +90,11 @@ private:
       const std::vector<osmium::unsigned_object_id_type> &int_osm_way_ids,
       osmium::memory::Buffer &rel_buffer);
 
-  void addLevelNBoundaries(boost::filesystem::path dir,
-                           osmium::io::Writer &writer, uint level);
+  void addLevelNBoundaries(
+      boost::filesystem::path dir,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &g_way_end_points_map,
+      osmium::io::Writer &writer, uint level);
 
   void build_admin_boundary_taglist(osmium::builder::Builder &builder,
                                     osmium::unsigned_object_id_type area_id,

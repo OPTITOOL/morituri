@@ -46,21 +46,20 @@ void AdminBoundariesConverter::convert(
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
 
-  addLevel1Boundaries(dirs, writer);
+  addLevel1Boundaries(dirs, g_way_end_points_map, writer);
 
   for (auto dir : dirs) {
-    addLevelNBoundaries(dir / ADMINBNDY_2_SHP, writer, 2);
-    addLevelNBoundaries(dir / ADMINBNDY_3_SHP, writer, 3);
-    addLevelNBoundaries(dir / ADMINBNDY_4_SHP, writer, 4);
-    addLevelNBoundaries(dir / ADMINBNDY_5_SHP, writer, 5);
+    addLevelNBoundaries(dir / ADMINBNDY_2_SHP, g_way_end_points_map, writer, 2);
+    addLevelNBoundaries(dir / ADMINBNDY_3_SHP, g_way_end_points_map, writer, 3);
+    addLevelNBoundaries(dir / ADMINBNDY_4_SHP, g_way_end_points_map, writer, 4);
+    addLevelNBoundaries(dir / ADMINBNDY_5_SHP, g_way_end_points_map, writer, 5);
   }
-
-  // build relations for the admin line
-  g_mtd_area_map.clear();
 }
 
 void AdminBoundariesConverter::addLevel1Boundaries(
     const std::vector<boost::filesystem::path> &dirs,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
     osmium::io::Writer &writer) {
 
   const boost::filesystem::path ADMINLINE_1_SHP = "AdminLine1.shp";
@@ -74,14 +73,15 @@ void AdminBoundariesConverter::addLevel1Boundaries(
     // for some countries the Adminbndy1.shp doesn't contain the whole country
     // border therefore we additionally add the links from AdminLine1.shp
     if (shp_file_exists(dir / ADMINLINE_1_SHP)) {
-      auto adminLine = add_admin_lines(dir / ADMINLINE_1_SHP, writer);
+      auto adminLine =
+          add_admin_lines(dir / ADMINLINE_1_SHP, g_way_end_points_map, writer);
       // merge maps
       for (auto &mapEntry : adminLine) {
         std::ranges::copy(mapEntry.second,
                           std::back_inserter(map[mapEntry.first].first));
       }
     } else if (shp_file_exists(dir / ADMINBNDY_1_SHP)) {
-      add_admin_shape(dir / ADMINBNDY_1_SHP, writer, map);
+      add_admin_shape(dir / ADMINBNDY_1_SHP, g_way_end_points_map, writer, map);
     }
   }
 
@@ -98,7 +98,10 @@ void AdminBoundariesConverter::addLevel1Boundaries(
 }
 
 void AdminBoundariesConverter::add_admin_shape(
-    boost::filesystem::path admin_shape_file, osmium::io::Writer &writer,
+    boost::filesystem::path admin_shape_file,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::io::Writer &writer,
     std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                             std::vector<osmium::unsigned_object_id_type>>>
         &adminLineMap) {
@@ -112,8 +115,8 @@ void AdminBoundariesConverter::add_admin_shape(
   osmium::memory::Buffer way_buffer(BUFFER_SIZE);
   osmium::memory::Buffer rel_buffer(BUFFER_SIZE);
   for (auto &feat : *layer) {
-    process_admin_boundary(feat, node_buffer, way_buffer, rel_buffer,
-                           adminLineMap);
+    process_admin_boundary(feat, g_way_end_points_map, node_buffer, way_buffer,
+                           rel_buffer, adminLineMap);
   }
   writer(std::move(node_buffer));
   writer(std::move(way_buffer));
@@ -122,7 +125,10 @@ void AdminBoundariesConverter::add_admin_shape(
 
 std::map<int, std::vector<osmium::unsigned_object_id_type>>
 AdminBoundariesConverter::add_admin_lines(
-    boost::filesystem::path admin_line_shape_file, osmium::io::Writer &writer) {
+    boost::filesystem::path admin_line_shape_file,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::io::Writer &writer) {
   std::map<int, std::vector<osmium::unsigned_object_id_type>> result;
 
   auto ds = open_shape_file(admin_line_shape_file);
@@ -141,7 +147,8 @@ AdminBoundariesConverter::add_admin_lines(
 
     if (convertedLinkIds.find(std::make_pair(linkId, areaId)) ==
         convertedLinkIds.end()) {
-      auto osmIdVector = build_admin_line(feat, node_buffer, way_buffer);
+      auto osmIdVector =
+          build_admin_line(feat, g_way_end_points_map, node_buffer, way_buffer);
       std::ranges::copy(osmIdVector, std::back_inserter(result[areaId]));
       convertedLinkIds.insert(std::make_pair(linkId, areaId));
     }
@@ -156,8 +163,11 @@ AdminBoundariesConverter::add_admin_lines(
 }
 
 void AdminBoundariesConverter::process_admin_boundary(
-    const OGRFeatureUniquePtr &feat, osmium::memory::Buffer &node_buffer,
-    osmium::memory::Buffer &way_buffer, osmium::memory::Buffer &rel_buffer,
+    const OGRFeatureUniquePtr &feat,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer,
+    osmium::memory::Buffer &rel_buffer,
     std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                             std::vector<osmium::unsigned_object_id_type>>>
         &adminLineMap) {
@@ -167,10 +177,12 @@ void AdminBoundariesConverter::process_admin_boundary(
   std::vector<osmium::unsigned_object_id_type> interior_way_ids;
   if (geom->getGeometryType() == wkbMultiPolygon) {
     create_multi_polygon(static_cast<OGRMultiPolygon *>(geom), exterior_way_ids,
-                         interior_way_ids, node_buffer, way_buffer);
+                         interior_way_ids, g_way_end_points_map, node_buffer,
+                         way_buffer);
   } else if (geom->getGeometryType() == wkbPolygon) {
     create_polygon(static_cast<OGRPolygon *>(geom), exterior_way_ids,
-                   interior_way_ids, node_buffer, way_buffer);
+                   interior_way_ids, g_way_end_points_map, node_buffer,
+                   way_buffer);
   } else {
     throw(std::runtime_error("Adminboundaries with geometry=" +
                              std::string(geom->getGeometryName()) +
@@ -195,13 +207,16 @@ void AdminBoundariesConverter::process_admin_boundary(
 }
 
 std::vector<osmium::unsigned_object_id_type>
-AdminBoundariesConverter::build_admin_line(OGRFeatureUniquePtr &feat,
-                                           osmium::memory::Buffer &node_buffer,
-                                           osmium::memory::Buffer &way_buffer) {
+AdminBoundariesConverter::build_admin_line(
+    OGRFeatureUniquePtr &feat,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
 
   auto line = static_cast<OGRLineString *>(feat->GetGeometryRef());
 
-  auto osm_way_node_ids = create_open_way_nodes(line, node_buffer);
+  auto osm_way_node_ids =
+      create_open_way_nodes(line, g_way_end_points_map, node_buffer);
 
   std::vector<osmium::unsigned_object_id_type> osm_way_ids;
   size_t i = 0;
@@ -246,13 +261,15 @@ AdminBoundariesConverter::build_admin_boundary_relation_with_tags(
   return builder.object().id();
 }
 
-void AdminBoundariesConverter::addLevelNBoundaries(boost::filesystem::path dir,
-                                                   osmium::io::Writer &writer,
-                                                   uint level) {
+void AdminBoundariesConverter::addLevelNBoundaries(
+    boost::filesystem::path dir,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &g_way_end_points_map,
+    osmium::io::Writer &writer, uint level) {
   std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                           std::vector<osmium::unsigned_object_id_type>>>
       map;
-  add_admin_shape(dir, writer, map);
+  add_admin_shape(dir, g_way_end_points_map, writer, map);
 
   // bild boundary relation
   osmium::memory::Buffer rel_buffer(BUFFER_SIZE);
