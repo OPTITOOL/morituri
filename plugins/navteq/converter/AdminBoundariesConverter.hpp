@@ -104,7 +104,6 @@ private:
                                     const OGRFeatureUniquePtr &feat);
 
   static constexpr std::string_view AREA_ID = "AREA_ID";
-  static constexpr std::string_view LINK_ID = "LINK_ID";
 };
 
 #endif // ADMINBOUNDARIESCONVERTER_HPP

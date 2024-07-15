@@ -251,4 +251,62 @@ bool parse_bool(const char *value) {
   return false;
 }
 
+static std::set<short> z_lvl_set = {-4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+void test__z_lvl_range(short z_lvl) {
+  if (z_lvl_set.find(z_lvl) == z_lvl_set.end())
+    throw(out_of_range_exception("z_lvl " + std::to_string(z_lvl) +
+                                 " is not valid"));
+}
+
+void set_ferry_z_lvls_to_zero(OGRFeatureUniquePtr &feat,
+                              index_z_lvl_vector_type &z_lvl_vec) {
+  // erase middle z_lvls
+  if (z_lvl_vec.size() > 2)
+    z_lvl_vec.erase(z_lvl_vec.begin() + 1, z_lvl_vec.end() - 1);
+  // erase first z_lvl if first index references first node
+  if (!z_lvl_vec.empty() && z_lvl_vec.begin()->first != 0)
+    z_lvl_vec.erase(z_lvl_vec.begin());
+  // erase last z_lvl if last index references last node
+  OGRLineString *ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
+  if (!z_lvl_vec.empty() &&
+      (z_lvl_vec.end() - 1)->first != ogr_ls->getNumPoints() - 1)
+    z_lvl_vec.erase(z_lvl_vec.end());
+}
+
+bool is_ferry(const char *value) {
+  if (!strcmp(value, "H"))
+    return false; // H --> not a ferry
+  else if (!strcmp(value, "B"))
+    return true; // T --> boat ferry
+  else if (!strcmp(value, "R"))
+    return true; // B --> rail ferry
+  throw(format_error("value '" + std::string(value) + "' for " +
+                     std::string(FERRY) + " not valid"));
+}
+
+/**
+ * \brief checks if first z_level is more significant than the other or equal.
+ * \param superior first z_level.
+ * \param than second z_level.
+ * \return true if superior is greater or equal than.
+ */
+bool is_superior_or_equal(short superior, short than) {
+  if (abs(superior) >= abs(than))
+    return true;
+  return false;
+}
+
+/* helpers for split_way_by_z_level */
+/**
+ * \brief checks if first z_level is more significant than the other.
+ * \param superior First z_level.
+ * \param than second z_level.
+ * \return true if superior is superior to than.
+ */
+bool is_superior(short superior, short than) {
+  if (abs(superior) > abs(than))
+    return true;
+  return false;
+}
+
 #endif /* UTIL_HPP_ */

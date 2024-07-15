@@ -23,6 +23,7 @@
 #include "converter/LanduseConverter.hpp"
 #include "converter/RailwayConverter.hpp"
 #include "converter/RestAreaConverter.hpp"
+#include "converter/StreetConverter.hpp"
 #include "converter/WaterConverter.hpp"
 
 #include "navteq.hpp"
@@ -38,12 +39,13 @@
 navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
 
-  convetrer.emplace_back(new AdminBoundariesConverter(executable_path));
+  converter.emplace_back(new AdminBoundariesConverter(executable_path));
+  converter.emplace_back(new StreetConverter(executable_path));
   converter.emplace_back(new LanduseConverter(executable_path));
   converter.emplace_back(new CityConverter(executable_path));
   converter.emplace_back(new HamletConverter(executable_path));
   converter.emplace_back(new BuildingConverter(executable_path));
-  converter.emplace_back(new RestAreaConverter(executable_path);
+  converter.emplace_back(new RestAreaConverter(executable_path));
   converter.emplace_back(new RailwayConverter(executable_path));
   converter.emplace_back(new WaterConverter(executable_path));
 }
@@ -66,8 +68,6 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
   if (!shp_file_exists(dir / STREETS_SHP))
     return false;
 
-  if (!dbf_file_exists(dir / MTD_AREA_DBF))
-    return false;
   if (!dbf_file_exists(dir / RDMS_DBF))
     return false;
   if (!dbf_file_exists(dir / CDMS_DBF))
@@ -196,15 +196,6 @@ void navteq_plugin::execute() {
   hdr.set("generator", "osmium");
   hdr.set("xml_josm_upload", "false");
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
-
-  BOOST_LOG_TRIVIAL(info) << "Procesing Meta areas";
-  preprocess_meta_areas(dataDirs);
-
-  BOOST_LOG_TRIVIAL(info) << "Procesing alt street rout types";
-  process_alt_steets_route_types(dataDirs);
-
-  BOOST_LOG_TRIVIAL(info) << "Add street shapes";
-  add_street_shapes(dataDirs, writer);
 
   // run converters
   for (auto &c : converter)

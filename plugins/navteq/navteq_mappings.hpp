@@ -26,19 +26,15 @@ static const boost::filesystem::path POINT_ADDRESS_SHP = "PointAddress.shp";
 static const boost::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";
 
 static const boost::filesystem::path RDMS_DBF = "Rdms.dbf";
-static const boost::filesystem::path CDMS_DBF = "Cdms.dbf";
-static const boost::filesystem::path CND_MOD_DBF = "CndMod.dbf";
-static const boost::filesystem::path ZLEVELS_DBF = "Zlevels.dbf";
+
 static const boost::filesystem::path MAJ_HWYS_DBF = "MajHwys.dbf";
 static const boost::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
 
-static const boost::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
 static const boost::filesystem::path STREETS_DBF = "Streets.dbf";
 
 // STREETS columns
 const char *LINK_ID = "LINK_ID";
 const char *ST_NAME = "ST_NAME";
-const char *ST_NM_BASE = "ST_NM_BASE";
 
 const char *ADDR_TYPE = "ADDR_TYPE";
 const char *L_REFADDR = "L_REFADDR";
@@ -83,24 +79,8 @@ const char *R_AREA_ID = "R_AREA_ID";
 const char *L_POSTCODE = "L_POSTCODE";
 const char *R_POSTCODE = "R_POSTCODE";
 const char *RAMP = "RAMP";
-const char *EXITNAME = "EXITNAME";
-const char *JUNCTIONNM = "JUNCTIONNM";
 
 // const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
-
-// MTD_AREA_DBF columns
-const char *AREA_ID = "AREA_ID";
-const char *LANG_CODE = "LANG_CODE";
-const char *AREA_NAME = "AREA_NAME";
-const char *AREA_CODE_1 = "AREACODE_1";
-const char *ADMIN_LVL = "ADMIN_LVL";
-const char *GOVT_CODE = "GOVT_CODE";
-
-// MTD_CNTRY_REF columns
-const char *UNTMEASURE = "UNTMEASURE";
-// const char* MAX_ADMINLEVEL = "MAX_ADMINLEVEL";
-const char *SPEEDLIMITUNIT = "SPDLIMUNIT";
-const char *ISO_CODE = "ISO_CODE";
 
 // RDMS_DBF columns
 // const char* LINK_ID = "LINK_ID";
@@ -130,15 +110,7 @@ const char *HIGHWAY_NM = "HIGHWAY_NM";
 #define MT_LENGTH_RESTRICTION 44
 #define MT_WIDTH_RESTRICTION 45
 
-// CndMod types (CM)
-const char *CM_MOD_TYPE = "MOD_TYPE";
-const char *CM_MOD_VAL = "MOD_VAL";
-
 #define RESTRICTED_DRIVING_MANOEUVRE 7
-
-// ZLEVELS_DBF columns
-const char *Z_LEVEL = "Z_LEVEL";
-const char *POINT_NUM = "POINT_NUM";
 
 #define YES "yes"
 #define NO "no"

@@ -20,30 +20,6 @@ typedef uint64_t mod_val_type;
 
 typedef std::pair<mod_typ_type, mod_val_type> mod_pair_type;
 
-struct cntry_ref_type {
-  std::string unit_measure;
-  std::string speed_limit_unit;
-  std::string iso_code;
-  cntry_ref_type() {}
-  cntry_ref_type(const std::string &unit_measure,
-                 const std::string &speed_limit_unit,
-                 const std::string &iso_code) {
-    this->unit_measure = unit_measure;
-    this->speed_limit_unit = speed_limit_unit;
-    this->iso_code = iso_code;
-  }
-  bool operator==(cntry_ref_type rhs) {
-    if (this->unit_measure != rhs.unit_measure)
-      return false;
-    if (this->speed_limit_unit != rhs.speed_limit_unit)
-      return false;
-    if (this->iso_code != rhs.iso_code)
-      return false;
-    return true;
-  }
-  bool operator!=(cntry_ref_type rhs) { return !(*this == rhs); }
-};
-
 struct mod_group_type {
   std::string lang_code;
   mod_typ_type mod_type;
@@ -94,6 +70,7 @@ typedef short z_lvl_type;
 
 typedef std::pair<ushort, z_lvl_type> index_z_lvl_pair_type;
 typedef std::vector<index_z_lvl_pair_type> index_z_lvl_vector_type;
+
 // maps navteq link_ids to pairs of <index, z_lvl>
 typedef std::map<link_id_type, index_z_lvl_vector_type> z_lvl_map;
 

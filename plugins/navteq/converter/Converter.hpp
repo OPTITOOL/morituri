@@ -164,6 +164,8 @@ protected:
   static constexpr std::string_view POI_NMTYPE = "POI_NMTYPE";
   static constexpr std::string_view POI_NAME = "POI_NAME";
 
+  static constexpr std::string_view LINK_ID = "LINK_ID";
+
   static constexpr int NAVTEQ_ADMIN_LVL_MIN = 1;
   static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
 
