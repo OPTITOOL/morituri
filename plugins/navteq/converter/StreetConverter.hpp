@@ -119,6 +119,10 @@ private:
       const std::map<uint64_t, std::string> &junctionNames);
 
   void process_way(
+      const std::vector<boost::filesystem::path> &dirs,
+      const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+      osmium::io::Writer &writer);
+  void process_way(
       OGRFeatureUniquePtr &feat,
       const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
       osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer);
@@ -150,6 +154,13 @@ private:
       const std::map<uint64_t, std::map<uint, std::string>> &names_map,
       const std::set<uint64_t> &construction_set, bool debugMode);
 
+  std::map<uint64_t, std::map<uint, std::string>>
+  init_highway_names(const boost::filesystem::path &dir);
+
+  void parse_highway_names(
+      const boost::filesystem::path &dbf_file,
+      std::map<uint64_t, std::map<uint, std::string>> &hwys_ref_map,
+      bool isStreetLayer);
   void add_additional_restrictions(
       osmium::builder::TagListBuilder &builder, uint64_t link_id,
       uint64_t l_area_id, uint64_t r_area_id,
@@ -242,6 +253,8 @@ private:
 
   bool only_pedestrians(const OGRFeatureUniquePtr &f);
 
+  void init_under_construction(const boost::filesystem::path &dir);
+
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";
   static constexpr std::string_view CM_MOD_VAL = "MOD_VAL";
@@ -324,6 +337,10 @@ private:
   static constexpr std::string_view FOOTWAY = "footway";
   static constexpr std::string_view HIGHWAY = "highway";
   static constexpr std::string_view CONSTRUCTION = "construction";
+
+  static constexpr std::string_view HIGHWAY_NM = "HIGHWAY_NM";
+  static constexpr std::string_view ST_NAME = "ST_NAME";
+  static constexpr std::string_view COND_TYPE = "COND_TYPE";
 
   // higway classification
   const std::vector<std::string_view> DEFAULT_HWY_FUNC_TYPE = {

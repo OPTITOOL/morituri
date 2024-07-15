@@ -34,7 +34,6 @@ static const boost::filesystem::path STREETS_DBF = "Streets.dbf";
 
 // STREETS columns
 const char *LINK_ID = "LINK_ID";
-const char *ST_NAME = "ST_NAME";
 
 const char *ADDR_TYPE = "ADDR_TYPE";
 const char *L_REFADDR = "L_REFADDR";
@@ -53,7 +52,7 @@ const char *R_ADDRSCH = "R_ADDRSCH";
 const char *COND_ID = "COND_ID";
 
 // CDMS_DBF columns
-const char *COND_TYPE = "COND_TYPE";
+
 // const char *COND_VAL1 = "COND_VAL1";
 // const char *COND_VAL2 = "COND_VAL2";
 // const char *COND_VAL3 = "COND_VAL3";
@@ -61,7 +60,6 @@ const char *COND_TYPE = "COND_TYPE";
 
 // MAJ_HWYS columns
 // const char* LINK_ID = "LINK_ID";
-const char *HIGHWAY_NM = "HIGHWAY_NM";
 
 // condition types (CT)
 #define CT_RESTRICTED_DRIVING_MANOEUVRE 7

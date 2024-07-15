@@ -154,7 +154,7 @@ void StreetConverter::init_g_cnd_mod_map(const boost::filesystem::path &dir) {
   const boost::filesystem::path CND_MOD_DBF = "CndMod.dbf";
   DBFHandle cnd_mod_handle = read_dbf_file(dir / CND_MOD_DBF);
   for (int i = 0; i < DBFGetRecordCount(cnd_mod_handle); i++) {
-    uint64_t cond_id = dbf_get_uint_by_field(cnd_mod_handle, i, COND_ID);
+    uint64_t cond_id = dbf_get_uint_by_field(cnd_mod_handle, i, COND_ID.data());
     std::string lang_code =
         dbf_get_string_by_field(cnd_mod_handle, i, LANG_CODE.data());
     uint64_t mod_type =
@@ -373,6 +373,91 @@ void StreetConverter::parse_ramp_names(
       }
     }
   }
+}
+
+void StreetConverter::process_way(
+    const std::vector<boost::filesystem::path> &dirs,
+    const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+    osmium::io::Writer &writer) {
+  for (auto &dir : dirs) {
+    // parse highway names and refs
+    auto hwys_ref_map = init_highway_names(dir);
+
+    // parse conditionals
+    init_under_construction(dir);
+
+    auto path = dir / STREETS_SHP;
+    auto ds = open_shape_file(path);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(path.string()));
+
+    osmium::memory::Buffer node_buffer(BUFFER_SIZE);
+    osmium::memory::Buffer way_buffer(BUFFER_SIZE);
+    for (auto &feat : *layer) {
+      process_way(feat, z_level_map, node_buffer, way_buffer);
+    }
+
+    node_buffer.commit();
+    way_buffer.commit();
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+
+    g_hwys_ref_map.clear();
+  }
+}
+
+std::map<uint64_t, std::map<uint, std::string>>
+StreetConverter::init_highway_names(const boost::filesystem::path &dir) {
+  std::map<uint64_t, std::map<uint, std::string>> hwys_ref_map;
+  if (dbf_file_exists(dir / MAJ_HWYS_DBF))
+    parse_highway_names(dir / MAJ_HWYS_DBF, hwys_ref_map, false);
+  if (dbf_file_exists(dir / SEC_HWYS_DBF))
+    parse_highway_names(dir / SEC_HWYS_DBF, hwys_ref_map, false);
+  if (dbf_file_exists(dir / ALT_STREETS_DBF))
+    parse_highway_names(dir / ALT_STREETS_DBF, hwys_ref_map, true);
+  if (dbf_file_exists(dir / STREETS_DBF))
+    parse_highway_names(dir / STREETS_DBF, hwys_ref_map, true);
+
+  return hwys_ref_map;
+}
+
+void StreetConverter::parse_highway_names(
+    const boost::filesystem::path &dbf_file,
+    std::map<uint64_t, std::map<uint, std::string>> &hwys_ref_map,
+    bool isStreetLayer) {
+  DBFHandle hwys_handle = read_dbf_file(dbf_file);
+  for (int i = 0; i < DBFGetRecordCount(hwys_handle); i++) {
+
+    uint64_t link_id = dbf_get_uint_by_field(hwys_handle, i, LINK_ID.data());
+    std::string hwy_name;
+    if (isStreetLayer)
+      hwy_name = dbf_get_string_by_field(hwys_handle, i, ST_NAME.data());
+    else
+      hwy_name = dbf_get_string_by_field(hwys_handle, i, HIGHWAY_NM.data());
+
+    uint routeType = dbf_get_uint_by_field(hwys_handle, i, ROUTE.data());
+
+    hwys_ref_map[link_id].emplace(routeType, hwy_name);
+  }
+  DBFClose(hwys_handle);
+}
+
+void StreetConverter::init_under_construction(
+    const boost::filesystem::path &dir) {
+  if (!dbf_file_exists(dir / CDMS_DBF))
+    return;
+
+  DBFHandle cond = read_dbf_file(dir / CDMS_DBF);
+  for (int i = 0; i < DBFGetRecordCount(cond); i++) {
+    uint64_t link_id = dbf_get_uint_by_field(cond, i, LINK_ID);
+    uint condType = dbf_get_uint_by_field(cond, i, COND_TYPE);
+
+    if (condType == 3)
+      g_construction_set.emplace(link_id);
+  }
+  DBFClose(cond);
 }
 
 void StreetConverter::process_way(
