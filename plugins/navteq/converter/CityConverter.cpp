@@ -44,14 +44,9 @@ void CityConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void CityConverter::add_city_shape(std::filesystem::path city_shape_file,
                                    osmium::io::Writer &writer) {
 
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(city_shape_file.c_str()));
-  if (!ds) {
-    BOOST_LOG_TRIVIAL(debug) << "No city shp found in " << city_shape_file;
-    return;
-  }
-  auto layer = ds->GetLayer(0);
+  auto layer = openDataSource(city_shape_file).value_or(nullptr);
   if (!layer)
-    throw(shp_empty_error(city_shape_file.string()));
+    return;
 
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
 

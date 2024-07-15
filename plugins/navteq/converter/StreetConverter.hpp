@@ -298,12 +298,6 @@ private:
   static constexpr std::string_view Z_LEVEL = "Z_LEVEL";
   static constexpr std::string_view POINT_NUM = "POINT_NUM";
 
-  // MTD_AREA_DBF columns
-  static constexpr std::string_view AREA_ID = "AREA_ID";
-  static constexpr std::string_view LANG_CODE = "LANG_CODE";
-  static constexpr std::string_view AREA_NAME = "AREA_NAME";
-  static constexpr std::string_view AREA_CODE_1 = "AREACODE_1";
-  static constexpr std::string_view ADMIN_LVL = "ADMIN_LVL";
   static constexpr std::string_view GOVT_CODE = "GOVT_CODE";
 
   // RDMS_DBF columns
@@ -318,9 +312,6 @@ private:
   // const char* MAX_ADMINLEVEL = "MAX_ADMINLEVEL";
   static constexpr std::string_view SPEEDLIMITUNIT = "SPDLIMUNIT";
   static constexpr std::string_view ISO_CODE = "ISO_CODE";
-
-  static constexpr std::string_view L_AREA_ID = "L_AREA_ID";
-  static constexpr std::string_view R_AREA_ID = "R_AREA_ID";
 
   static constexpr std::string_view ROUTE = "ROUTE_TYPE";
   static constexpr std::string_view FUNC_CLASS = "FUNC_CLASS";

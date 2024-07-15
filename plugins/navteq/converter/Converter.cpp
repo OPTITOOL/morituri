@@ -9,6 +9,7 @@
 #include <osmium/osm/types.hpp>
 
 #include "../../comm2osm_exceptions.hpp"
+#include "../../util.hpp"
 
 osmium::unsigned_object_id_type Converter::g_osm_id = 1;
 
@@ -301,12 +302,13 @@ Converter::process_meta_areas(std::filesystem::path dir) {
 
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area_map;
 
-  DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
+  auto layer = openDataSource(dir / MTD_AREA_DBF).or_else([]() -> OGRLayer * {
+    throw(std::runtime_error("could not open MtdArea.dbf"));
+  });
 
-  for (int i = 0; i < DBFGetRecordCount(handle); i++) {
-
+  for (auto &feat : *layer) {
     osmium::unsigned_object_id_type area_id =
-        dbf_get_uint_by_field(handle, i, AREA_ID);
+        get_uint_from_feature(feat, AREA_ID);
 
     // find or create a new area data set
     mtd_area_dataset &data = mtd_area_map[area_id];
@@ -314,7 +316,7 @@ Converter::process_meta_areas(std::filesystem::path dir) {
     data.area_id = area_id;
 
     std::string admin_lvl =
-        std::to_string(dbf_get_uint_by_field(handle, i, ADMIN_LVL));
+        std::to_string(get_uint_from_feature(feat, ADMIN_LVL));
     if (data.admin_lvl.empty()) {
       data.admin_lvl = admin_lvl;
     } else if (data.admin_lvl != admin_lvl) {
@@ -323,24 +325,23 @@ Converter::process_meta_areas(std::filesystem::path dir) {
           << " has multiple admin_lvls:" << data.admin_lvl << ", " << admin_lvl;
     }
 
-    std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
-    std::string area_name = dbf_get_string_by_field(handle, i, AREA_NAME);
+    std::string lang_code = get_field_from_feature(feat, LANG_CODE);
+    std::string area_name = get_field_from_feature(feat, AREA_NAME);
 
-    std::string area_type = dbf_get_string_by_field(handle, i, "AREA_TYPE");
+    std::string area_type = get_field_from_feature(feat, "AREA_TYPE");
     if (area_type == "B") {
       data.name = to_camel_case_with_spaces(area_name);
       data.lang_code_2_area_name.emplace_back(
           lang_code, to_camel_case_with_spaces(area_name));
-      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
+      data.area_code_1 = get_uint_from_feature(feat, AREA_CODE_1);
     } else if (area_type == "A") {
       data.short_name = to_camel_case_with_spaces(area_name);
     } else {
       data.lang_code_2_area_name.emplace_back(
           lang_code, to_camel_case_with_spaces(area_name));
-      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
+      data.area_code_1 = get_uint_from_feature(feat, AREA_CODE_1);
     }
   }
-  DBFClose(handle);
   return mtd_area_map;
 }
 
@@ -369,4 +370,18 @@ uint Converter::get_area_code_l(
   uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
 
   return get_area_code_l(l_area_id, r_area_id, mtd_area_map);
+}
+
+std::optional<OGRLayer *>
+openDataSource(const std::filesystem::path &shape_file) {
+  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(shape_file.c_str()));
+  if (!ds) {
+    BOOST_LOG_TRIVIAL(debug) << "No shp found in " << shape_file;
+    return std::nullopt;
+  }
+  auto layer = ds->GetLayer(0);
+  if (!layer)
+    throw(shp_empty_error(shape_file.string()));
+
+  return std::optional(layer);
 }

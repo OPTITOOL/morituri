@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <map>
 #include <ogrsf_frmts.h>
+#include <optional>
 #include <osmium/osm/types.hpp>
 #include <string_view>
 #include <vector>
@@ -142,6 +143,9 @@ protected:
 
   std::string parse_lang_code(std::string lang_code);
 
+  std::optional<OGRLayer *>
+  openDataSource(const std::filesystem::path &shape_file);
+
   static constexpr int BUFFER_SIZE = 10 * 1000 * 1000;
 
   static constexpr int OSM_MAX_WAY_NODES = 1000;
@@ -165,6 +169,15 @@ protected:
   static constexpr std::string_view POI_NAME = "POI_NAME";
 
   static constexpr std::string_view LINK_ID = "LINK_ID";
+
+  // MTD_AREA_DBF columns
+  static constexpr std::string_view LANG_CODE = "LANG_CODE";
+  static constexpr std::string_view AREA_NAME = "AREA_NAME";
+  static constexpr std::string_view AREA_CODE_1 = "AREACODE_1";
+  static constexpr std::string_view L_AREA_ID = "L_AREA_ID";
+  static constexpr std::string_view R_AREA_ID = "R_AREA_ID";
+  static constexpr std::string_view ADMIN_LVL = "ADMIN_LVL";
+  static constexpr std::string_view AREA_ID = "AREA_ID";
 
   static constexpr int NAVTEQ_ADMIN_LVL_MIN = 1;
   static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
