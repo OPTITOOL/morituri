@@ -24,7 +24,7 @@ static const boost::filesystem::path ADMINBNDY_5_SHP = "Adminbndy5.shp";
 static const boost::filesystem::path POINT_ADDRESS_SHP = "PointAddress.shp";
 
 static const boost::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";
-static const boost::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
+
 static const boost::filesystem::path RDMS_DBF = "Rdms.dbf";
 static const boost::filesystem::path CDMS_DBF = "Cdms.dbf";
 static const boost::filesystem::path CND_MOD_DBF = "CndMod.dbf";
@@ -116,10 +116,6 @@ const char *COND_TYPE = "COND_TYPE";
 // MAJ_HWYS columns
 // const char* LINK_ID = "LINK_ID";
 const char *HIGHWAY_NM = "HIGHWAY_NM";
-
-// WaterSeg and WaterPoly columns
-const char *POLYGON_NM = "POLYGON_NM";
-const char *FEAT_COD = "FEAT_COD";
 
 // condition types (CT)
 #define CT_RESTRICTED_DRIVING_MANOEUVRE 7

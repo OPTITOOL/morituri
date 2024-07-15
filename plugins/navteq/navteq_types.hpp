@@ -63,25 +63,6 @@ typedef std::map<govt_code_type, cntry_ref_type> cntry_ref_map_type;
 
 typedef std::map<area_id_type, std::string> admin_bndy_map_type;
 
-// data structure to store admin boundary tags
-struct mtd_area_dataset {
-  osmium::unsigned_object_id_type area_id;
-  std::string admin_lvl;
-  uint area_code_1;
-  std::string name;
-  std::string short_name;
-  std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
-
-  void print() {
-    std::cout << "area_id=" << area_id;
-    std::cout << ", admin_lvl=" << admin_lvl;
-    std::cout << std::endl;
-  }
-};
-
-typedef std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
-    mtd_area_map_type;
-
 typedef uint64_t link_id_type;
 
 // vector of osm_ids

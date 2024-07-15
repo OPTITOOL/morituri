@@ -114,6 +114,16 @@ protected:
 
   std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int);
 
+  void process_meta_areas(boost::filesystem::path dir);
+
+  uint get_area_code_l(uint64_t l_area_id, uint64_t r_area_id,
+                       const std::map<osmium::unsigned_object_id_type,
+                                      mtd_area_dataset> &mtd_area_map);
+
+  uint get_area_code_l(const OGRFeatureUniquePtr &f,
+                       const std::map<osmium::unsigned_object_id_type,
+                                      mtd_area_dataset> &mtd_area_map);
+
   static constexpr int BUFFER_SIZE = 10 * 1000 * 1000;
 
   static constexpr int OSM_MAX_WAY_NODES = 1000;
@@ -138,6 +148,16 @@ protected:
 
   static constexpr int NAVTEQ_ADMIN_LVL_MIN = 1;
   static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
+
+  // data structure to store admin boundary tags
+  struct mtd_area_dataset {
+    osmium::unsigned_object_id_type area_id;
+    std::string admin_lvl;
+    uint area_code_1;
+    std::string name;
+    std::string short_name;
+    std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
+  };
 };
 
 #endif // CONVERTER_HPP

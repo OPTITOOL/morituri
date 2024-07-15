@@ -27,9 +27,6 @@ private:
   void recurse_dir(const boost::filesystem::path &dir);
   bool check_files(const boost::filesystem::path &dir);
   void write_output();
-  void add_administrative_boundaries(
-      const std::vector<boost::filesystem::path> &dirs,
-      osmium::io::Writer &writer);
 
   void sortPBF();
   void copyType(osmium::io::Writer &writer, osmium::io::File &file,

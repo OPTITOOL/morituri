@@ -72,29 +72,6 @@ bool is_motorized_allowed(OGRFeatureUniquePtr &f) {
   return false;
 }
 
-uint get_area_code_l(area_id_type l_area_id, area_id_type r_area_id,
-                     mtd_area_map_type *mtd_area_map) {
-
-  auto l_area = mtd_area_map->find(l_area_id);
-  if (l_area != mtd_area_map->end())
-    return l_area->second.area_code_1;
-
-  auto r_area = mtd_area_map->find(r_area_id);
-  if (r_area != mtd_area_map->end())
-    return r_area->second.area_code_1;
-
-  throw(out_of_range_exception("could not find area_id " +
-                               std::to_string(++ctr) + ", " +
-                               std::to_string(mtd_area_map->size())));
-}
-
-uint get_area_code_l(OGRFeatureUniquePtr &f, mtd_area_map_type *mtd_area_map) {
-  area_id_type l_area_id = get_uint_from_feature(f, L_AREA_ID);
-  area_id_type r_area_id = get_uint_from_feature(f, R_AREA_ID);
-
-  return get_area_code_l(l_area_id, r_area_id, mtd_area_map);
-}
-
 std::vector<std::string>
 get_hwy_vector(const std::map<int, std::vector<std::string>> &HWY_TYPE_MAP,
                uint area_code_1) {

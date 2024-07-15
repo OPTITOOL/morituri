@@ -186,31 +186,6 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
 
 void navteq_plugin::write_output() {}
 
-void navteq_plugin::add_administrative_boundaries(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
-  // todo admin-levels only apply to the US => more generic for all countries
-
-  g_way_end_points_map.clear();
-  addLevel1Boundaries(dirs, writer);
-
-  for (auto dir : dirs) {
-    if (shp_file_exists(dir / ADMINBNDY_2_SHP))
-      addLevelNBoundaries(dir / ADMINBNDY_2_SHP, writer, 2);
-    if (shp_file_exists(dir / ADMINBNDY_3_SHP))
-      addLevelNBoundaries(dir / ADMINBNDY_3_SHP, writer, 3);
-    if (shp_file_exists(dir / ADMINBNDY_4_SHP))
-      addLevelNBoundaries(dir / ADMINBNDY_4_SHP, writer, 4);
-    if (shp_file_exists(dir / ADMINBNDY_5_SHP))
-      addLevelNBoundaries(dir / ADMINBNDY_5_SHP, writer, 5);
-  }
-
-  // build relations for the admin line
-  g_mtd_area_map.clear();
-
-  g_way_end_points_map.clear();
-}
-
 void navteq_plugin::execute() {
   if (output_path.empty())
     throw std::exception();
@@ -230,9 +205,6 @@ void navteq_plugin::execute() {
 
   BOOST_LOG_TRIVIAL(info) << "Add street shapes";
   add_street_shapes(dataDirs, writer);
-
-  BOOST_LOG_TRIVIAL(info) << "Add administrative boundaries";
-  add_administrative_boundaries(dataDirs, writer);
 
   // run converters
   for (auto &c : converter)

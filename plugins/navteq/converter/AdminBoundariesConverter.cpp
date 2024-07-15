@@ -41,7 +41,9 @@ void AdminBoundariesConverter::convert(
   const boost::filesystem::path ADMINBNDY_4_SHP = "Adminbndy4.shp";
   const boost::filesystem::path ADMINBNDY_5_SHP = "Adminbndy5.shp";
 
-  g_way_end_points_map.clear();
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+      g_way_end_points_map;
+
   addLevel1Boundaries(dirs, writer);
 
   for (auto dir : dirs) {
@@ -53,8 +55,6 @@ void AdminBoundariesConverter::convert(
 
   // build relations for the admin line
   g_mtd_area_map.clear();
-
-  g_way_end_points_map.clear();
 }
 
 void AdminBoundariesConverter::addLevel1Boundaries(

@@ -858,62 +858,6 @@ void create_multi_polygon(OGRMultiPolygon *mp,
   }
 }
 
-/**
- * \brief adds tags from administrative boundaries to mtd_area_map.
- * 		  adds tags from administrative boundaries to mtd_area_map
- * 		  to be accesible when creating the Relations of
- * 		  administrative boundaries.
- * \param handle file handle to navteq administrative meta data.
- */
-void process_meta_areas(boost::filesystem::path dir) {
-  DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
-
-  for (int i = 0; i < DBFGetRecordCount(handle); i++) {
-
-    osmium::unsigned_object_id_type area_id =
-        dbf_get_uint_by_field(handle, i, AREA_ID);
-
-    // find or create a new area data set
-    mtd_area_dataset &data = g_mtd_area_map[area_id];
-
-    data.area_id = area_id;
-
-    std::string admin_lvl =
-        std::to_string(dbf_get_uint_by_field(handle, i, ADMIN_LVL));
-    if (data.admin_lvl.empty()) {
-      data.admin_lvl = admin_lvl;
-    } else if (data.admin_lvl != admin_lvl) {
-      BOOST_LOG_TRIVIAL(error)
-          << "entry with area_id=" << area_id
-          << " has multiple admin_lvls:" << data.admin_lvl << ", " << admin_lvl;
-    }
-
-    std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
-    std::string area_name = dbf_get_string_by_field(handle, i, AREA_NAME);
-
-    std::string area_type = dbf_get_string_by_field(handle, i, "AREA_TYPE");
-    if (area_type == "B") {
-      data.name = to_camel_case_with_spaces(area_name);
-      data.lang_code_2_area_name.emplace_back(
-          lang_code, to_camel_case_with_spaces(area_name));
-      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
-    } else if (area_type == "A") {
-      data.short_name = to_camel_case_with_spaces(area_name);
-    } else {
-      data.lang_code_2_area_name.emplace_back(
-          lang_code, to_camel_case_with_spaces(area_name));
-      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
-    }
-  }
-  DBFClose(handle);
-}
-
-void preprocess_meta_areas(const std::vector<boost::filesystem::path> &dirs) {
-  for (auto dir : dirs) {
-    process_meta_areas(dir);
-  }
-}
-
 void init_cdms_map(
     DBFHandle cdms_handle,
     std::map<osmium::unsigned_object_id_type, ushort> &cdms_map) {

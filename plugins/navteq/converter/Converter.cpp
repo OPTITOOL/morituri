@@ -241,3 +241,76 @@ std::string Converter::navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
 
   return std::to_string(2 * navteq_admin_lvl_int);
 }
+
+void Converter::process_meta_areas(boost::filesystem::path dir) {
+  const boost::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
+
+  DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
+
+  for (int i = 0; i < DBFGetRecordCount(handle); i++) {
+
+    osmium::unsigned_object_id_type area_id =
+        dbf_get_uint_by_field(handle, i, AREA_ID);
+
+    // find or create a new area data set
+    mtd_area_dataset &data = g_mtd_area_map[area_id];
+
+    data.area_id = area_id;
+
+    std::string admin_lvl =
+        std::to_string(dbf_get_uint_by_field(handle, i, ADMIN_LVL));
+    if (data.admin_lvl.empty()) {
+      data.admin_lvl = admin_lvl;
+    } else if (data.admin_lvl != admin_lvl) {
+      BOOST_LOG_TRIVIAL(error)
+          << "entry with area_id=" << area_id
+          << " has multiple admin_lvls:" << data.admin_lvl << ", " << admin_lvl;
+    }
+
+    std::string lang_code = dbf_get_string_by_field(handle, i, LANG_CODE);
+    std::string area_name = dbf_get_string_by_field(handle, i, AREA_NAME);
+
+    std::string area_type = dbf_get_string_by_field(handle, i, "AREA_TYPE");
+    if (area_type == "B") {
+      data.name = to_camel_case_with_spaces(area_name);
+      data.lang_code_2_area_name.emplace_back(
+          lang_code, to_camel_case_with_spaces(area_name));
+      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
+    } else if (area_type == "A") {
+      data.short_name = to_camel_case_with_spaces(area_name);
+    } else {
+      data.lang_code_2_area_name.emplace_back(
+          lang_code, to_camel_case_with_spaces(area_name));
+      data.area_code_1 = dbf_get_uint_by_field(handle, i, AREA_CODE_1);
+    }
+  }
+  DBFClose(handle);
+}
+
+uint Converter::get_area_code_l(
+    uint64_t l_area_id, uint64_t r_area_id,
+    const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+        &mtd_area_map) {
+
+  auto l_area = mtd_area_map.find(l_area_id);
+  if (l_area != mtd_area_map.end())
+    return l_area->second.area_code_1;
+
+  auto r_area = mtd_area_map.find(r_area_id);
+  if (r_area != mtd_area_map.end())
+    return r_area->second.area_code_1;
+
+  throw(out_of_range_exception("could not find area_id " +
+                               std::to_string(++ctr) + ", " +
+                               std::to_string(mtd_area_map.size())));
+}
+
+uint Converter::get_area_code_l(
+    const OGRFeatureUniquePtr &f,
+    const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+        &mtd_area_map) {
+  uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID);
+  uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
+
+  return get_area_code_l(l_area_id, r_area_id, mtd_area_map);
+}
