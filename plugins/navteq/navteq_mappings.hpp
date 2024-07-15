@@ -32,24 +32,6 @@ static const boost::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
 
 static const boost::filesystem::path STREETS_DBF = "Streets.dbf";
 
-// const char *R_ADDRFORM = "R_ADDRFORM";
-
-// const char *AREA_NAME_LANG_CODE = "NM_LANGCD";
-
-// RDMS_DBF columns
-// const char* LINK_ID = "LINK_ID";
-const char *COND_ID = "COND_ID";
-
-// CDMS_DBF columns
-
-// const char *COND_VAL1 = "COND_VAL1";
-// const char *COND_VAL2 = "COND_VAL2";
-// const char *COND_VAL3 = "COND_VAL3";
-// const char *COND_VAL4 = "COND_VAL4";
-
-// MAJ_HWYS columns
-// const char* LINK_ID = "LINK_ID";
-
 // condition types (CT)
 #define CT_RESTRICTED_DRIVING_MANOEUVRE 7
 #define CT_TRANSPORT_ACCESS_RESTRICTION 23
@@ -65,20 +47,6 @@ const char *COND_ID = "COND_ID";
 
 #define RESTRICTED_DRIVING_MANOEUVRE 7
 
-#define YES "yes"
-#define NO "no"
-
-#define NAVTEQ_ADMIN_LVL_MIN 1
-#define NAVTEQ_ADMIN_LVL_MAX 7
-
-#define OSM_MAX_WAY_NODES 1000
-
-// default tags for osm nodes ways and relations
-#define USER "import"
-#define VERSION "1"
-#define CHANGESET "1"
-#define USERID "1"
-#define TIMESTAMP 1
 } // namespace
 
 #endif /* PLUGINS_NAVTEQ_MAPPINGS_HPP_ */

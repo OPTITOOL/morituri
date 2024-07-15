@@ -10,7 +10,6 @@
 
 #include "../base_plugin.hpp"
 #include "converter/Converter.hpp"
-#include "navteq_types.hpp"
 #include <boost/filesystem/path.hpp>
 #include <osmium/osm/entity_bits.hpp>
 #include <string>
@@ -40,8 +39,7 @@ private:
 
   std::vector<std::string> countriesToConvert;
   std::set<std::string> foundCountries;
-
-  bool checkCountryCode(const boost::filesystem::path &dir);
+  bool debug;
 
 public:
   navteq_plugin(const boost::filesystem::path &executable_path);

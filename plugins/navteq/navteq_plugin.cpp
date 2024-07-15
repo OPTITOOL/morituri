@@ -26,9 +26,8 @@
 #include "converter/StreetConverter.hpp"
 #include "converter/WaterConverter.hpp"
 
-#include "navteq.hpp"
+#include "../comm2osm_exceptions.hpp"
 #include "navteq_plugin.hpp"
-#include "navteq_util.hpp"
 
 /*
 
@@ -65,67 +64,16 @@ bool navteq_plugin::is_valid_format(std::string filename) {
 }
 
 bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
-  if (!shp_file_exists(dir / STREETS_SHP))
-    return false;
 
-  if (!dbf_file_exists(dir / RDMS_DBF))
-    return false;
-  if (!dbf_file_exists(dir / CDMS_DBF))
-    return false;
-  if (!dbf_file_exists(dir / ZLEVELS_DBF))
-    return false;
-  if (!dbf_file_exists(dir / MAJ_HWYS_DBF))
-    return false;
-  if (!dbf_file_exists(dir / SEC_HWYS_DBF))
-    return false;
-  if (!dbf_file_exists(dir / ALT_STREETS_DBF))
-    return false;
-  if (!shp_file_exists(dir / POINT_ADDRESS_SHP))
-    BOOST_LOG_TRIVIAL(warning) << "  point addresses are missing";
+  // check if the directory contains HERE data
 
-  if (!shp_file_exists(dir / ADMINBNDY_1_SHP))
-    BOOST_LOG_TRIVIAL(warning)
-        << "  administrative boundaries level 1 are missing";
-  if (!shp_file_exists(dir / ADMINBNDY_2_SHP))
-    BOOST_LOG_TRIVIAL(warning)
-        << "  administrative boundaries level 2 are missing";
+  // checck if the PROD.csv file exists
 
-  boost::filesystem::path bbCheckFile;
+  // check HERE-Contrycodes
 
-  if (!shp_file_exists(dir / ADMINBNDY_3_SHP)) {
-    BOOST_LOG_TRIVIAL(warning)
-        << "  administrative boundaries level 3 are missing";
-  } else {
-    bbCheckFile = dir / ADMINBNDY_3_SHP;
-  }
+  // if there is a tar.gz --> use vsitar to extract the files
 
-  if (!shp_file_exists(dir / ADMINBNDY_4_SHP)) {
-    BOOST_LOG_TRIVIAL(warning)
-        << "  administrative boundaries level 4 are missing";
-  } else {
-    bbCheckFile = dir / ADMINBNDY_4_SHP;
-  }
-
-  if (!shp_file_exists(dir / ADMINBNDY_5_SHP)) {
-    BOOST_LOG_TRIVIAL(warning)
-        << "  administrative boundaries level 5 are missing";
-  } else {
-    bbCheckFile = dir / ADMINBNDY_5_SHP;
-  }
-
-  if (!shp_file_exists(dir / ADMINLINE_1_SHP))
-    BOOST_LOG_TRIVIAL(warning) << "  administrative lines level 1 are missing";
-
-  // check boundingbox
-  if (!checkInBoundingBox(boundingBox, bbCheckFile)) {
-    BOOST_LOG_TRIVIAL(warning) << dir.string() << " out of boundingbox";
-    return false;
-  }
-
-  if (!checkCountryCode(dir)) {
-    BOOST_LOG_TRIVIAL(info) << dir.string() << " skip country";
-    return false;
-  }
+  // otherwise check id there are unpacked files
 
   return true;
 }
@@ -257,26 +205,4 @@ void navteq_plugin::setCountries(const std::vector<std::string> &countries) {
   countriesToConvert = countries;
 }
 
-bool navteq_plugin::checkCountryCode(const boost::filesystem::path &dir) {
-  DBFHandle handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF);
-
-  if (countriesToConvert.empty())
-    return true;
-
-  for (int i = 0; i < DBFGetRecordCount(handle); i++) {
-    std::string countryCode = dbf_get_string_by_field(handle, i, ISO_CODE);
-
-    foundCountries.insert(countryCode);
-    auto found = std::find(countriesToConvert.cbegin(),
-                           countriesToConvert.cend(), countryCode);
-    if (found != countriesToConvert.end()) {
-      DBFClose(handle);
-      return true;
-    }
-  }
-  DBFClose(handle);
-
-  return false;
-}
-
-void navteq_plugin::setDebug(bool debug) { debugMode = debug; }
+void navteq_plugin::setDebug(bool _debug) { debug = _debug; }
