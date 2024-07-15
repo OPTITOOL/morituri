@@ -498,15 +498,19 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
 
 uint64_t StreetConverter::parse_street_tags(
     osmium::builder::TagListBuilder *builder, OGRFeatureUniquePtr &f,
-    cdms_map_type *cdms_map, cnd_mod_map_type *cnd_mod_map,
-    area_id_govt_code_map_type *area_govt_map, cntry_ref_map_type *cntry_map,
-    mtd_area_map_type *mtd_area_map, link_id_route_type_map *route_type_map,
-    link_id_to_names_map *names_map,
-    const std::set<link_id_type> &construction_set, bool debugMode);
-{
+    const std::multimap<uint64_t, cond_type> &cdms_map,
+    const std::unordered_map<uint64_t, std::vector<mod_group_type>>
+        &cnd_mod_map,
+    const std::map<uint64_t, uint64_t> &area_govt_map,
+    const std::map<uint64_t, cntry_ref_type> &cntry_map,
+    const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+        mtd_area_map,
+    const std::map<uint64_t, ushort> &route_type_map,
+    const std::map<uint64_t, std::map<uint, std::string>> &names_map,
+    const std::set<uint64_t> &construction_set, bool debugMode) {
 
-  const char *link_id_s = get_field_from_feature(f, LINK_ID);
-  link_id_type link_id = std::stoul(link_id_s);
+  const char *link_id_s = get_field_from_feature(f, LINK_ID.data());
+  uint64_t link_id = std::stoul(link_id_s);
 
   bool ramp = parse_bool(get_field_from_feature(f, RAMP));
 
@@ -514,8 +518,8 @@ uint64_t StreetConverter::parse_street_tags(
   if (!((std::string)get_field_from_feature(f, ROUTE)).empty())
     route_type = get_uint_from_feature(f, ROUTE);
 
-  auto routeTypeIter = route_type_map->find(link_id);
-  if (routeTypeIter != route_type_map->end() &&
+  auto routeTypeIter = route_type_map.find(link_id);
+  if (routeTypeIter != route_type_map.end() &&
       (!route_type || routeTypeIter->second < route_type))
     route_type = routeTypeIter->second;
 
@@ -533,8 +537,8 @@ uint64_t StreetConverter::parse_street_tags(
                      underConstruction);
   }
 
-  uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID);
-  uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
+  uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID.data());
+  uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID.data());
   // tags which apply to highways and ferry routes
   add_additional_restrictions(builder, link_id, l_area_id, r_area_id, cdms_map,
                               cnd_mod_map, area_govt_map, cntry_map,
@@ -564,32 +568,37 @@ uint64_t StreetConverter::parse_street_tags(
 
 void StreetConverter::add_additional_restrictions(
     osmium::builder::TagListBuilder *builder, uint64_t link_id,
-    uint64_t l_area_id, uint64_t r_area_id, cdms_map_type *cdms_map,
-    cnd_mod_map_type *cnd_mod_map, area_id_govt_code_map_type *area_govt_map,
-    cntry_ref_map_type *cntry_map, mtd_area_map_type *mtd_area_map) {
-  if (!cdms_map || !cnd_mod_map)
+    uint64_t l_area_id, uint64_t r_area_id,
+    const std::multimap<uint64_t, cond_type> &cdms_map,
+    const std::unordered_map<uint64_t, std::vector<mod_group_type>>
+        &cnd_mod_map,
+    const std::map<uint64_t, uint64_t> &area_govt_map,
+    const std::map<uint64_t, cntry_ref_type> &cntry_map,
+    const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+        &mtd_area_map) {
+  if (cdms_map.empty() || cnd_mod_map.empty())
     return;
 
   // default is metric units
-  bool imperial_units = false;
-  if (area_govt_map && cntry_map) {
-    imperial_units =
-        is_imperial(l_area_id, r_area_id, area_govt_map, cntry_map);
-  }
+  bool imperial_units =
+      is_imperial(l_area_id, r_area_id, area_govt_map, cntry_map);
 
-  uint64_t max_height = 0, max_width = 0, max_length = 0, max_weight = 0,
-           max_axleload = 0;
+  uint64_t max_height = 0;
+  uint64_t max_width = 0;
+  uint64_t max_length = 0;
+  uint64_t max_weight = 0;
+  uint64_t max_axleload = 0;
 
   std::vector<mod_group_type> mod_group_vector;
-  auto range = cdms_map->equal_range(link_id);
+  auto range = cdms_map.equal_range(link_id);
   for (auto it = range.first; it != range.second; ++it) {
-    cond_pair_type cond = it->second;
-    if (cond.second == CT_RESTRICTED_DRIVING_MANOEUVRE ||
-        cond.second == CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE)
+    auto cond = it->second;
+    if (cond.cond_type_type == CT_RESTRICTED_DRIVING_MANOEUVRE ||
+        cond.cond_type_type == CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE)
       continue; // TODO RESTRICTED_DRIVING_MANOEUVRE should apply as
                 // conditional turn restriction but not for current link id
-    auto it2 = cnd_mod_map->find(cond.first);
-    if (it2 != cnd_mod_map->end()) {
+    auto it2 = cnd_mod_map.find(cond.cond_id_type);
+    if (it2 != cnd_mod_map.end()) {
       for (auto mod_group : it2->second) {
         mod_group_vector.push_back(mod_group);
       }
@@ -803,4 +812,32 @@ ushort StreetConverter::create_continuing_sub_ways(
     }
   }
   return start_index;
+}
+
+bool StreetConverter::is_imperial(
+    uint64_t l_area_id, uint64_t r_area_id,
+    const std::map<uint64_t, uint64_t> &area_govt_map,
+    const std::map<uint64_t, cntry_ref_type> &cntry_map) {
+  if (is_imperial(l_area_id, area_govt_map, cntry_map))
+    return true;
+  if (is_imperial(r_area_id, area_govt_map, cntry_map))
+    return true;
+  return false;
+}
+
+bool StreetConverter::is_imperial(
+    uint64_t area_id, const std::map<uint64_t, uint64_t> &area_govt_map,
+    const std::map<uint64_t, cntry_ref_type> &cntry_map) {
+  if (area_govt_map.find(area_id) != area_govt_map.end()) {
+    if (cntry_map.find(area_govt_map.at(area_id)) != cntry_map.end()) {
+      auto unit_measure = cntry_map.at(area_govt_map.at(area_id)).unit_measure;
+      if (unit_measure == "E") {
+        return true;
+      } else if (unit_measure != "M") {
+        format_error("unit_measure in navteq data is invalid: '" +
+                     unit_measure + "'");
+      }
+    }
+  }
+  return false;
 }

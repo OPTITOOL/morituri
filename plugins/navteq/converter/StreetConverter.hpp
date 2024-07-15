@@ -36,6 +36,11 @@ private:
     short z_level;
   };
 
+  struct cond_type {
+    uint64_t cond_id_type;
+    uint64_t cond_type_type;
+  };
+
   struct mod_group_type {
     std::string lang_code;
     uint64_t mod_type;
@@ -130,19 +135,27 @@ private:
 
   uint64_t parse_street_tags(
       osmium::builder::TagListBuilder *builder, OGRFeatureUniquePtr &f,
-      cdms_map_type *cdms_map, cnd_mod_map_type *cnd_mod_map,
-      area_id_govt_code_map_type *area_govt_map, cntry_ref_map_type *cntry_map,
-      mtd_area_map_type *mtd_area_map, link_id_route_type_map *route_type_map,
-      link_id_to_names_map *names_map,
-      const std::set<link_id_type> &construction_set, bool debugMode);
+      const std::multimap<uint64_t, cond_type> &cdms_map,
+      const std::unordered_map<uint64_t, std::vector<mod_group_type>>
+          &cnd_mod_map,
+      const std::map<uint64_t, uint64_t> &area_govt_map,
+      const std::map<uint64_t, cntry_ref_type> &cntry_map,
+      const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+          mtd_area_map,
+      const std::map<uint64_t, ushort> &route_type_map,
+      const std::map<uint64_t, std::map<uint, std::string>> &names_map,
+      const std::set<uint64_t> &construction_set, bool debugMode);
 
-  void add_additional_restrictions(osmium::builder::TagListBuilder *builder,
-                                   uint64_t link_id, uint64_t l_area_id,
-                                   uint64_t r_area_id, cdms_map_type *cdms_map,
-                                   cnd_mod_map_type *cnd_mod_map,
-                                   area_id_govt_code_map_type *area_govt_map,
-                                   cntry_ref_map_type *cntry_map,
-                                   mtd_area_map_type *mtd_area_map);
+  void add_additional_restrictions(
+      osmium::builder::TagListBuilder *builder, uint64_t link_id,
+      uint64_t l_area_id, uint64_t r_area_id,
+      const std::multimap<uint64_t, cond_type> &cdms_map,
+      const std::unordered_map<uint64_t, std::vector<mod_group_type>>
+          &cnd_mod_map,
+      const std::map<uint64_t, uint64_t> &area_govt_map,
+      const std::map<uint64_t, cntry_ref_type> &cntry_map,
+      const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+          &mtd_area_map);
 
   void process_end_point(
       bool first, short z_lvl, OGRLineString *ogr_ls,
@@ -167,6 +180,14 @@ private:
       const std::vector<z_lvl_index_type_t> &node_z_level_vector,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
       osmium::memory::Buffer &way_buffer);
+
+  bool is_imperial(uint64_t l_area_id, uint64_t r_area_id,
+                   const std::map<uint64_t, uint64_t> &area_govt_map,
+                   const std::map<uint64_t, cntry_ref_type> &cntry_map);
+
+  bool is_imperial(uint64_t area_id,
+                   const std::map<uint64_t, uint64_t> &area_govt_map,
+                   const std::map<uint64_t, cntry_ref_type> &cntry_map);
 
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";
@@ -196,6 +217,9 @@ private:
   // const char* MAX_ADMINLEVEL = "MAX_ADMINLEVEL";
   static constexpr std::string_view SPEEDLIMITUNIT = "SPDLIMUNIT";
   static constexpr std::string_view ISO_CODE = "ISO_CODE";
+
+  static constexpr std::string_view L_AREA_ID = "L_AREA_ID";
+  static constexpr std::string_view R_AREA_ID = "R_AREA_ID";
 };
 
 #endif // STREETCONVERTER_HPP
