@@ -24,14 +24,14 @@
 class RailwayConverter : public Converter {
 
 public:
-  RailwayConverter(const boost::filesystem::path &executable_path);
+  RailwayConverter(const std::filesystem::path &executable_path);
   virtual ~RailwayConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_railways_shape(boost::filesystem::path railway_shape_file,
+  void add_railways_shape(std::filesystem::path railway_shape_file,
                           osmium::io::Writer &writer);
 
   void

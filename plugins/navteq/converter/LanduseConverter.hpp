@@ -24,14 +24,14 @@
 class LanduseConverter : public Converter {
 
 public:
-  LanduseConverter(const boost::filesystem::path &executable_path);
+  LanduseConverter(const std::filesystem::path &executable_path);
   virtual ~LanduseConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_landuse_shape(boost::filesystem::path landuse_shape_file,
+  void add_landuse_shape(std::filesystem::path landuse_shape_file,
                          osmium::io::Writer &writer);
 
   void

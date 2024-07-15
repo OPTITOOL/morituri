@@ -17,7 +17,7 @@
 #ifndef CONVERTER_HPP
 #define CONVERTER_HPP
 
-#include <boost/filesystem/path.hpp>
+#include <filesystem>
 #include <map>
 #include <ogrsf_frmts.h>
 #include <osmium/osm/types.hpp>
@@ -51,11 +51,11 @@ class OGRLinearRing;
 class Converter {
 
 public:
-  Converter(const boost::filesystem::path &_executable_path)
+  Converter(const std::filesystem::path &_executable_path)
       : executable_path(_executable_path) {}
   virtual ~Converter() {}
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer) = 0;
 
   void set_dummy_osm_object_attributes(osmium::OSMObject &obj);
@@ -128,7 +128,7 @@ protected:
   std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int);
 
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
-  process_meta_areas(boost::filesystem::path dir);
+  process_meta_areas(std::filesystem::path dir);
 
   uint get_area_code_l(uint64_t l_area_id, uint64_t r_area_id,
                        const std::map<osmium::unsigned_object_id_type,
@@ -171,7 +171,7 @@ protected:
 
 private:
   static std::map<std::string, std::string> lang_code_map;
-  boost::filesystem::path executable_path;
+  std::filesystem::path executable_path;
 };
 
 #endif // CONVERTER_HPP

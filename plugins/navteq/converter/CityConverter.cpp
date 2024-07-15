@@ -26,22 +26,22 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-CityConverter::CityConverter(const boost::filesystem::path &executable_path)
+CityConverter::CityConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 CityConverter::~CityConverter() {}
 
-void CityConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+void CityConverter::convert(const std::vector<std::filesystem::path> &dirs,
                             osmium::io::Writer &writer) {
 
-  const boost::filesystem::path NAMED_PLC_SHP = "NamedPlc.shp";
+  const std::filesystem::path NAMED_PLC_SHP = "NamedPlc.shp";
 
   for (auto dir : dirs) {
     add_city_shape(dir / NAMED_PLC_SHP, writer);
   }
 }
 
-void CityConverter::add_city_shape(boost::filesystem::path city_shape_file,
+void CityConverter::add_city_shape(std::filesystem::path city_shape_file,
                                    osmium::io::Writer &writer) {
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(city_shape_file.c_str()));

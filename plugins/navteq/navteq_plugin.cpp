@@ -6,15 +6,16 @@
  */
 
 #include <boost/algorithm/string/join.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/log/trivial.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <exception>
+#include <filesystem>
 #include <iomanip>
 #include <ogr_api.h>
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
+#include <ranges>
 
 #include "converter/AdminBoundariesConverter.hpp"
 #include "converter/BuildingConverter.hpp"
@@ -35,7 +36,7 @@
 
  */
 
-navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
+navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
 
   converter.emplace_back(new AdminBoundariesConverter(executable_path));
@@ -63,11 +64,33 @@ bool navteq_plugin::is_valid_format(std::string filename) {
   return false;
 }
 
-bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
+std::optional<std::filesystem::path>
+navteq_plugin::check_files(const std::filesystem::path &dir) {
 
-  // check if the directory contains HERE data
+  bool isHereDatatDir = false;
+  bool hasPackedData = false;
+  std::filesystem::path tarFile;
+  for (const auto &entry : std::filesystem::directory_iterator(dir) |
+                               std::views::filter([](auto &entry) {
+                                 return entry.is_regular_file();
+                               })) {
+    if (entry.path().extension() == ".PROD.csv") {
+      isHereDatatDir = true;
+    }
 
-  // checck if the PROD.csv file exists
+    if (entry.path().extension() == ".tar.gz") {
+      hasPackedData = true;
+      tarFile = entry.path();
+    }
+  }
+
+  if (!isHereDatatDir)
+    return std::nullopt;
+
+  if (hasPackedData)
+    return std::optional<std::filesystem::path>(tarFile / "vsitar");
+
+  // check if the PROD.csv file exists
 
   // check HERE-Contrycodes
 
@@ -75,37 +98,18 @@ bool navteq_plugin::check_files(const boost::filesystem::path &dir) {
 
   // otherwise check id there are unpacked files
 
-  return true;
+  return std::nullopt;
 }
 
-/**
- * \brief Checks wether there is a subdirectory containinig valid data.
- * \param dir directory from which to start recursion
- * \param recur if set non-directories within the root directory are ignored
- * \return Existance of valid data in a subdirectory.
- */
-
-void navteq_plugin::recurse_dir(const boost::filesystem::path &dir) {
-  if (check_files(dir))
-    dataDirs.push_back(dir);
-
-  for (auto &itr : boost::make_iterator_range(
-           boost::filesystem::directory_iterator(dir), {})) {
-    if (boost::filesystem::is_directory(itr)) {
-      recurse_dir(itr);
-    }
-  }
-}
-
-bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
-                                const boost::filesystem::path &output_file) {
-  if (!boost::filesystem::is_directory(input_path))
+bool navteq_plugin::check_input(const std::filesystem::path &input_path,
+                                const std::filesystem::path &output_file) {
+  if (!std::filesystem::is_directory(input_path))
     throw(std::runtime_error("directory " + input_path.string() +
                              " does not exist"));
 
   if (!output_file.empty()) {
-    boost::filesystem::path output_path = output_file.parent_path();
-    if (!boost::filesystem::is_directory(output_path))
+    std::filesystem::path output_path = output_file.parent_path();
+    if (!std::filesystem::is_directory(output_path))
       throw(std::runtime_error("output directory " + output_path.string() +
                                " does not exist"));
     if (!is_valid_format(output_file.string()))
@@ -113,7 +117,12 @@ bool navteq_plugin::check_input(const boost::filesystem::path &input_path,
                          output_file.string()));
   }
 
-  recurse_dir(input_path);
+  for (const auto &entry :
+       std::filesystem::recursive_directory_iterator(input_path) |
+           std::views::filter(
+               [](auto &entry) { return entry.is_directory(); })) {
+    check_files(entry).and_then([&](auto &path) { dataDirs.push_back(path); });
+  }
 
   if (!foundCountries.empty()) {
     BOOST_LOG_TRIVIAL(info)
@@ -181,7 +190,7 @@ void navteq_plugin::sortPBF() {
 
   writer.close();
 
-  boost::filesystem::remove(output_path.parent_path().append("tmp.pbf"));
+  std::filesystem::remove(output_path.parent_path().append("tmp.pbf"));
 }
 
 void navteq_plugin::copyType(osmium::io::Writer &writer, osmium::io::File &file,

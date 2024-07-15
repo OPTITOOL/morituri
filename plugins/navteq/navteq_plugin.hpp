@@ -10,9 +10,10 @@
 
 #include "../base_plugin.hpp"
 #include "converter/Converter.hpp"
-#include <boost/filesystem/path.hpp>
+#include <filesystem>
 #include <osmium/osm/entity_bits.hpp>
 #include <string>
+
 namespace osmium {
 namespace io {
 class Writer;
@@ -23,15 +24,15 @@ class File;
 class navteq_plugin : public base_plugin {
 private:
   bool is_valid_format(std::string format);
-  void recurse_dir(const boost::filesystem::path &dir);
-  bool check_files(const boost::filesystem::path &dir);
+  std::optional<std::filesystem::path>
+  check_files(const std::filesystem::path &dir);
   void write_output();
 
   void sortPBF();
   void copyType(osmium::io::Writer &writer, osmium::io::File &file,
                 osmium::osm_entity_bits::type bits);
 
-  std::vector<boost::filesystem::path> dataDirs;
+  std::vector<std::filesystem::path> dataDirs;
 
   std::vector<std::unique_ptr<Converter>> converter;
 
@@ -42,12 +43,12 @@ private:
   bool debug;
 
 public:
-  navteq_plugin(const boost::filesystem::path &executable_path);
+  navteq_plugin(const std::filesystem::path &executable_path);
   virtual ~navteq_plugin();
 
   bool check_input(
-      const boost::filesystem::path &input_path,
-      const boost::filesystem::path &output_path = boost::filesystem::path());
+      const std::filesystem::path &input_path,
+      const std::filesystem::path &output_file = std::filesystem::path());
   void execute();
 
   void setBoundingBox(double minX, double minY, double maxX, double maxY);

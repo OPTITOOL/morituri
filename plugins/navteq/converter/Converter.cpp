@@ -249,14 +249,14 @@ std::string Converter::navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
 // ISO-639 conversion
 
 void Converter::parse_lang_code_file() {
-  const boost::filesystem::path PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT(
+  const std::filesystem::path PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT(
       "plugins/navteq/ISO-639-2_utf-8.txt");
 
   if (executable_path.empty())
     throw(std::runtime_error("executable_path is empty"));
 
-  boost::filesystem::path iso_file(executable_path /
-                                   PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT);
+  std::filesystem::path iso_file(executable_path /
+                                 PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT);
   std::ifstream file(iso_file.string());
   assert(file.is_open());
   std::string line;
@@ -296,8 +296,8 @@ std::string Converter::parse_lang_code(std::string lang_code) {
 }
 
 std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
-Converter::process_meta_areas(boost::filesystem::path dir) {
-  const boost::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
+Converter::process_meta_areas(std::filesystem::path dir) {
+  const std::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
 
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area_map;
 

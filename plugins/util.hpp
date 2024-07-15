@@ -47,7 +47,7 @@ bool shp_file_exists(const std::string &shp_file) {
   return input_data_source != nullptr;
 }
 
-bool shp_file_exists(boost::filesystem::path shp_file) {
+bool shp_file_exists(std::filesystem::path shp_file) {
   return shp_file_exists(shp_file.string());
 }
 
@@ -65,7 +65,7 @@ bool dbf_file_exists(const std::string &dbf_file) {
   return true;
 }
 
-bool dbf_file_exists(const boost::filesystem::path &dbf_file) {
+bool dbf_file_exists(const std::filesystem::path &dbf_file) {
   return dbf_file_exists(dbf_file.string());
 }
 
@@ -232,7 +232,7 @@ void add_uint_tag(osmium::builder::TagListBuilder &tl_builder,
 }
 
 bool checkInBoundingBox(const OGREnvelope &boundingBox,
-                        const boost::filesystem::path &shp_file) {
+                        const std::filesystem::path &shp_file) {
 
   if (!boundingBox.IsInit())
     return true;

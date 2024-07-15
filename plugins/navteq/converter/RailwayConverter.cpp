@@ -26,16 +26,15 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-RailwayConverter::RailwayConverter(
-    const boost::filesystem::path &executable_path)
+RailwayConverter::RailwayConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 RailwayConverter::~RailwayConverter() {}
 
-void RailwayConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+void RailwayConverter::convert(const std::vector<std::filesystem::path> &dirs,
                                osmium::io::Writer &writer) {
 
-  const boost::filesystem::path RAILWAYS_POLY_SHP = "RailRds.shp";
+  const std::filesystem::path RAILWAYS_POLY_SHP = "RailRds.shp";
 
   for (auto dir : dirs) {
     add_railways_shape(dir / RAILWAYS_POLY_SHP, writer);
@@ -43,7 +42,7 @@ void RailwayConverter::convert(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void RailwayConverter::add_railways_shape(
-    boost::filesystem::path railway_shape_file, osmium::io::Writer &writer) {
+    std::filesystem::path railway_shape_file, osmium::io::Writer &writer) {
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(railway_shape_file.c_str()));
   if (!ds) {

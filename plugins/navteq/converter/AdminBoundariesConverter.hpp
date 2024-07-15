@@ -33,21 +33,21 @@ class Builder;
 class AdminBoundariesConverter : public Converter {
 
 public:
-  AdminBoundariesConverter(const boost::filesystem::path &executable_path);
+  AdminBoundariesConverter(const std::filesystem::path &executable_path);
   virtual ~AdminBoundariesConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
   void addLevel1Boundaries(
-      const std::vector<boost::filesystem::path> &dirs,
+      const std::vector<std::filesystem::path> &dirs,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &g_way_end_points_map,
       osmium::io::Writer &writer);
 
   void add_admin_shape(
-      boost::filesystem::path admin_shape_file,
+      std::filesystem::path admin_shape_file,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &g_way_end_points_map,
       osmium::io::Writer &writer,
@@ -56,7 +56,7 @@ private:
           &adminLineMap);
 
   std::map<int, std::vector<osmium::unsigned_object_id_type>>
-  add_admin_lines(boost::filesystem::path admin_line_shape_file,
+  add_admin_lines(std::filesystem::path admin_line_shape_file,
                   std::map<osmium::Location, osmium::unsigned_object_id_type>
                       &g_way_end_points_map,
                   osmium::io::Writer &writer);
@@ -91,7 +91,7 @@ private:
       osmium::memory::Buffer &rel_buffer);
 
   void addLevelNBoundaries(
-      boost::filesystem::path dir,
+      std::filesystem::path dir,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &g_way_end_points_map,
       osmium::io::Writer &writer, uint level);

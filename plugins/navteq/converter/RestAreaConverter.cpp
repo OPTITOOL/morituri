@@ -27,22 +27,21 @@
 #include "../../util.hpp"
 
 RestAreaConverter::RestAreaConverter(
-    const boost::filesystem::path &executable_path)
+    const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 RestAreaConverter::~RestAreaConverter() {}
 
-void RestAreaConverter::convert(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
+void RestAreaConverter::convert(const std::vector<std::filesystem::path> &dirs,
+                                osmium::io::Writer &writer) {
 
-  const boost::filesystem::path TRAVDEST_SHP = "TravDest.shp";
+  const std::filesystem::path TRAVDEST_SHP = "TravDest.shp";
   for (auto dir : dirs) {
     add_rest_area(dir / TRAVDEST_SHP, writer);
   }
 }
 
-void RestAreaConverter::add_rest_area(boost::filesystem::path rest_area_file,
+void RestAreaConverter::add_rest_area(std::filesystem::path rest_area_file,
                                       osmium::io::Writer &writer) {
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(rest_area_file.c_str()));

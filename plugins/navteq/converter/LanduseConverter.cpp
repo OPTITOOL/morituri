@@ -26,16 +26,15 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-LanduseConverter::LanduseConverter(
-    const boost::filesystem::path &executable_path)
+LanduseConverter::LanduseConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 LanduseConverter::~LanduseConverter() {}
 
-void LanduseConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+void LanduseConverter::convert(const std::vector<std::filesystem::path> &dirs,
                                osmium::io::Writer &writer) {
-  const boost::filesystem::path LAND_USE_A_SHP = "LandUseA.shp";
-  const boost::filesystem::path LAND_USE_B_SHP = "LandUseB.shp";
+  const std::filesystem::path LAND_USE_A_SHP = "LandUseA.shp";
+  const std::filesystem::path LAND_USE_B_SHP = "LandUseB.shp";
 
   for (auto dir : dirs) {
     add_landuse_shape(dir / LAND_USE_A_SHP, writer);
@@ -44,7 +43,7 @@ void LanduseConverter::convert(const std::vector<boost::filesystem::path> &dirs,
 }
 
 void LanduseConverter::add_landuse_shape(
-    boost::filesystem::path landuse_shape_file, osmium::io::Writer &writer) {
+    std::filesystem::path landuse_shape_file, osmium::io::Writer &writer) {
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(landuse_shape_file.c_str()));

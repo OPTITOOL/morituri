@@ -39,14 +39,14 @@ class OGRLineString;
 class WaterConverter : public Converter {
 
 public:
-  WaterConverter(const boost::filesystem::path &executable_path);
+  WaterConverter(const std::filesystem::path &executable_path);
   virtual ~WaterConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_water_shape(boost::filesystem::path water_shape_file,
+  void add_water_shape(std::filesystem::path water_shape_file,
                        osmium::io::Writer &writer);
 
   void process_water(const OGRFeatureUniquePtr &feat,

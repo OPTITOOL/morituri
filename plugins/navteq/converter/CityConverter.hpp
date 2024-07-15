@@ -24,14 +24,14 @@
 class CityConverter : public Converter {
 
 public:
-  CityConverter(const boost::filesystem::path &executable_path);
+  CityConverter(const std::filesystem::path &executable_path);
   virtual ~CityConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_city_shape(boost::filesystem::path city_shape_file,
+  void add_city_shape(std::filesystem::path city_shape_file,
                       osmium::io::Writer &writer);
 
   void process_city(const OGRFeatureUniquePtr &feat, uint fac_type,

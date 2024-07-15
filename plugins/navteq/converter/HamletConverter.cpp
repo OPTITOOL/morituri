@@ -26,22 +26,22 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-HamletConverter::HamletConverter(const boost::filesystem::path &executable_path)
+HamletConverter::HamletConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 HamletConverter::~HamletConverter() {}
 
-void HamletConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+void HamletConverter::convert(const std::vector<std::filesystem::path> &dirs,
                               osmium::io::Writer &writer) {
 
-  const boost::filesystem::path HAMLET_SHP = "Hamlet.shp";
+  const std::filesystem::path HAMLET_SHP = "Hamlet.shp";
 
   for (const auto &dir : dirs) {
     add_hamlet(dir / HAMLET_SHP, writer);
   }
 }
 
-void HamletConverter::add_hamlet(boost::filesystem::path hamlet_file,
+void HamletConverter::add_hamlet(std::filesystem::path hamlet_file,
                                  osmium::io::Writer &writer) {
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(hamlet_file.c_str()));

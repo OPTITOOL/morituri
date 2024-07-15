@@ -29,19 +29,19 @@
 #include "../../util.hpp"
 
 AdminBoundariesConverter::AdminBoundariesConverter(
-    const boost::filesystem::path &executable_path)
+    const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 AdminBoundariesConverter::~AdminBoundariesConverter() {}
 
 void AdminBoundariesConverter::convert(
-    const std::vector<boost::filesystem::path> &dirs,
+    const std::vector<std::filesystem::path> &dirs,
     osmium::io::Writer &writer) {
 
-  const boost::filesystem::path ADMINBNDY_2_SHP = "Adminbndy2.shp";
-  const boost::filesystem::path ADMINBNDY_3_SHP = "Adminbndy3.shp";
-  const boost::filesystem::path ADMINBNDY_4_SHP = "Adminbndy4.shp";
-  const boost::filesystem::path ADMINBNDY_5_SHP = "Adminbndy5.shp";
+  const std::filesystem::path ADMINBNDY_2_SHP = "Adminbndy2.shp";
+  const std::filesystem::path ADMINBNDY_3_SHP = "Adminbndy3.shp";
+  const std::filesystem::path ADMINBNDY_4_SHP = "Adminbndy4.shp";
+  const std::filesystem::path ADMINBNDY_5_SHP = "Adminbndy5.shp";
 
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
@@ -57,13 +57,13 @@ void AdminBoundariesConverter::convert(
 }
 
 void AdminBoundariesConverter::addLevel1Boundaries(
-    const std::vector<boost::filesystem::path> &dirs,
+    const std::vector<std::filesystem::path> &dirs,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
     osmium::io::Writer &writer) {
 
-  const boost::filesystem::path ADMINLINE_1_SHP = "AdminLine1.shp";
-  const boost::filesystem::path ADMINBNDY_1_SHP = "Adminbndy1.shp";
+  const std::filesystem::path ADMINLINE_1_SHP = "AdminLine1.shp";
+  const std::filesystem::path ADMINBNDY_1_SHP = "Adminbndy1.shp";
 
   std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                           std::vector<osmium::unsigned_object_id_type>>>
@@ -98,7 +98,7 @@ void AdminBoundariesConverter::addLevel1Boundaries(
 }
 
 void AdminBoundariesConverter::add_admin_shape(
-    boost::filesystem::path admin_shape_file,
+    std::filesystem::path admin_shape_file,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
     osmium::io::Writer &writer,
@@ -125,7 +125,7 @@ void AdminBoundariesConverter::add_admin_shape(
 
 std::map<int, std::vector<osmium::unsigned_object_id_type>>
 AdminBoundariesConverter::add_admin_lines(
-    boost::filesystem::path admin_line_shape_file,
+    std::filesystem::path admin_line_shape_file,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
     osmium::io::Writer &writer) {
@@ -262,7 +262,7 @@ AdminBoundariesConverter::build_admin_boundary_relation_with_tags(
 }
 
 void AdminBoundariesConverter::addLevelNBoundaries(
-    boost::filesystem::path dir,
+    std::filesystem::path dir,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
     osmium::io::Writer &writer, uint level) {

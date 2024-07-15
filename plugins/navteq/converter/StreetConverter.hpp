@@ -24,10 +24,10 @@
 class StreetConverter : public Converter {
 
 public:
-  StreetConverter(const boost::filesystem::path &executable_path);
+  StreetConverter(const std::filesystem::path &executable_path);
   virtual ~StreetConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
@@ -78,29 +78,29 @@ private:
   };
 
   std::map<uint64_t, ushort> process_alt_steets_route_types(
-      const std::vector<boost::filesystem::path> &dirs);
+      const std::vector<std::filesystem::path> &dirs);
 
-  void add_street_shapes(const std::vector<boost::filesystem::path> &dirs,
+  void add_street_shapes(const std::vector<std::filesystem::path> &dirs,
                          osmium::io::Writer &writer);
 
   std::map<uint64_t, std::vector<z_lvl_index_type_t>>
-  process_z_levels(const std::vector<boost::filesystem::path> &dirs);
+  process_z_levels(const std::vector<std::filesystem::path> &dirs);
 
   void init_z_level_map(
-      boost::filesystem::path dir,
+      std::filesystem::path dir,
       std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map);
 
-  void init_conditional_modifications(const boost::filesystem::path &dir);
-  void init_g_cnd_mod_map(const boost::filesystem::path &dir);
-  void init_g_cdms_map(const boost::filesystem::path &dir);
+  void init_conditional_modifications(const std::filesystem::path &dir);
+  void init_g_cnd_mod_map(const std::filesystem::path &dir);
+  void init_g_cdms_map(const std::filesystem::path &dir);
 
-  void init_country_reference(const boost::filesystem::path &dir);
-  void init_g_area_to_govt_code_map(const boost::filesystem::path &dir);
-  void init_g_cntry_ref_map(const boost::filesystem::path &dir);
+  void init_country_reference(const std::filesystem::path &dir);
+  void init_g_area_to_govt_code_map(const std::filesystem::path &dir);
+  void init_g_cntry_ref_map(const std::filesystem::path &dir);
 
   // process end nodes
   void process_way_end_nodes(
-      const std::vector<boost::filesystem::path> &dirs,
+      const std::vector<std::filesystem::path> &dirs,
       const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
       osmium::io::Writer &writer);
   void process_way_end_nodes(OGRFeatureUniquePtr &feat,
@@ -110,16 +110,16 @@ private:
 
   // ramp names
   std::map<osmium::Location, std::map<uint, std::string>>
-  init_ramp_names(const boost::filesystem::path &dir);
+  init_ramp_names(const std::filesystem::path &dir);
   std::map<uint64_t, std::string>
-  read_junction_names(const boost::filesystem::path &dbf_file);
+  read_junction_names(const std::filesystem::path &dbf_file);
   void parse_ramp_names(
-      const boost::filesystem::path &shp_file,
+      const std::filesystem::path &shp_file,
       std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
       const std::map<uint64_t, std::string> &junctionNames);
 
   void process_way(
-      const std::vector<boost::filesystem::path> &dirs,
+      const std::vector<std::filesystem::path> &dirs,
       const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
       osmium::io::Writer &writer);
   void process_way(
@@ -155,10 +155,10 @@ private:
       const std::set<uint64_t> &construction_set, bool debugMode);
 
   std::map<uint64_t, std::map<uint, std::string>>
-  init_highway_names(const boost::filesystem::path &dir);
+  init_highway_names(const std::filesystem::path &dir);
 
   void parse_highway_names(
-      const boost::filesystem::path &dbf_file,
+      const std::filesystem::path &dbf_file,
       std::map<uint64_t, std::map<uint, std::string>> &hwys_ref_map,
       bool isStreetLayer);
   void add_additional_restrictions(
@@ -253,7 +253,7 @@ private:
 
   bool only_pedestrians(const OGRFeatureUniquePtr &f);
 
-  void init_under_construction(const boost::filesystem::path &dir);
+  void init_under_construction(const std::filesystem::path &dir);
 
   void add_here_speed_cat_tag(osmium::builder::TagListBuilder &builder,
                               const OGRFeatureUniquePtr &f);
@@ -273,7 +273,7 @@ private:
       const std::vector<std::pair<osmium::Location, std::string>> &addressList,
       int linkId, osmium::memory::Buffer &node_buffer);
 
-  void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
+  void process_house_numbers(const std::vector<std::filesystem::path> &dirs,
                              osmium::io::Writer &writer);
 
   void process_house_numbers(
@@ -285,7 +285,7 @@ private:
       osmium::memory::Buffer &way_buffer);
 
   std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
-  createPointAddressMapList(const boost::filesystem::path &dir);
+  createPointAddressMapList(const std::filesystem::path &dir);
 
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";

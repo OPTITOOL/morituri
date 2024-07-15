@@ -24,14 +24,14 @@
 class RestAreaConverter : public Converter {
 
 public:
-  RestAreaConverter(const boost::filesystem::path &executable_path);
+  RestAreaConverter(const std::filesystem::path &executable_path);
   virtual ~RestAreaConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_rest_area(boost::filesystem::path rest_area_file,
+  void add_rest_area(std::filesystem::path rest_area_file,
                      osmium::io::Writer &writer);
 
   void process_rest_area(const OGRFeatureUniquePtr &feat,

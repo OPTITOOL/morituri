@@ -24,14 +24,14 @@
 class HamletConverter : public Converter {
 
 public:
-  HamletConverter(const boost::filesystem::path &executable_path);
+  HamletConverter(const std::filesystem::path &executable_path);
   virtual ~HamletConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_hamlet(boost::filesystem::path hamlet_file,
+  void add_hamlet(std::filesystem::path hamlet_file,
                   osmium::io::Writer &writer);
 
   void process_hamlets(const OGRFeatureUniquePtr &feat,

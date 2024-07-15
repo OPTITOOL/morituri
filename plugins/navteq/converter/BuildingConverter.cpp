@@ -28,16 +28,15 @@
 #include "../../util.hpp"
 
 BuildingConverter::BuildingConverter(
-    const boost::filesystem::path &executable_path)
+    const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 BuildingConverter::~BuildingConverter() {}
 
-void BuildingConverter::convert(
-    const std::vector<boost::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
+void BuildingConverter::convert(const std::vector<std::filesystem::path> &dirs,
+                                osmium::io::Writer &writer) {
 
-  static const boost::filesystem::path LANDMARK_SHP = "Landmark.shp";
+  static const std::filesystem::path LANDMARK_SHP = "Landmark.shp";
 
   for (auto dir : dirs) {
     add_building_shape(dir / LANDMARK_SHP, writer);
@@ -45,7 +44,7 @@ void BuildingConverter::convert(
 }
 
 void BuildingConverter::add_building_shape(
-    boost::filesystem::path landmark_shape_file, osmium::io::Writer &writer) {
+    std::filesystem::path landmark_shape_file, osmium::io::Writer &writer) {
 
   auto ds =
       GDALDatasetUniquePtr(GDALDataset::Open(landmark_shape_file.c_str()));

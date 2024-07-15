@@ -25,16 +25,16 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-WaterConverter::WaterConverter(const boost::filesystem::path &executable_path)
+WaterConverter::WaterConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 WaterConverter::~WaterConverter() {}
 
-void WaterConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+void WaterConverter::convert(const std::vector<std::filesystem::path> &dirs,
                              osmium::io::Writer &writer) {
 
-  const boost::filesystem::path WATER_SEG_SHP = "WaterSeg.shp";
-  const boost::filesystem::path WATER_POLY_SHP = "WaterPoly.shp";
+  const std::filesystem::path WATER_SEG_SHP = "WaterSeg.shp";
+  const std::filesystem::path WATER_POLY_SHP = "WaterPoly.shp";
 
   for (auto dir : dirs) {
     add_water_shape(dir / WATER_POLY_SHP, writer);
@@ -42,7 +42,7 @@ void WaterConverter::convert(const std::vector<boost::filesystem::path> &dirs,
   }
 }
 
-void WaterConverter::add_water_shape(boost::filesystem::path water_shape_file,
+void WaterConverter::add_water_shape(std::filesystem::path water_shape_file,
                                      osmium::io::Writer &writer) {
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(water_shape_file.c_str()));

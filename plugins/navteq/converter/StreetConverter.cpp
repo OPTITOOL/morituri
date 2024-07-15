@@ -26,12 +26,12 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-StreetConverter::StreetConverter(const boost::filesystem::path &executable_path)
+StreetConverter::StreetConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 StreetConverter::~StreetConverter() {}
 
-void StreetConverter::convert(const std::vector<boost::filesystem::path> &dirs,
+void StreetConverter::convert(const std::vector<std::filesystem::path> &dirs,
                               osmium::io::Writer &writer) {
 
   auto route_type_map = process_alt_steets_route_types(dirs);
@@ -40,11 +40,11 @@ void StreetConverter::convert(const std::vector<boost::filesystem::path> &dirs,
 }
 
 std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
-    const std::vector<boost::filesystem::path> &dirs) {
+    const std::vector<std::filesystem::path> &dirs) {
 
   std::map<uint64_t, ushort> route_type_map;
 
-  const boost::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
+  const std::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
   for (auto dir : dirs) {
     DBFHandle alt_streets_handle = read_dbf_file(dir / ALT_STREETS_DBF);
     for (int i = 0; i < DBFGetRecordCount(alt_streets_handle); i++) {
@@ -74,7 +74,7 @@ std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
 }
 
 void StreetConverter::add_street_shapes(
-    const std::vector<boost::filesystem::path> &dirs,
+    const std::vector<std::filesystem::path> &dirs,
     osmium::io::Writer &writer) {
 
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
@@ -93,7 +93,7 @@ void StreetConverter::add_street_shapes(
 
 std::map<uint64_t, std::vector<z_lvl_index_type_t>>
 StreetConverter::process_z_levels(
-    const std::vector<boost::filesystem::path> &dirs) {
+    const std::vector<std::filesystem::path> &dirs) {
   std::map<uint64_t, std::vector<z_lvl_index_type_t>> z_level_map;
 
   for (auto &dir : dirs) {
@@ -113,10 +113,10 @@ StreetConverter::process_z_levels(
 }
 
 void StreetConverter::init_z_level_map(
-    boost::filesystem::path dir,
+    std::filesystem::path dir,
     std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map) {
 
-  const boost::filesystem::path ZLEVELS_DBF = "Zlevels.dbf";
+  const std::filesystem::path ZLEVELS_DBF = "Zlevels.dbf";
   // open dbf
   DBFHandle handle = read_dbf_file(dir / ZLEVELS_DBF);
 
@@ -145,13 +145,13 @@ void StreetConverter::init_z_level_map(
 }
 
 void StreetConverter::init_conditional_modifications(
-    const boost::filesystem::path &dir) {
+    const std::filesystem::path &dir) {
   init_g_cnd_mod_map(dir);
   init_g_cdms_map(dir);
 }
 
-void StreetConverter::init_g_cnd_mod_map(const boost::filesystem::path &dir) {
-  const boost::filesystem::path CND_MOD_DBF = "CndMod.dbf";
+void StreetConverter::init_g_cnd_mod_map(const std::filesystem::path &dir) {
+  const std::filesystem::path CND_MOD_DBF = "CndMod.dbf";
   DBFHandle cnd_mod_handle = read_dbf_file(dir / CND_MOD_DBF);
   for (int i = 0; i < DBFGetRecordCount(cnd_mod_handle); i++) {
     uint64_t cond_id = dbf_get_uint_by_field(cnd_mod_handle, i, COND_ID.data());
@@ -178,8 +178,8 @@ void StreetConverter::init_g_cnd_mod_map(const boost::filesystem::path &dir) {
   DBFClose(cnd_mod_handle);
 }
 
-void StreetConverter::init_g_cdms_map(const boost::filesystem::path &dir) {
-  const boost::filesystem::path CDMS_DBF = "Cdms.dbf";
+void StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
+  const std::filesystem::path CDMS_DBF = "Cdms.dbf";
   DBFHandle cdms_handle = read_dbf_file(dir / CDMS_DBF);
   for (int i = 0; i < DBFGetRecordCount(cdms_handle); i++) {
     uint64_t link_id = dbf_get_uint_by_field(cdms_handle, i, LINK_ID.data());
@@ -190,8 +190,7 @@ void StreetConverter::init_g_cdms_map(const boost::filesystem::path &dir) {
   DBFClose(cdms_handle);
 }
 
-void StreetConverter::init_country_reference(
-    const boost::filesystem::path &dir) {
+void StreetConverter::init_country_reference(const std::filesystem::path &dir) {
   if (dbf_file_exists(dir / MTD_AREA_DBF) &&
       dbf_file_exists(dir / MTD_CNTRY_REF_DBF)) {
     init_g_area_to_govt_code_map(dir);
@@ -200,7 +199,7 @@ void StreetConverter::init_country_reference(
 }
 
 void StreetConverter::init_g_area_to_govt_code_map(
-    const boost::filesystem::path &dir) {
+    const std::filesystem::path &dir) {
   DBFHandle mtd_area_handle = read_dbf_file(dir / MTD_AREA_DBF);
   for (int i = 0; i < DBFGetRecordCount(mtd_area_handle); i++) {
     uint64_t area_id =
@@ -212,7 +211,7 @@ void StreetConverter::init_g_area_to_govt_code_map(
   DBFClose(mtd_area_handle);
 }
 
-void StreetConverter::init_g_cntry_ref_map(const boost::filesystem::path &dir) {
+void StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
   DBFHandle cntry_ref_handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF);
   for (int i = 0; i < DBFGetRecordCount(cntry_ref_handle); i++) {
     uint64_t govt_code =
@@ -230,7 +229,7 @@ void StreetConverter::init_g_cntry_ref_map(const boost::filesystem::path &dir) {
 }
 
 void StreetConverter::process_way_end_nodes(
-    const std::vector<boost::filesystem::path> &dirs,
+    const std::vector<std::filesystem::path> &dirs,
     const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
@@ -299,7 +298,7 @@ void StreetConverter::process_way_end_node(
 }
 
 std::map<osmium::Location, std::map<uint, std::string>>
-StreetConverter::init_ramp_names(const boost::filesystem::path &dir) {
+StreetConverter::init_ramp_names(const std::filesystem::path &dir) {
 
   std::map<osmium::Location, std::map<uint, std::string>> ramps_ref_map;
   // read junction names from alt_streets
@@ -312,7 +311,7 @@ StreetConverter::init_ramp_names(const boost::filesystem::path &dir) {
 }
 
 std::map<uint64_t, std::string>
-StreetConverter::read_junction_names(const boost::filesystem::path &dbf_file) {
+StreetConverter::read_junction_names(const std::filesystem::path &dbf_file) {
   DBFHandle hwys_handle = read_dbf_file(dbf_file);
   std::map<uint64_t, std::string> junctionNames;
   for (int i = 0; i < DBFGetRecordCount(hwys_handle); i++) {
@@ -332,7 +331,7 @@ StreetConverter::read_junction_names(const boost::filesystem::path &dbf_file) {
 }
 
 void StreetConverter::parse_ramp_names(
-    const boost::filesystem::path &shp_file,
+    const std::filesystem::path &shp_file,
     std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
     const std::map<uint64_t, std::string> &junctionNames) {
 
@@ -376,7 +375,7 @@ void StreetConverter::parse_ramp_names(
 }
 
 void StreetConverter::process_way(
-    const std::vector<boost::filesystem::path> &dirs,
+    const std::vector<std::filesystem::path> &dirs,
     const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
@@ -409,7 +408,7 @@ void StreetConverter::process_way(
 }
 
 std::map<uint64_t, std::map<uint, std::string>>
-StreetConverter::init_highway_names(const boost::filesystem::path &dir) {
+StreetConverter::init_highway_names(const std::filesystem::path &dir) {
   std::map<uint64_t, std::map<uint, std::string>> hwys_ref_map;
   if (dbf_file_exists(dir / MAJ_HWYS_DBF))
     parse_highway_names(dir / MAJ_HWYS_DBF, hwys_ref_map, false);
@@ -424,7 +423,7 @@ StreetConverter::init_highway_names(const boost::filesystem::path &dir) {
 }
 
 void StreetConverter::parse_highway_names(
-    const boost::filesystem::path &dbf_file,
+    const std::filesystem::path &dbf_file,
     std::map<uint64_t, std::map<uint, std::string>> &hwys_ref_map,
     bool isStreetLayer) {
   DBFHandle hwys_handle = read_dbf_file(dbf_file);
@@ -445,7 +444,7 @@ void StreetConverter::parse_highway_names(
 }
 
 void StreetConverter::init_under_construction(
-    const boost::filesystem::path &dir) {
+    const std::filesystem::path &dir) {
   if (!dbf_file_exists(dir / CDMS_DBF))
     return;
 
@@ -1480,7 +1479,7 @@ void StreetConverter::create_premium_house_numbers(
 }
 
 void StreetConverter::process_house_numbers(
-    const std::vector<boost::filesystem::path> &dirs,
+    const std::vector<std::filesystem::path> &dirs,
     osmium::io::Writer &writer) {
   for (auto &dir : dirs) {
     // create point addresses from PointAddress.dbf
@@ -1537,7 +1536,7 @@ void StreetConverter::process_house_numbers(
 }
 
 std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
-StreetConverter::createPointAddressMapList(const boost::filesystem::path &dir) {
+StreetConverter::createPointAddressMapList(const std::filesystem::path &dir) {
 
   auto pointAddressMap =
       new std::map<uint64_t,

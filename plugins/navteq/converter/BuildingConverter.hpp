@@ -24,14 +24,14 @@
 class BuildingConverter : public Converter {
 
 public:
-  BuildingConverter(const boost::filesystem::path &executable_path);
+  BuildingConverter(const std::filesystem::path &executable_path);
   virtual ~BuildingConverter();
 
-  virtual void convert(const std::vector<boost::filesystem::path> &dirs,
+  virtual void convert(const std::vector<std::filesystem::path> &dirs,
                        osmium::io::Writer &writer);
 
 private:
-  void add_building_shape(boost::filesystem::path landmark_shape_file,
+  void add_building_shape(std::filesystem::path landmark_shape_file,
                           osmium::io::Writer &writer);
 
   void
