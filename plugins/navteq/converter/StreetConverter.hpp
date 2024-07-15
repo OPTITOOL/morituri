@@ -255,6 +255,38 @@ private:
 
   void init_under_construction(const boost::filesystem::path &dir);
 
+  void add_here_speed_cat_tag(osmium::builder::TagListBuilder &builder,
+                              const OGRFeatureUniquePtr &f);
+
+  void create_house_numbers(const OGRFeatureUniquePtr &feat,
+                            const OGRLineString *ogr_ls, bool left,
+                            osmium::memory::Buffer &node_buffer,
+                            osmium::memory::Buffer &way_buffer);
+
+  void create_house_numbers(const OGRFeatureUniquePtr &feat,
+                            const OGRLineString *ogr_ls,
+                            osmium::memory::Buffer &node_buffer,
+                            osmium::memory::Buffer &way_buffer);
+
+  void create_premium_house_numbers(
+      const OGRFeatureUniquePtr &feat,
+      const std::vector<std::pair<osmium::Location, std::string>> &addressList,
+      int linkId, osmium::memory::Buffer &node_buffer);
+
+  void process_house_numbers(const std::vector<boost::filesystem::path> &dirs,
+                             osmium::io::Writer &writer);
+
+  void process_house_numbers(
+      const OGRFeatureUniquePtr &feat,
+      const std::map<uint64_t,
+                     std::vector<std::pair<osmium::Location, std::string>>>
+          &pointAddresses,
+      int linkId, osmium::memory::Buffer &node_buffer,
+      osmium::memory::Buffer &way_buffer);
+
+  std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
+  createPointAddressMapList(const boost::filesystem::path &dir);
+
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";
   static constexpr std::string_view CM_MOD_VAL = "MOD_VAL";
@@ -342,6 +374,15 @@ private:
   static constexpr std::string_view ST_NAME = "ST_NAME";
   static constexpr std::string_view COND_TYPE = "COND_TYPE";
 
+  static constexpr std::string_view ADDR_TYPE = "ADDR_TYPE";
+  static constexpr std::string_view L_REFADDR = "L_REFADDR";
+  const char *L_NREFADDR = "L_NREFADDR";
+  const char *L_ADDRSCH = "L_ADDRSCH";
+  // const char *L_ADDRFORM = "L_ADDRFORM";
+  const char *R_REFADDR = "R_REFADDR";
+  const char *R_NREFADDR = "R_NREFADDR";
+  const char *R_ADDRSCH = "R_ADDRSCH";
+
   // higway classification
   const std::vector<std::string_view> DEFAULT_HWY_FUNC_TYPE = {
       "", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL};
@@ -363,6 +404,12 @@ private:
         RESIDENTIAL}},
       {9 /*"AUT"*/,
        {"", PRIMARY, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}}};
+
+  static constexpr std::array<std::string_view, 9> speed_cat_metric{
+      "",      ">130",  "101-130", "91-100", "71-90",
+      "51-70", "31-50", "11-30",   "<11"};
+
+  constexpr double HOUSENUMBER_CURVE_OFFSET = 0.00005;
 };
 
 #endif // STREETCONVERTER_HPP

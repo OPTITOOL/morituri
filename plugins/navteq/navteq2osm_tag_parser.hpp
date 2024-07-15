@@ -86,15 +86,4 @@ std::string navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {
   return navteq_2_osm_admin_lvl(stoi(navteq_admin_lvl));
 }
 
-const char *parse_house_number_schema(const char *schema) {
-  if (!strcmp(schema, "E"))
-    return "even";
-  if (!strcmp(schema, "O"))
-    return "odd";
-  std::cerr << "schema = " << schema << " unsupported" << std::endl;
-  return "";
-  throw std::runtime_error("scheme " + std::string(schema) +
-                           " is currently not supported");
-}
-
 #endif /* NAVTEQ2OSMTAGPARSE_HPP_ */

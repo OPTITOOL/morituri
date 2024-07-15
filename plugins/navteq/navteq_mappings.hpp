@@ -82,9 +82,6 @@ const char *COND_ID = "COND_ID";
 #define NAVTEQ_ADMIN_LVL_MIN 1
 #define NAVTEQ_ADMIN_LVL_MAX 7
 
-static const char *speed_cat_metric[] = {
-    "", ">130", "101-130", "91-100", "71-90", "51-70", "31-50", "11-30", "<11"};
-
 #define OSM_MAX_WAY_NODES 1000
 
 // default tags for osm nodes ways and relations
@@ -94,7 +91,5 @@ static const char *speed_cat_metric[] = {
 #define USERID "1"
 #define TIMESTAMP 1
 } // namespace
-
-const double HOUSENUMBER_CURVE_OFFSET = 0.00005;
 
 #endif /* PLUGINS_NAVTEQ_MAPPINGS_HPP_ */

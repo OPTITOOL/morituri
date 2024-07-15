@@ -727,30 +727,30 @@ void StreetConverter::add_additional_restrictions(
      * which would make it unroutable for nearly every truck.
      * Therefore we use the highest value and add a marker for BK2 / BK3 */
     if (max_weight == 16000 && max_axleload == 10000) {
-      builder->add_tag("maxweight:class", "BK2");
+      builder.add_tag("maxweight:class", "BK2");
       max_weight = 51400;
     } else if (max_weight == 12000 && max_axleload == 8000) {
-      builder->add_tag("maxweight:class", "BK3");
+      builder.add_tag("maxweight:class", "BK3");
       max_weight = 37000;
     }
   }
 
   if (max_height > 0)
-    builder->add_tag("maxheight", imperial_units ? inch_to_feet(max_height)
-                                                 : cm_to_m(max_height));
+    builder.add_tag("maxheight", imperial_units ? inch_to_feet(max_height)
+                                                : cm_to_m(max_height));
   if (max_width > 0)
-    builder->add_tag("maxwidth", imperial_units ? inch_to_feet(max_width)
-                                                : cm_to_m(max_width));
+    builder.add_tag("maxwidth", imperial_units ? inch_to_feet(max_width)
+                                               : cm_to_m(max_width));
   if (max_length > 0)
-    builder->add_tag("maxlength", imperial_units ? inch_to_feet(max_length)
-                                                 : cm_to_m(max_length));
+    builder.add_tag("maxlength", imperial_units ? inch_to_feet(max_length)
+                                                : cm_to_m(max_length));
   if (max_weight > 0)
-    builder->add_tag("maxweight", imperial_units ? lbs_to_metric_ton(max_weight)
-                                                 : kg_to_t(max_weight));
+    builder.add_tag("maxweight", imperial_units ? lbs_to_metric_ton(max_weight)
+                                                : kg_to_t(max_weight));
   if (max_axleload > 0)
-    builder->add_tag("maxaxleload", imperial_units
-                                        ? lbs_to_metric_ton(max_axleload)
-                                        : kg_to_t(max_axleload));
+    builder.add_tag("maxaxleload", imperial_units
+                                       ? lbs_to_metric_ton(max_axleload)
+                                       : kg_to_t(max_axleload));
 }
 
 void StreetConverter::process_end_point(
@@ -1346,4 +1346,233 @@ bool StreetConverter::only_pedestrians(const OGRFeatureUniquePtr &f) {
   if (!strcmp(get_field_from_feature(f, AR_THROUGH_TRAFFIC), "Y"))
     return false;
   return true;
+}
+
+void StreetConverter::add_here_speed_cat_tag(
+    osmium::builder::TagListBuilder &builder, const OGRFeatureUniquePtr &f) {
+  auto speed_cat = get_uint_from_feature(f, SPEED_CAT);
+  if (0 < speed_cat && speed_cat < speed_cat_metric.size())
+    builder.add_tag("here:speed_cat", speed_cat_metric[speed_cat].data());
+  else
+    throw format_error("SPEED_CAT=" + std::to_string(speed_cat) +
+                       " is not valid.");
+}
+
+void StreetConverter::create_house_numbers(const OGRFeatureUniquePtr &feat,
+                                           const OGRLineString *ogr_ls,
+                                           bool left,
+                                           osmium::memory::Buffer &node_buffer,
+                                           osmium::memory::Buffer &way_buffer) {
+  const std::string_view &ref_addr = left ? L_REFADDR : R_REFADDR;
+  const std::string_view &nref_addr = left ? L_NREFADDR : R_NREFADDR;
+  const std::string_view &addr_schema = left ? L_ADDRSCH : R_ADDRSCH;
+
+  if (!strcmp(get_field_from_feature(feat, ref_addr), ""))
+    return;
+  if (!strcmp(get_field_from_feature(feat, nref_addr), ""))
+    return;
+  if (!strcmp(get_field_from_feature(feat, addr_schema), ""))
+    return;
+  if (!strcmp(get_field_from_feature(feat, addr_schema), "M"))
+    return;
+
+  std::string startNumber =
+      get_field_from_feature(feat, left ? ref_addr : nref_addr);
+
+  std::string endNumber =
+      get_field_from_feature(feat, left ? nref_addr : ref_addr);
+
+  std::unique_ptr<OGRLineString> offset_ogr_ls(
+      create_offset_curve(ogr_ls, HOUSENUMBER_CURVE_OFFSET, left));
+  if (startNumber == endNumber) {
+    // no interpolation for signel addresses
+    OGRPoint midPoint;
+    offset_ogr_ls->Centroid(&midPoint);
+    {
+      osmium::Location location(midPoint.getX(), midPoint.getY());
+      // scope node_builder
+      osmium::builder::NodeBuilder node_builder(node_buffer);
+      build_node(location, node_builder);
+      {
+        // scope tl_builder
+        osmium::builder::TagListBuilder tl_builder(node_builder);
+        tl_builder.add_tag("addr:housenumber", startNumber);
+        tl_builder.add_tag(
+            "addr:street",
+            to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME)));
+      }
+    }
+  } else {
+    // osm address interpolation
+    osmium::builder::WayBuilder way_builder(way_buffer);
+    setObjectProperties(way_builder);
+    {
+      // scope wnl_builder
+      osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &way_builder);
+
+      for (int i = 0; i < offset_ogr_ls->getNumPoints(); i++) {
+        osmium::Location location(offset_ogr_ls->getX(i),
+                                  offset_ogr_ls->getY(i));
+        {
+          // scope node_builder
+          osmium::builder::NodeBuilder node_builder(node_buffer);
+          auto node_id = build_node(location, node_builder);
+          {
+            // scope tl_builder
+            osmium::builder::TagListBuilder tl_builder(node_buffer,
+                                                       &node_builder);
+            if (i == 0 || i == offset_ogr_ls->getNumPoints() - 1) {
+              if (i == 0) {
+                tl_builder.add_tag("addr:housenumber", startNumber);
+              } else if (i == offset_ogr_ls->getNumPoints() - 1) {
+                tl_builder.add_tag("addr:housenumber", endNumber);
+              }
+              tl_builder.add_tag("addr:street",
+                                 to_camel_case_with_spaces(
+                                     get_field_from_feature(feat, ST_NAME)));
+            }
+          }
+
+          wnl_builder.add_node_ref(osmium::NodeRef(node_id, location));
+        }
+      }
+    }
+    {
+      // scope tl_builder
+      osmium::builder::TagListBuilder tl_builder(way_buffer, &way_builder);
+      const char *schema =
+          parse_house_number_schema(get_field_from_feature(feat, addr_schema));
+      tl_builder.add_tag("addr:interpolation", schema);
+    }
+  }
+  node_buffer.commit();
+  way_buffer.commit();
+}
+
+void StreetConverter::create_house_numbers(const OGRFeatureUniquePtr &feat,
+                                           const OGRLineString *ogr_ls,
+                                           osmium::memory::Buffer &node_buffer,
+                                           osmium::memory::Buffer &way_buffer) {
+  create_house_numbers(feat, ogr_ls, true, node_buffer, way_buffer);
+  create_house_numbers(feat, ogr_ls, false, node_buffer, way_buffer);
+}
+
+void StreetConverter::create_premium_house_numbers(
+    const OGRFeatureUniquePtr &feat,
+    const std::vector<std::pair<osmium::Location, std::string>> &addressList,
+    int linkId, osmium::memory::Buffer &node_buffer) {
+
+  for (auto &[location, houseNo] : addressList) {
+
+    // scope node_builder
+    osmium::builder::NodeBuilder node_builder(node_buffer);
+    build_node(location, node_builder);
+    {
+      // scope tl_builder
+      osmium::builder::TagListBuilder tl_builder(node_buffer, &node_builder);
+      tl_builder.add_tag(LINK_ID.data(), std::to_string(linkId));
+      tl_builder.add_tag("addr:housenumber", houseNo);
+      tl_builder.add_tag(
+          "addr:street",
+          to_camel_case_with_spaces(get_field_from_feature(feat, ST_NAME)));
+    }
+  }
+}
+
+void StreetConverter::process_house_numbers(
+    const std::vector<boost::filesystem::path> &dirs,
+    osmium::io::Writer &writer) {
+  for (auto &dir : dirs) {
+    // create point addresses from PointAddress.dbf
+    auto pointMap = createPointAddressMapList(dir);
+
+    auto path = dir / STREETS_SHP;
+    auto ds = open_shape_file(path);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error(path.string()));
+
+    osmium::memory::Buffer node_buffer(BUFFER_SIZE);
+    osmium::memory::Buffer way_buffer(BUFFER_SIZE);
+
+    int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
+
+    for (auto &feat : *layer) {
+      int linkId = feat->GetFieldAsInteger(linkIdField);
+      process_house_numbers(feat, *pointMap, linkId, node_buffer, way_buffer);
+    }
+
+    node_buffer.commit();
+    way_buffer.commit();
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+    delete pointMap;
+  }
+}
+/**
+ * \brief creates Way from linestring.
+ * 		  creates missing Nodes needed for Way and Way itself.
+ * \param ogr_ls linestring which provides the geometry.
+ * \param z_level_map holds z_levels to Nodes of Ways.
+ */
+void StreetConverter::process_house_numbers(
+    const OGRFeatureUniquePtr &feat,
+    const std::map<uint64_t,
+                   std::vector<std::pair<osmium::Location, std::string>>>
+        &pointAddresses,
+    int linkId, osmium::memory::Buffer &node_buffer,
+    osmium::memory::Buffer &way_buffer) {
+
+  auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
+
+  auto it = pointAddresses.find(linkId);
+  if (it != pointAddresses.end()) {
+    create_premium_house_numbers(feat, it->second, linkId, node_buffer);
+  } else {
+    if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
+      create_house_numbers(feat, ogr_ls, node_buffer, way_buffer);
+    }
+  }
+}
+
+std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
+StreetConverter::createPointAddressMapList(const boost::filesystem::path &dir) {
+
+  auto pointAddressMap =
+      new std::map<uint64_t,
+                   std::vector<std::pair<osmium::Location, std::string>>>();
+  if (shp_file_exists(dir / POINT_ADDRESS_SHP)) {
+    auto ds = open_shape_file(dir / POINT_ADDRESS_SHP);
+
+    auto layer = ds->GetLayer(0);
+    if (layer == nullptr)
+      throw(shp_empty_error((dir / POINT_ADDRESS_SHP).string()));
+
+    int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
+    int latField = layer->FindFieldIndex("DISP_LAT", true);
+    int lonField = layer->FindFieldIndex("DISP_LON", true);
+    int addressField = layer->FindFieldIndex("ADDRESS", true);
+
+    for (auto &feat : *layer) {
+      int linkId = feat->GetFieldAsInteger(linkIdField);
+      auto houseNumber = std::string(feat->GetFieldAsString(addressField));
+
+      double lat = 0.0;
+      double lon = 0.0;
+
+      if (feat->IsFieldNull(lonField) && feat->IsFieldNull(latField)) {
+        auto point = static_cast<const OGRPoint *>(feat->GetGeometryRef());
+        lat = point->getY();
+        lon = point->getX();
+      } else {
+        lon = feat->GetFieldAsDouble(lonField);
+        lat = feat->GetFieldAsDouble(latField);
+      }
+
+      (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
+                                              houseNumber);
+    }
+  }
+  return pointAddressMap;
 }

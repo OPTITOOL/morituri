@@ -342,4 +342,15 @@ uint get_number_after(const std::string &str, const char *start_str) {
   }
 }
 
+const char *parse_house_number_schema(const char *schema) {
+  if (!strcmp(schema, "E"))
+    return "even";
+  if (!strcmp(schema, "O"))
+    return "odd";
+  std::cerr << "schema = " << schema << " unsupported" << std::endl;
+  return "";
+  throw std::runtime_error("scheme " + std::string(schema) +
+                           " is currently not supported");
+}
+
 #endif /* UTIL_HPP_ */
