@@ -56,9 +56,6 @@ std::set<link_id_type> g_construction_set;
 // g_ramps_ref_map maps navteq link_ids to a vector of ramp names
 std::map<osmium::Location, std::map<uint, std::string>> g_ramps_ref_map;
 
-// auxiliary map which maps datasets with tags for administrative boundaries
-mtd_area_map_type g_mtd_area_map;
-
 // map for conditional modifications
 cnd_mod_map_type g_cnd_mod_map;
 

@@ -26,7 +26,8 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-CityConverter::CityConverter() {}
+CityConverter::CityConverter(const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 CityConverter::~CityConverter() {}
 

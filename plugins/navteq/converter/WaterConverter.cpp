@@ -25,7 +25,8 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-WaterConverter::WaterConverter() {}
+WaterConverter::WaterConverter(const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 WaterConverter::~WaterConverter() {}
 

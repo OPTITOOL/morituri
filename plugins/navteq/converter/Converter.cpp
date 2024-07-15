@@ -1,6 +1,7 @@
 
 #include "Converter.hpp"
 
+#include <boost/log/trivial.hpp>
 #include <ogrsf_frmts.h>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/object.hpp>
@@ -242,8 +243,62 @@ std::string Converter::navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
   return std::to_string(2 * navteq_admin_lvl_int);
 }
 
-void Converter::process_meta_areas(boost::filesystem::path dir) {
+// matching from http://www.loc.gov/standards/iso639-2/php/code_list.php
+// http://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt
+// ISO-639 conversion
+
+void Converter::parse_lang_code_file() {
+  const boost::filesystem::path PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT(
+      "plugins/navteq/ISO-639-2_utf-8.txt");
+
+  if (executable_path.empty())
+    throw(std::runtime_error("executable_path is empty"));
+
+  boost::filesystem::path iso_file(executable_path /
+                                   PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT);
+  std::ifstream file(iso_file.string());
+  assert(file.is_open());
+  std::string line;
+  std::string delim = "|";
+  if (file.is_open()) {
+    while (getline(file, line, '\n')) {
+      std::vector<std::string> lv;
+      auto start = 0u;
+      auto end = line.find(delim);
+      while (end != std::string::npos) {
+        lv.push_back(line.substr(start, end - start));
+        start = end + delim.length();
+        end = line.find(delim, start);
+      }
+      std::string iso_639_2 = lv.at(0);
+      std::string iso_639_1 = lv.at(2);
+      lang_code_map.emplace(std::make_pair(iso_639_2, iso_639_1));
+    }
+    file.close();
+  }
+}
+
+std::string Converter::parse_lang_code(std::string lang_code) {
+  std::ranges::transform(lang_code, lang_code.begin(), ::tolower);
+  if (lang_code_map.empty())
+    parse_lang_code_file();
+
+  auto lc = lang_code_map.find(lang_code);
+  if (lc != lang_code_map.end()) {
+    if (!lc->second.empty())
+      return lc->second;
+    else
+      return lang_code; // fallback
+  }
+  BOOST_LOG_TRIVIAL(error) << lang_code << " not found!\n";
+  return lang_code; // fallback
+}
+
+std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
+Converter::process_meta_areas(boost::filesystem::path dir) {
   const boost::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
+
+  std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area_map;
 
   DBFHandle handle = read_dbf_file(dir / MTD_AREA_DBF);
 
@@ -253,7 +308,7 @@ void Converter::process_meta_areas(boost::filesystem::path dir) {
         dbf_get_uint_by_field(handle, i, AREA_ID);
 
     // find or create a new area data set
-    mtd_area_dataset &data = g_mtd_area_map[area_id];
+    mtd_area_dataset &data = mtd_area_map[area_id];
 
     data.area_id = area_id;
 
@@ -285,6 +340,7 @@ void Converter::process_meta_areas(boost::filesystem::path dir) {
     }
   }
   DBFClose(handle);
+  return mtd_area_map;
 }
 
 uint Converter::get_area_code_l(

@@ -24,7 +24,7 @@
 class BuildingConverter : public Converter {
 
 public:
-  BuildingConverter();
+  BuildingConverter(const boost::filesystem::path &executable_path);
   virtual ~BuildingConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

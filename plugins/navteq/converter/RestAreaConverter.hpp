@@ -24,7 +24,7 @@
 class RestAreaConverter : public Converter {
 
 public:
-  RestAreaConverter();
+  RestAreaConverter(const boost::filesystem::path &executable_path);
   virtual ~RestAreaConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

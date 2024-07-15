@@ -8,9 +8,6 @@
 #include "navteq_types.hpp"
 #include "navteq_util.hpp"
 
-boost::filesystem::path g_executable_path;
-const boost::filesystem::path
-    PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT("plugins/navteq/ISO-639-2_utf-8.txt");
 int ctr = 0;
 
 bool fits_street_ref(const std::string &st_name) {
@@ -703,55 +700,6 @@ link_id_type parse_street_tags(
     add_uint_tag(builder, "here:area_code", get_area_code_l(f, mtd_area_map));
   }
   return link_id;
-}
-
-// matching from http://www.loc.gov/standards/iso639-2/php/code_list.php
-// http://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt
-// ISO-639 conversion
-std::map<std::string, std::string> g_lang_code_map;
-void parse_lang_code_file() {
-  if (g_executable_path.empty())
-    throw(std::runtime_error("executable_path is empty"));
-
-  boost::filesystem::path iso_file(g_executable_path /
-                                   PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT);
-  std::ifstream file(iso_file.string());
-  assert(file.is_open());
-  std::string line;
-  std::string delim = "|";
-  if (file.is_open()) {
-    while (getline(file, line, '\n')) {
-      std::vector<std::string> lv;
-      auto start = 0u;
-      auto end = line.find(delim);
-      while (end != std::string::npos) {
-        lv.push_back(line.substr(start, end - start));
-        start = end + delim.length();
-        end = line.find(delim, start);
-      }
-      std::string iso_639_2 = lv.at(0);
-      std::string iso_639_1 = lv.at(2);
-      g_lang_code_map.emplace(std::make_pair(iso_639_2, iso_639_1));
-    }
-    file.close();
-  }
-}
-
-std::string parse_lang_code(std::string lang_code) {
-  std::transform(lang_code.begin(), lang_code.end(), lang_code.begin(),
-                 ::tolower);
-  if (g_lang_code_map.empty())
-    parse_lang_code_file();
-
-  auto lc = g_lang_code_map.find(lang_code);
-  if (lc != g_lang_code_map.end()) {
-    if (!lc->second.empty())
-      return lc->second;
-    else
-      return lang_code; // fallback
-  }
-  std::cerr << lang_code << " not found!" << std::endl;
-  return lang_code; // fallback
 }
 
 std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {

@@ -24,7 +24,7 @@
 class RailwayConverter : public Converter {
 
 public:
-  RailwayConverter();
+  RailwayConverter(const boost::filesystem::path &executable_path);
   virtual ~RailwayConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

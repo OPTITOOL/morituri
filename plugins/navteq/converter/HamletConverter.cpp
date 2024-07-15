@@ -26,7 +26,8 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-HamletConverter::HamletConverter() {}
+HamletConverter::HamletConverter(const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 HamletConverter::~HamletConverter() {}
 

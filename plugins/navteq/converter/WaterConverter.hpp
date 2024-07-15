@@ -39,7 +39,7 @@ class OGRLineString;
 class WaterConverter : public Converter {
 
 public:
-  WaterConverter();
+  WaterConverter(const boost::filesystem::path &executable_path);
   virtual ~WaterConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

@@ -24,7 +24,7 @@
 class HamletConverter : public Converter {
 
 public:
-  HamletConverter();
+  HamletConverter(const boost::filesystem::path &executable_path);
   virtual ~HamletConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

@@ -33,7 +33,7 @@ class Builder;
 class AdminBoundariesConverter : public Converter {
 
 public:
-  AdminBoundariesConverter();
+  AdminBoundariesConverter(const boost::filesystem::path &executable_path);
   virtual ~AdminBoundariesConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

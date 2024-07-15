@@ -16,6 +16,7 @@
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
 
+#include "converter/AdminBoundariesConverter.hpp"
 #include "converter/BuildingConverter.hpp"
 #include "converter/CityConverter.hpp"
 #include "converter/HamletConverter.hpp"
@@ -36,16 +37,15 @@
 
 navteq_plugin::navteq_plugin(const boost::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
-  // setting executable_path in navteq2osm_tag_parser.hpp for reading ISO-file
-  g_executable_path = this->executable_path;
 
-  converter.emplace_back(new LanduseConverter());
-  converter.emplace_back(new CityConverter());
-  converter.emplace_back(new HamletConverter());
-  converter.emplace_back(new BuildingConverter());
-  converter.emplace_back(new RestAreaConverter());
-  converter.emplace_back(new RailwayConverter());
-  converter.emplace_back(new WaterConverter());
+  convetrer.emplace_back(new AdminBoundariesConverter(executable_path));
+  converter.emplace_back(new LanduseConverter(executable_path));
+  converter.emplace_back(new CityConverter(executable_path));
+  converter.emplace_back(new HamletConverter(executable_path));
+  converter.emplace_back(new BuildingConverter(executable_path));
+  converter.emplace_back(new RestAreaConverter(executable_path);
+  converter.emplace_back(new RailwayConverter(executable_path));
+  converter.emplace_back(new WaterConverter(executable_path));
 }
 
 navteq_plugin::~navteq_plugin() {}

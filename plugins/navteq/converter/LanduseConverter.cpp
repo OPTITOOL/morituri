@@ -26,7 +26,9 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-LanduseConverter::LanduseConverter() {}
+LanduseConverter::LanduseConverter(
+    const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 LanduseConverter::~LanduseConverter() {}
 

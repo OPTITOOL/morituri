@@ -26,7 +26,9 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-RailwayConverter::RailwayConverter() {}
+RailwayConverter::RailwayConverter(
+    const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 RailwayConverter::~RailwayConverter() {}
 

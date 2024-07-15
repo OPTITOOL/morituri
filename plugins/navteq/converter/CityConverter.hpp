@@ -24,7 +24,7 @@
 class CityConverter : public Converter {
 
 public:
-  CityConverter();
+  CityConverter(const boost::filesystem::path &executable_path);
   virtual ~CityConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

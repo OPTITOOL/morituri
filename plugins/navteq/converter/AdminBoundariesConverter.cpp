@@ -28,7 +28,9 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-AdminBoundariesConverter::AdminBoundariesConverter() {}
+AdminBoundariesConverter::AdminBoundariesConverter(
+    const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 AdminBoundariesConverter::~AdminBoundariesConverter() {}
 

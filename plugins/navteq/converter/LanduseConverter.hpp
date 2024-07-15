@@ -24,7 +24,7 @@
 class LanduseConverter : public Converter {
 
 public:
-  LanduseConverter();
+  LanduseConverter(const boost::filesystem::path &executable_path);
   virtual ~LanduseConverter();
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,

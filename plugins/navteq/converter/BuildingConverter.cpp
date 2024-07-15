@@ -27,7 +27,9 @@
 #include "../../comm2osm_exceptions.hpp"
 #include "../../util.hpp"
 
-BuildingConverter::BuildingConverter() {}
+BuildingConverter::BuildingConverter(
+    const boost::filesystem::path &executable_path)
+    : Converter(executable_path) {}
 
 BuildingConverter::~BuildingConverter() {}
 

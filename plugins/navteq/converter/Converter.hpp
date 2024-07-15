@@ -19,6 +19,7 @@
 
 #include <boost/filesystem/path.hpp>
 #include <map>
+#include <ogrsf_frmts.h>
 #include <osmium/osm/types.hpp>
 #include <string_view>
 #include <vector>
@@ -50,7 +51,9 @@ class OGRLinearRing;
 class Converter {
 
 public:
-  Converter() {}
+  Converter(const boost::filesystem::path &_executable_path) {
+    executable_path = _executable_path;
+  }
   virtual ~Converter() {}
 
   virtual void convert(const std::vector<boost::filesystem::path> &dirs,
@@ -59,6 +62,16 @@ public:
   void set_dummy_osm_object_attributes(osmium::OSMObject &obj);
 
 protected:
+  // data structure to store admin boundary tags
+  struct mtd_area_dataset {
+    osmium::unsigned_object_id_type area_id;
+    std::string admin_lvl;
+    uint area_code_1;
+    std::string name;
+    std::string short_name;
+    std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
+  };
+
   void build_relation_members(
       osmium::builder::RelationBuilder &builder,
       const std::vector<osmium::unsigned_object_id_type> &ext_osm_way_ids,
@@ -114,7 +127,8 @@ protected:
 
   std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int);
 
-  void process_meta_areas(boost::filesystem::path dir);
+  std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
+  process_meta_areas(boost::filesystem::path dir);
 
   uint get_area_code_l(uint64_t l_area_id, uint64_t r_area_id,
                        const std::map<osmium::unsigned_object_id_type,
@@ -123,6 +137,10 @@ protected:
   uint get_area_code_l(const OGRFeatureUniquePtr &f,
                        const std::map<osmium::unsigned_object_id_type,
                                       mtd_area_dataset> &mtd_area_map);
+
+  void parse_lang_code_file();
+
+  std::string parse_lang_code(std::string lang_code);
 
   static constexpr int BUFFER_SIZE = 10 * 1000 * 1000;
 
@@ -149,15 +167,9 @@ protected:
   static constexpr int NAVTEQ_ADMIN_LVL_MIN = 1;
   static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
 
-  // data structure to store admin boundary tags
-  struct mtd_area_dataset {
-    osmium::unsigned_object_id_type area_id;
-    std::string admin_lvl;
-    uint area_code_1;
-    std::string name;
-    std::string short_name;
-    std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
-  };
+private:
+  static std::map<std::string, std::string> lang_code_map;
+  boost::filesystem::path &executable_path;
 };
 
 #endif // CONVERTER_HPP
