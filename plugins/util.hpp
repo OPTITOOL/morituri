@@ -269,21 +269,6 @@ void test__z_lvl_range(short z_lvl) {
                                  " is not valid"));
 }
 
-void set_ferry_z_lvls_to_zero(OGRFeatureUniquePtr &feat,
-                              index_z_lvl_vector_type &z_lvl_vec) {
-  // erase middle z_lvls
-  if (z_lvl_vec.size() > 2)
-    z_lvl_vec.erase(z_lvl_vec.begin() + 1, z_lvl_vec.end() - 1);
-  // erase first z_lvl if first index references first node
-  if (!z_lvl_vec.empty() && z_lvl_vec.begin()->first != 0)
-    z_lvl_vec.erase(z_lvl_vec.begin());
-  // erase last z_lvl if last index references last node
-  OGRLineString *ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
-  if (!z_lvl_vec.empty() &&
-      (z_lvl_vec.end() - 1)->first != ogr_ls->getNumPoints() - 1)
-    z_lvl_vec.erase(z_lvl_vec.end());
-}
-
 bool is_ferry(const char *value) {
   if (!strcmp(value, "H"))
     return false; // H --> not a ferry
@@ -291,8 +276,7 @@ bool is_ferry(const char *value) {
     return true; // T --> boat ferry
   else if (!strcmp(value, "R"))
     return true; // B --> rail ferry
-  throw(format_error("value '" + std::string(value) + "' for " +
-                     std::string(FERRY) + " not valid"));
+  throw(format_error("value '" + std::string(value) + "' for FERRY not valid"));
 }
 
 /**

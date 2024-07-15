@@ -90,6 +90,9 @@ private:
       std::filesystem::path dir,
       std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map);
 
+  void set_ferry_z_lvls_to_zero(const OGRFeatureUniquePtr &feat,
+                                std::vector<z_lvl_index_type_t> &z_lvl_vec);
+
   void init_conditional_modifications(const std::filesystem::path &dir);
   void init_g_cnd_mod_map(const std::filesystem::path &dir);
   void init_g_cdms_map(const std::filesystem::path &dir);
@@ -409,7 +412,22 @@ private:
       "",      ">130",  "101-130", "91-100", "71-90",
       "51-70", "31-50", "11-30",   "<11"};
 
-  constexpr double HOUSENUMBER_CURVE_OFFSET = 0.00005;
+  const double HOUSENUMBER_CURVE_OFFSET = 0.00005;
+
+  // condition types (CT)
+  const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
+  const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
+  const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
+
+  // modifier types (MT)
+  const ushort MT_HAZARDOUS_RESTRICTION = 39;
+  const ushort MT_HEIGHT_RESTRICTION = 41;
+  const ushort MT_WEIGHT_RESTRICTION = 42;
+  const ushort MT_WEIGHT_PER_AXLE_RESTRICTION = 43;
+  const ushort MT_LENGTH_RESTRICTION = 44;
+  const ushort MT_WIDTH_RESTRICTION = 45;
+
+  const ushort RESTRICTED_DRIVING_MANOEUVRE = 7;
 };
 
 #endif // STREETCONVERTER_HPP

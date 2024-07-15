@@ -32,21 +32,6 @@ static const std::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
 
 static const std::filesystem::path STREETS_DBF = "Streets.dbf";
 
-// condition types (CT)
-#define CT_RESTRICTED_DRIVING_MANOEUVRE 7
-#define CT_TRANSPORT_ACCESS_RESTRICTION 23
-#define CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE 26
-
-// modifier types (MT)
-#define MT_HAZARDOUS_RESTRICTION 39
-#define MT_HEIGHT_RESTRICTION 41
-#define MT_WEIGHT_RESTRICTION 42
-#define MT_WEIGHT_PER_AXLE_RESTRICTION 43
-#define MT_LENGTH_RESTRICTION 44
-#define MT_WIDTH_RESTRICTION 45
-
-#define RESTRICTED_DRIVING_MANOEUVRE 7
-
 } // namespace
 
 #endif /* PLUGINS_NAVTEQ_MAPPINGS_HPP_ */
