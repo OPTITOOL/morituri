@@ -245,6 +245,13 @@ std::string Converter::navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
   return std::to_string(2 * navteq_admin_lvl_int);
 }
 
+std::string Converter::navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {
+  if (string_is_not_unsigned_integer(navteq_admin_lvl))
+    throw std::runtime_error("admin level contains invalid character");
+
+  return navteq_2_osm_admin_lvl(stoi(navteq_admin_lvl));
+}
+
 // matching from http://www.loc.gov/standards/iso639-2/php/code_list.php
 // http://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt
 // ISO-639 conversion

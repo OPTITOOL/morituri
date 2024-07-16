@@ -46,13 +46,22 @@ void AdminBoundariesConverter::convert(
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
 
-  addLevel1Boundaries(dirs, g_way_end_points_map, writer);
+  std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
+      area_map;
+
+  addLevel1Boundaries(dirs, g_way_end_points_map, area_map, writer);
 
   for (auto dir : dirs) {
-    addLevelNBoundaries(dir / ADMINBNDY_2_SHP, g_way_end_points_map, writer, 2);
-    addLevelNBoundaries(dir / ADMINBNDY_3_SHP, g_way_end_points_map, writer, 3);
-    addLevelNBoundaries(dir / ADMINBNDY_4_SHP, g_way_end_points_map, writer, 4);
-    addLevelNBoundaries(dir / ADMINBNDY_5_SHP, g_way_end_points_map, writer, 5);
+    auto mtd_area_map = process_meta_areas(dir);
+
+    addLevelNBoundaries(dir / ADMINBNDY_2_SHP, g_way_end_points_map,
+                        mtd_area_map, writer, 2);
+    addLevelNBoundaries(dir / ADMINBNDY_3_SHP, g_way_end_points_map,
+                        mtd_area_map, writer, 3);
+    addLevelNBoundaries(dir / ADMINBNDY_4_SHP, g_way_end_points_map,
+                        mtd_area_map, writer, 4);
+    addLevelNBoundaries(dir / ADMINBNDY_5_SHP, g_way_end_points_map,
+                        mtd_area_map, writer, 5);
   }
 }
 
@@ -60,6 +69,8 @@ void AdminBoundariesConverter::addLevel1Boundaries(
     const std::vector<std::filesystem::path> &dirs,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
+    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
+        &mtd_area_map,
     osmium::io::Writer &writer) {
 
   const std::filesystem::path ADMINLINE_1_SHP = "AdminLine1.shp";
@@ -91,7 +102,7 @@ void AdminBoundariesConverter::addLevel1Boundaries(
 
     build_admin_boundary_relation_with_tags(
         adminBoundary.first, adminBoundary.second.first,
-        adminBoundary.second.second, rel_buffer, 1);
+        adminBoundary.second.second, mtd_area_map, rel_buffer, 1);
   }
   rel_buffer.commit();
   writer(std::move(rel_buffer));
@@ -240,10 +251,12 @@ AdminBoundariesConverter::build_admin_boundary_relation_with_tags(
     osmium::unsigned_object_id_type area_id,
     const std::vector<osmium::unsigned_object_id_type> &ext_osm_way_ids,
     const std::vector<osmium::unsigned_object_id_type> &int_osm_way_ids,
+    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
+        &mtd_area_map,
     osmium::memory::Buffer &rel_buffer, uint level) {
   osmium::builder::RelationBuilder builder(rel_buffer);
   setObjectProperties(builder);
-  build_admin_boundary_taglist(builder, area_id, level);
+  build_admin_boundary_taglist(builder, area_id, mtd_area_map, level);
   build_relation_members(builder, ext_osm_way_ids, int_osm_way_ids);
   return builder.object().id();
 }
@@ -265,6 +278,8 @@ void AdminBoundariesConverter::addLevelNBoundaries(
     std::filesystem::path dir,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
+    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
+        &mtd_area_map,
     osmium::io::Writer &writer, uint level) {
   std::map<int, std::pair<std::vector<osmium::unsigned_object_id_type>,
                           std::vector<osmium::unsigned_object_id_type>>>
@@ -277,7 +292,7 @@ void AdminBoundariesConverter::addLevelNBoundaries(
 
     build_admin_boundary_relation_with_tags(
         adminBoundary.first, adminBoundary.second.first,
-        adminBoundary.second.second, rel_buffer, level);
+        adminBoundary.second.second, mtd_area_map, rel_buffer, level);
   }
   rel_buffer.commit();
   writer(std::move(rel_buffer));
@@ -285,6 +300,8 @@ void AdminBoundariesConverter::addLevelNBoundaries(
 
 void AdminBoundariesConverter::build_admin_boundary_taglist(
     osmium::builder::Builder &builder, osmium::unsigned_object_id_type area_id,
+    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
+        &mtd_area_map,
     uint level) {
   osmium::builder::TagListBuilder tl_builder(builder);
   // Mind tl_builder scope in calling method!
@@ -297,8 +314,8 @@ void AdminBoundariesConverter::build_admin_boundary_taglist(
     tl_builder.add_tag("boundary", "administrative");
   }
 
-  auto it = g_mtd_area_map.find(area_id);
-  if (it != g_mtd_area_map.end()) {
+  auto it = mtd_area_map.find(area_id);
+  if (it != mtd_area_map.end()) {
     auto d = it->second;
     if (!d.admin_lvl.empty())
       tl_builder.add_tag("navteq_admin_level", d.admin_lvl);

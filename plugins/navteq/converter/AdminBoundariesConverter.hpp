@@ -44,6 +44,8 @@ private:
       const std::vector<std::filesystem::path> &dirs,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &g_way_end_points_map,
+      const std::map<osmium::unsigned_object_id_type,
+                     Converter::mtd_area_dataset> &mtd_area_map,
       osmium::io::Writer &writer);
 
   void add_admin_shape(
@@ -82,6 +84,8 @@ private:
       osmium::unsigned_object_id_type area_id,
       const std::vector<osmium::unsigned_object_id_type> &ext_osm_way_ids,
       const std::vector<osmium::unsigned_object_id_type> &int_osm_way_ids,
+      const std::map<osmium::unsigned_object_id_type,
+                     Converter::mtd_area_dataset> &mtd_area_map,
       osmium::memory::Buffer &rel_buffer, uint level);
 
   osmium::unsigned_object_id_type build_admin_boundary_relation_with_tags(
@@ -94,11 +98,16 @@ private:
       std::filesystem::path dir,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &g_way_end_points_map,
+      const std::map<osmium::unsigned_object_id_type,
+                     Converter::mtd_area_dataset> &mtd_area_map,
       osmium::io::Writer &writer, uint level);
 
-  void build_admin_boundary_taglist(osmium::builder::Builder &builder,
-                                    osmium::unsigned_object_id_type area_id,
-                                    uint level);
+  void build_admin_boundary_taglist(
+      osmium::builder::Builder &builder,
+      osmium::unsigned_object_id_type area_id,
+      const std::map<osmium::unsigned_object_id_type,
+                     Converter::mtd_area_dataset> &mtd_area_map,
+      uint level);
 
   void build_admin_boundary_taglist(osmium::builder::Builder &builder,
                                     const OGRFeatureUniquePtr &feat);

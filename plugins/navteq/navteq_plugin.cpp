@@ -40,7 +40,7 @@ navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
 
   converter.emplace_back(new AdminBoundariesConverter(executable_path));
-  converter.emplace_back(new StreetConverter(executable_path));
+  // converter.emplace_back(new StreetConverter(executable_path));
   converter.emplace_back(new LanduseConverter(executable_path));
   converter.emplace_back(new CityConverter(executable_path));
   converter.emplace_back(new HamletConverter(executable_path));

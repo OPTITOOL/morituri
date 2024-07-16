@@ -128,6 +128,8 @@ protected:
 
   std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int);
 
+  std::string navteq_2_osm_admin_lvl(std::string navteq_admin_lvl);
+
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
   process_meta_areas(std::filesystem::path dir);
 
