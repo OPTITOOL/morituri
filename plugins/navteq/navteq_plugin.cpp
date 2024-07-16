@@ -163,8 +163,11 @@ void navteq_plugin::execute() {
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
 
   // run converters
-  for (auto &c : converter)
-    c->convert(dataDirs, writer);
+  for (auto &dir : dataDirs) {
+    BOOST_LOG_TRIVIAL(info) << "Processing " << dir;
+    for (auto &c : converter)
+      c->convert(dir, writer);
+  }
 
   writer.close();
 

@@ -36,8 +36,8 @@ public:
   AdminBoundariesConverter(const std::filesystem::path &executable_path);
   virtual ~AdminBoundariesConverter();
 
-  virtual void convert(const std::vector<std::filesystem::path> &dirs,
-                       osmium::io::Writer &writer);
+  virtual void convert(const std::filesystem::path &dir,
+                       osmium::io::Writer &writer) override;
 
 private:
   void addLevel1Boundaries(

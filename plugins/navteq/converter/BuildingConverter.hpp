@@ -27,8 +27,8 @@ public:
   BuildingConverter(const std::filesystem::path &executable_path);
   virtual ~BuildingConverter();
 
-  virtual void convert(const std::vector<std::filesystem::path> &dirs,
-                       osmium::io::Writer &writer);
+  virtual void convert(const std::filesystem::path &dir,
+                       osmium::io::Writer &writer) override;
 
 private:
   void add_building_shape(std::filesystem::path landmark_shape_file,

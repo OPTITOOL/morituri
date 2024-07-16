@@ -28,14 +28,11 @@ CityConverter::CityConverter(const std::filesystem::path &executable_path)
 
 CityConverter::~CityConverter() {}
 
-void CityConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void CityConverter::convert(const std::filesystem::path &dir,
                             osmium::io::Writer &writer) {
 
   const std::filesystem::path NAMED_PLC_SHP = "NamedPlc.shp";
-
-  for (auto dir : dirs) {
-    add_city_shape(dir / NAMED_PLC_SHP, writer);
-  }
+  add_city_shape(dir / NAMED_PLC_SHP, writer);
 }
 
 void CityConverter::add_city_shape(std::filesystem::path city_shape_file,

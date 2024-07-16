@@ -28,15 +28,13 @@ LanduseConverter::LanduseConverter(const std::filesystem::path &executable_path)
 
 LanduseConverter::~LanduseConverter() {}
 
-void LanduseConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void LanduseConverter::convert(const std::filesystem::path &dir,
                                osmium::io::Writer &writer) {
   const std::filesystem::path LAND_USE_A_SHP = "LandUseA.shp";
   const std::filesystem::path LAND_USE_B_SHP = "LandUseB.shp";
 
-  for (auto dir : dirs) {
-    add_landuse_shape(dir / LAND_USE_A_SHP, writer);
-    add_landuse_shape(dir / LAND_USE_B_SHP, writer);
-  }
+  add_landuse_shape(dir / LAND_USE_A_SHP, writer);
+  add_landuse_shape(dir / LAND_USE_B_SHP, writer);
 }
 
 void LanduseConverter::add_landuse_shape(

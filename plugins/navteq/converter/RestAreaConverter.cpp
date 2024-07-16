@@ -29,13 +29,12 @@ RestAreaConverter::RestAreaConverter(
 
 RestAreaConverter::~RestAreaConverter() {}
 
-void RestAreaConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void RestAreaConverter::convert(const std::filesystem::path &dir,
                                 osmium::io::Writer &writer) {
 
   const std::filesystem::path TRAVDEST_SHP = "TravDest.shp";
-  for (auto dir : dirs) {
-    add_rest_area(dir / TRAVDEST_SHP, writer);
-  }
+
+  add_rest_area(dir / TRAVDEST_SHP, writer);
 }
 
 void RestAreaConverter::add_rest_area(std::filesystem::path rest_area_file,

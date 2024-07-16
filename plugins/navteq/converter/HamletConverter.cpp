@@ -28,14 +28,12 @@ HamletConverter::HamletConverter(const std::filesystem::path &executable_path)
 
 HamletConverter::~HamletConverter() {}
 
-void HamletConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void HamletConverter::convert(const std::filesystem::path &dir,
                               osmium::io::Writer &writer) {
 
   const std::filesystem::path HAMLET_SHP = "Hamlet.shp";
 
-  for (const auto &dir : dirs) {
-    add_hamlet(dir / HAMLET_SHP, writer);
-  }
+  add_hamlet(dir / HAMLET_SHP, writer);
 }
 
 void HamletConverter::add_hamlet(std::filesystem::path hamlet_file,

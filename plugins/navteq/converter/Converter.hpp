@@ -53,7 +53,7 @@ public:
       : executable_path(_executable_path) {}
   virtual ~Converter() {}
 
-  virtual void convert(const std::vector<std::filesystem::path> &dirs,
+  virtual void convert(const std::filesystem::path &dir,
                        osmium::io::Writer &writer) = 0;
 
   void set_dummy_osm_object_attributes(osmium::OSMObject &obj);

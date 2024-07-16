@@ -27,16 +27,14 @@ WaterConverter::WaterConverter(const std::filesystem::path &executable_path)
 
 WaterConverter::~WaterConverter() {}
 
-void WaterConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void WaterConverter::convert(const std::filesystem::path &dir,
                              osmium::io::Writer &writer) {
 
   const std::filesystem::path WATER_SEG_SHP = "WaterSeg.shp";
   const std::filesystem::path WATER_POLY_SHP = "WaterPoly.shp";
 
-  for (auto dir : dirs) {
-    add_water_shape(dir / WATER_POLY_SHP, writer);
-    add_water_shape(dir / WATER_SEG_SHP, writer);
-  }
+  add_water_shape(dir / WATER_POLY_SHP, writer);
+  add_water_shape(dir / WATER_SEG_SHP, writer);
 }
 
 void WaterConverter::add_water_shape(std::filesystem::path water_shape_file,

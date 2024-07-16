@@ -30,14 +30,11 @@ BuildingConverter::BuildingConverter(
 
 BuildingConverter::~BuildingConverter() {}
 
-void BuildingConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void BuildingConverter::convert(const std::filesystem::path &dir,
                                 osmium::io::Writer &writer) {
 
   static const std::filesystem::path LANDMARK_SHP = "Landmark.shp";
-
-  for (auto dir : dirs) {
-    add_building_shape(dir / LANDMARK_SHP, writer);
-  }
+  add_building_shape(dir / LANDMARK_SHP, writer);
 }
 
 void BuildingConverter::add_building_shape(

@@ -31,9 +31,8 @@ AdminBoundariesConverter::AdminBoundariesConverter(
 
 AdminBoundariesConverter::~AdminBoundariesConverter() {}
 
-void AdminBoundariesConverter::convert(
-    const std::vector<std::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
+void AdminBoundariesConverter::convert(const std::filesystem::path &dir,
+                                       osmium::io::Writer &writer) {
 
   const std::filesystem::path ADMINBNDY_2_SHP = "Adminbndy2.shp";
   const std::filesystem::path ADMINBNDY_3_SHP = "Adminbndy3.shp";
@@ -43,20 +42,18 @@ void AdminBoundariesConverter::convert(
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
 
-  for (auto dir : dirs) {
-    auto mtd_area_map = process_meta_areas(dir);
+  auto mtd_area_map = process_meta_areas(dir);
 
-    addLevel1Boundaries(dir, g_way_end_points_map, mtd_area_map, writer);
+  addLevel1Boundaries(dir, g_way_end_points_map, mtd_area_map, writer);
 
-    addLevelNBoundaries(dir / ADMINBNDY_2_SHP, g_way_end_points_map,
-                        mtd_area_map, writer, 2);
-    addLevelNBoundaries(dir / ADMINBNDY_3_SHP, g_way_end_points_map,
-                        mtd_area_map, writer, 3);
-    addLevelNBoundaries(dir / ADMINBNDY_4_SHP, g_way_end_points_map,
-                        mtd_area_map, writer, 4);
-    addLevelNBoundaries(dir / ADMINBNDY_5_SHP, g_way_end_points_map,
-                        mtd_area_map, writer, 5);
-  }
+  addLevelNBoundaries(dir / ADMINBNDY_2_SHP, g_way_end_points_map, mtd_area_map,
+                      writer, 2);
+  addLevelNBoundaries(dir / ADMINBNDY_3_SHP, g_way_end_points_map, mtd_area_map,
+                      writer, 3);
+  addLevelNBoundaries(dir / ADMINBNDY_4_SHP, g_way_end_points_map, mtd_area_map,
+                      writer, 4);
+  addLevelNBoundaries(dir / ADMINBNDY_5_SHP, g_way_end_points_map, mtd_area_map,
+                      writer, 5);
 }
 
 void AdminBoundariesConverter::addLevel1Boundaries(

@@ -28,14 +28,12 @@ RailwayConverter::RailwayConverter(const std::filesystem::path &executable_path)
 
 RailwayConverter::~RailwayConverter() {}
 
-void RailwayConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void RailwayConverter::convert(const std::filesystem::path &dir,
                                osmium::io::Writer &writer) {
 
   const std::filesystem::path RAILWAYS_POLY_SHP = "RailRds.shp";
 
-  for (auto dir : dirs) {
-    add_railways_shape(dir / RAILWAYS_POLY_SHP, writer);
-  }
+  add_railways_shape(dir / RAILWAYS_POLY_SHP, writer);
 }
 
 void RailwayConverter::add_railways_shape(
