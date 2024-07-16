@@ -88,19 +88,29 @@ navteq_plugin::check_files(const std::filesystem::path &dir) {
   if (!isHereDatatDir)
     return std::nullopt;
 
-  if (hasPackedData) {
-    return std::optional<std::filesystem::path>(tarFile);
+  // check HERE-Contrycodes
+  if (!countriesToConvert.empty()) {
+    // get the 2 leading chars of the directory
+    std::string country = dir.filename().string().substr(0, 2);
+    auto isoContryCode = HERE_REGION_ISO_MAPPING.find(country);
+    if (isoContryCode == HERE_REGION_ISO_MAPPING.end()) {
+      BOOST_LOG_TRIVIAL(error)
+          << "Country code not found in mapping: " << country;
+      return std::nullopt;
+    }
+
+    if (countriesToConvert.contains(isoContryCode->second)) {
+      foundCountries.insert(isoContryCode->second);
+    } else {
+      return std::nullopt;
+    }
   }
 
-  // check if the PROD.csv file exists
-
-  // check HERE-Contrycodes
-
-  // if there is a tar.gz --> use vsitar to extract the files
-
-  // otherwise check id there are unpacked files
-
-  return std::nullopt;
+  if (hasPackedData) {
+    return std::optional<std::filesystem::path>(tarFile);
+  } else {
+    return std::optional<std::filesystem::path>(dir);
+  }
 }
 
 bool navteq_plugin::check_input(const std::filesystem::path &input_path,
@@ -221,7 +231,7 @@ void navteq_plugin::setBoundingBox(double minX, double minY, double maxX,
   boundingBox.MaxY = maxY;
 }
 
-void navteq_plugin::setCountries(const std::vector<std::string> &countries) {
+void navteq_plugin::setCountries(const std::set<std::string> &countries) {
   countriesToConvert = countries;
 }
 

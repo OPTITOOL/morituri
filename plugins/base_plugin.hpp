@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <boost/filesystem/operations.hpp>
 #include <filesystem>
+#include <set>
 
 #include <osmium/io/error.hpp>
 
@@ -92,7 +93,7 @@ public:
   virtual void setBoundingBox(double minX, double minY, double maxX,
                               double maxY) = 0;
 
-  virtual void setCountries(const std::vector<std::string> &_countries) = 0;
+  virtual void setCountries(const std::set<std::string> &_countries) = 0;
 
   virtual void setDebug(bool debug) = 0;
 };

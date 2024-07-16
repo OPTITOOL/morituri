@@ -11,6 +11,7 @@
 #include "../base_plugin.hpp"
 #include "converter/Converter.hpp"
 #include <filesystem>
+#include <map>
 #include <osmium/osm/entity_bits.hpp>
 #include <string>
 
@@ -38,9 +39,13 @@ private:
 
   OGREnvelope boundingBox;
 
-  std::vector<std::string> countriesToConvert;
+  std::set<std::string> countriesToConvert;
   std::set<std::string> foundCountries;
   bool debug;
+
+  const std::map<std::string, std::string> HERE_REGION_ISO_MAPPING = {
+      {"M2", "SLO"}, {"M3", "ALB"}, {"M4", "MKD"}, {"M5", "SRB"},
+      {"M6", "BIH"}, {"M7", "BLR"}, {"M9", "MLT"}};
 
 public:
   navteq_plugin(const std::filesystem::path &executable_path);
@@ -53,7 +58,7 @@ public:
 
   void setBoundingBox(double minX, double minY, double maxX, double maxY);
 
-  void setCountries(const std::vector<std::string> &_countries);
+  void setCountries(const std::set<std::string> &_countries);
 
   void setDebug(bool debug);
 };
