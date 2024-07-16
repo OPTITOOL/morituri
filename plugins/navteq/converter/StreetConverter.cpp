@@ -23,113 +23,120 @@
 #include <osmium/osm/location.hpp>
 #include <osmium/osm/types.hpp>
 
-
 #include "../../comm2osm_exceptions.hpp"
-#include "../../util.hpp"
+#include "../../ogr_util.hpp"
 
 StreetConverter::StreetConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
 StreetConverter::~StreetConverter() {}
 
-void StreetConverter::convert(const std::vector<std::filesystem::path> &dirs,
+void StreetConverter::convert(const std::filesystem::path &dir,
                               osmium::io::Writer &writer) {
 
-  auto route_type_map = process_alt_steets_route_types(dirs);
+  auto route_type_map = process_alt_steets_route_types(dir);
 
-  add_street_shapes(dirs, writer);
+  add_street_shapes(dir, writer);
 }
 
 std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
-    const std::vector<std::filesystem::path> &dirs) {
+    const std::filesystem::path &dir) {
 
   std::map<uint64_t, ushort> route_type_map;
 
-  const std::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
-  for (auto dir : dirs) {
-    DBFHandle alt_streets_handle = read_dbf_file(dir / ALT_STREETS_DBF);
-    for (int i = 0; i < DBFGetRecordCount(alt_streets_handle); i++) {
+  auto ds = openDataSource(dir / ALT_STREETS_DBF);
+  if (!ds)
+    return route_type_map;
 
-      if (dbf_get_string_by_field(alt_streets_handle, i, ROUTE.data()).empty())
-        continue;
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error((dir / ALT_STREETS_DBF).string()));
 
-      osmium::unsigned_object_id_type link_id =
-          dbf_get_uint_by_field(alt_streets_handle, i, LINK_ID.data());
-      ushort route_type =
-          dbf_get_uint_by_field(alt_streets_handle, i, ROUTE.data());
+  for (auto &feat : *layer) {
 
-      // try to emplace <link_id, route_type> pair
-      auto [insertion, inserted] = route_type_map.emplace(link_id, route_type);
+    std::string route = get_field_from_feature(feat, ROUTE);
+    if (route.empty())
+      continue;
 
-      // if its already exists update routetype
-      if (!inserted && insertion->second > route_type) {
-        // As link id's aren't unique in AltStreets.dbf
-        // just store the lowest route type
-        insertion->second = route_type;
-      }
+    osmium::unsigned_object_id_type link_id =
+        get_uint_from_feature(feat, LINK_ID);
+    ushort route_type = get_uint_from_feature(feat, ROUTE);
+
+    // try to emplace <link_id, route_type> pair
+    auto [insertion, inserted] = route_type_map.emplace(link_id, route_type);
+
+    // if its already exists update routetype
+    if (!inserted && insertion->second > route_type) {
+      // As link id's aren't unique in AltStreets.dbf
+      // just store the lowest route type
+      insertion->second = route_type;
     }
-    DBFClose(alt_streets_handle);
   }
 
   return route_type_map;
 }
 
-void StreetConverter::add_street_shapes(
-    const std::vector<std::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
+void StreetConverter::add_street_shapes(const std::filesystem::path &dir,
+                                        osmium::io::Writer &writer) {
 
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
-  auto z_level_map = process_z_levels(dirs);
+  auto z_level_map = process_z_levels(dir);
 
   BOOST_LOG_TRIVIAL(info) << " processing way end points";
-  process_way_end_nodes(dirs, z_level_map, writer);
+  process_way_end_nodes(dir, z_level_map, writer);
 
   BOOST_LOG_TRIVIAL(info) << " processing ways";
-  process_way(dirs, z_level_map, writer);
+  process_way(dir, z_level_map, writer);
 
   // create house numbers
   BOOST_LOG_TRIVIAL(info) << " processing house numbers";
-  process_house_numbers(dirs, writer);
+  process_house_numbers(dir, writer);
 }
 
-std::map<uint64_t, std::vector<z_lvl_index_type_t>>
-StreetConverter::process_z_levels(
-    const std::vector<std::filesystem::path> &dirs) {
+std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
+StreetConverter::process_z_levels(const std::filesystem::path &dir) {
+
   std::map<uint64_t, std::vector<z_lvl_index_type_t>> z_level_map;
 
-  for (auto &dir : dirs) {
-    auto path = dir / STREETS_SHP;
-    auto ds = open_shape_file(path);
+  auto ds = openDataSource(dir / STREETS_SHP);
+  if (!ds)
+    throw(shp_error(dir / STREETS_SHP));
 
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error(path.string()));
-    assert(layer->GetGeomType() == wkbLineString);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / STREETS_SHP));
+  assert(layer->GetGeomType() == wkbLineString);
 
-    init_z_level_map(dir, z_level_map);
-    init_conditional_modifications(dir);
-    init_country_reference(dir);
-  }
+  init_z_level_map(dir, z_level_map);
+  init_conditional_modifications(dir);
+  init_country_reference(dir);
+
   return z_level_map;
 }
 
 void StreetConverter::init_z_level_map(
-    std::filesystem::path dir,
+    const std::filesystem::path &dir,
     std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map) {
 
   const std::filesystem::path ZLEVELS_DBF = "Zlevels.dbf";
-  // open dbf
-  DBFHandle handle = read_dbf_file(dir / ZLEVELS_DBF);
+
+  auto ds = openDataSource(dir / ZLEVELS_DBF);
+  if (!ds)
+    throw(shp_error(dir / ZLEVELS_DBF));
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / ZLEVELS_DBF));
 
   uint64_t last_link_id = 0;
   std::vector<z_lvl_index_type_t> v;
 
-  for (int i = 0; i < DBFGetRecordCount(handle); i++) {
-    uint64_t link_id = dbf_get_uint_by_field(handle, i, LINK_ID.data());
-    ushort point_num = dbf_get_uint_by_field(handle, i, POINT_NUM.data()) - 1;
-    short z_level = dbf_get_uint_by_field(handle, i, Z_LEVEL.data());
+  for (auto &feat : *layer) {
+    uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
+    ushort point_num = get_uint_from_feature(feat, POINT_NUM) - 1;
+    short z_level = get_uint_from_feature(feat, Z_LEVEL);
 
-    if (i > 0 && last_link_id != link_id && !v.empty()) {
+    if (last_link_id != link_id && !v.empty()) {
       z_level_map.emplace(last_link_id, v);
       v = std::vector<z_lvl_index_type_t>();
     }
@@ -137,9 +144,6 @@ void StreetConverter::init_z_level_map(
       v.emplace_back(point_num, z_level);
     last_link_id = link_id;
   }
-
-  // close dbf
-  DBFClose(handle);
 
   if (!v.empty())
     z_level_map.emplace(last_link_id, v);
@@ -153,15 +157,20 @@ void StreetConverter::init_conditional_modifications(
 
 void StreetConverter::init_g_cnd_mod_map(const std::filesystem::path &dir) {
   const std::filesystem::path CND_MOD_DBF = "CndMod.dbf";
-  DBFHandle cnd_mod_handle = read_dbf_file(dir / CND_MOD_DBF);
-  for (int i = 0; i < DBFGetRecordCount(cnd_mod_handle); i++) {
-    uint64_t cond_id = dbf_get_uint_by_field(cnd_mod_handle, i, COND_ID.data());
-    std::string lang_code =
-        dbf_get_string_by_field(cnd_mod_handle, i, LANG_CODE.data());
-    uint64_t mod_type =
-        dbf_get_uint_by_field(cnd_mod_handle, i, CM_MOD_TYPE.data());
-    uint64_t mod_val =
-        dbf_get_uint_by_field(cnd_mod_handle, i, CM_MOD_VAL.data());
+
+  auto ds = openDataSource(dir / CND_MOD_DBF);
+  if (!ds)
+    return;
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / CND_MOD_DBF));
+
+  for (auto &feat : *layer) {
+    uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
+    std::string lang_code = get_field_from_feature(feat, LANG_CODE);
+    uint64_t mod_type = get_uint_from_feature(feat, CM_MOD_TYPE);
+    uint64_t mod_val = get_uint_from_feature(feat, CM_MOD_VAL);
 
     auto it2 = g_cnd_mod_map.find(cond_id);
     if (it2 == g_cnd_mod_map.end()) {
@@ -169,98 +178,114 @@ void StreetConverter::init_g_cnd_mod_map(const std::filesystem::path &dir) {
       new_vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
       g_cnd_mod_map.emplace(cond_id, new_vector);
     } else {
-      //(std::vector<mod_group_type>) ()’
       auto vector = it2->second;
       g_cnd_mod_map.erase(it2);
       vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
       g_cnd_mod_map.emplace(cond_id, vector);
     }
   }
-  DBFClose(cnd_mod_handle);
 }
 
 void StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
   const std::filesystem::path CDMS_DBF = "Cdms.dbf";
-  DBFHandle cdms_handle = read_dbf_file(dir / CDMS_DBF);
-  for (int i = 0; i < DBFGetRecordCount(cdms_handle); i++) {
-    uint64_t link_id = dbf_get_uint_by_field(cdms_handle, i, LINK_ID.data());
-    uint64_t cond_id = dbf_get_uint_by_field(cdms_handle, i, COND_ID.data());
-    ushort cond_type = dbf_get_uint_by_field(cdms_handle, i, COND_TYPE);
+  auto ds = openDataSource(dir / CDMS_DBF);
+  if (!ds)
+    return;
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / CDMS_DBF));
+
+  for (auto &feat : *layer) {
+    uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
+    uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
+    ushort cond_type = get_uint_from_feature(feat, COND_TYPE);
     g_cdms_map.emplace(link_id, cond_pair_type(cond_id, cond_type));
+    if (cond_type == 3)
+      g_construction_set.emplace(link_id);
   }
-  DBFClose(cdms_handle);
 }
 
 void StreetConverter::init_country_reference(const std::filesystem::path &dir) {
-  if (dbf_file_exists(dir / MTD_AREA_DBF) &&
-      dbf_file_exists(dir / MTD_CNTRY_REF_DBF)) {
-    init_g_area_to_govt_code_map(dir);
-    init_g_cntry_ref_map(dir);
-  }
+  init_g_area_to_govt_code_map(dir);
+  init_g_cntry_ref_map(dir);
 }
 
 void StreetConverter::init_g_area_to_govt_code_map(
     const std::filesystem::path &dir) {
-  DBFHandle mtd_area_handle = read_dbf_file(dir / MTD_AREA_DBF);
-  for (int i = 0; i < DBFGetRecordCount(mtd_area_handle); i++) {
-    uint64_t area_id =
-        dbf_get_uint_by_field(mtd_area_handle, i, AREA_ID.data());
-    uint64_t govt_code =
-        dbf_get_uint_by_field(mtd_area_handle, i, GOVT_CODE.data());
+
+  const std::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
+
+  auto ds = openDataSource(dir / MTD_AREA_DBF);
+  if (!ds)
+    return;
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / MTD_AREA_DBF));
+
+  for (auto &feat : *layer) {
+    uint64_t area_id = get_uint_from_feature(feat, AREA_ID);
+    uint64_t govt_code = get_uint_from_feature(feat, GOVT_CODE);
     g_area_to_govt_code_map.emplace(area_id, govt_code);
   }
-  DBFClose(mtd_area_handle);
 }
 
 void StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
-  DBFHandle cntry_ref_handle = read_dbf_file(dir / MTD_CNTRY_REF_DBF);
-  for (int i = 0; i < DBFGetRecordCount(cntry_ref_handle); i++) {
-    uint64_t govt_code =
-        dbf_get_uint_by_field(cntry_ref_handle, i, GOVT_CODE.data());
-    auto unit_measure =
-        dbf_get_string_by_field(cntry_ref_handle, i, UNTMEASURE.data());
-    auto speed_limit_unit =
-        dbf_get_string_by_field(cntry_ref_handle, i, SPEEDLIMITUNIT.data());
-    auto iso_code =
-        dbf_get_string_by_field(cntry_ref_handle, i, ISO_CODE.data());
-    auto cntry_ref = cntry_ref_type(unit_measure, speed_limit_unit, iso_code);
+
+  static const std::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";
+
+  auto ds = openDataSource(dir / MTD_CNTRY_REF_DBF);
+  if (!ds)
+    return;
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / MTD_CNTRY_REF_DBF));
+
+  for (auto &feat : *layer) {
+    uint64_t govt_code = get_uint_from_feature(feat, GOVT_CODE);
+    std::string unit_measure = get_field_from_feature(feat, UNTMEASURE);
+    std::string speed_limit_unit = get_field_from_feature(feat, SPEEDLIMITUNIT);
+    std::string iso_code = get_field_from_feature(feat, ISO_CODE);
+    cntry_ref_type cntry_ref(unit_measure, speed_limit_unit, iso_code);
     g_cntry_ref_map.emplace(govt_code, cntry_ref);
   }
-  DBFClose(cntry_ref_handle);
 }
 
 void StreetConverter::process_way_end_nodes(
-    const std::vector<std::filesystem::path> &dirs,
-    const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+    const std::filesystem::path &dir,
+    const std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
+        &z_level_map,
     osmium::io::Writer &writer) {
-  for (auto &dir : dirs) {
 
-    // parse ramp names and refs
-    std::map<osmium::Location, std::map<uint, std::string>> ramps_ref_map =
-        init_ramp_names(dir);
+  // parse ramp names and refs
+  std::map<osmium::Location, std::map<uint, std::string>> ramps_ref_map =
+      init_ramp_names(dir);
 
-    auto path = dir / STREETS_SHP;
-    auto ds = open_shape_file(path);
+  auto path = dir / STREETS_SHP;
+  auto ds = openDataSource(path);
+  if (!ds)
+    throw(shp_error(path.string()));
 
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error(path.string()));
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(path.string()));
 
-    osmium::memory::Buffer node_buffer(BUFFER_SIZE);
+  osmium::memory::Buffer node_buffer(BUFFER_SIZE);
 
-    int linkIDField = layer->FindFieldIndex(LINK_ID.data(), true);
+  int linkIDField = layer->FindFieldIndex(LINK_ID.data(), true);
 
-    // get all nodes which may be a routable crossing
-    for (auto &feat : *layer) {
-      uint64_t link_id = feat->GetFieldAsInteger(linkIDField);
-      // omit way end nodes with different z-levels (they have to be handled
-      // extra)
-      if (z_level_map.find(link_id) == z_level_map.end())
-        process_way_end_nodes(feat, node_buffer);
-    }
-    node_buffer.commit();
-    writer(std::move(node_buffer));
+  // get all nodes which may be a routable crossing
+  for (auto &feat : *layer) {
+    uint64_t link_id = feat->GetFieldAsInteger(linkIDField);
+    // omit way end nodes with different z-levels (they have to be handled
+    // extra)
+    if (z_level_map.find(link_id) == z_level_map.end())
+      process_way_end_nodes(feat, node_buffer);
   }
+  node_buffer.commit();
+  writer(std::move(node_buffer));
 }
 
 void StreetConverter::process_way_end_nodes(
@@ -313,20 +338,23 @@ StreetConverter::init_ramp_names(const std::filesystem::path &dir) {
 
 std::map<uint64_t, std::string>
 StreetConverter::read_junction_names(const std::filesystem::path &dbf_file) {
-  DBFHandle hwys_handle = read_dbf_file(dbf_file);
+
+  auto ds = openDataSource(dbf_file);
+  if (!ds)
+    throw(shp_error(dbf_file.string()));
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dbf_file.string()));
+
   std::map<uint64_t, std::string> junctionNames;
-  for (int i = 0; i < DBFGetRecordCount(hwys_handle); i++) {
 
-    uint64_t link_id = dbf_get_uint_by_field(hwys_handle, i, LINK_ID.data());
-    std::string ramp_name =
-        dbf_get_string_by_field(hwys_handle, i, ST_NM_BASE.data());
-
-    if (parse_bool(dbf_get_string_by_field(hwys_handle, i, JUNCTIONNM.data())
-                       .c_str())) {
-      junctionNames[link_id] = ramp_name;
+  for (auto &feat : *layer) {
+    if (parse_bool(get_field_from_feature(feat, JUNCTIONNM))) {
+      uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
+      junctionNames[link_id] = get_field_from_feature(feat, ST_NM_BASE);
     }
   }
-  DBFClose(hwys_handle);
 
   return junctionNames;
 }
@@ -336,7 +364,10 @@ void StreetConverter::parse_ramp_names(
     std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
     const std::map<uint64_t, std::string> &junctionNames) {
 
-  auto ds = open_shape_file(shp_file);
+  auto ds = openDataSource(shp_file);
+  if (!ds)
+    return;
+
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
     throw(shp_empty_error(shp_file.string()));
@@ -376,49 +407,46 @@ void StreetConverter::parse_ramp_names(
 }
 
 void StreetConverter::process_way(
-    const std::vector<std::filesystem::path> &dirs,
-    const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+    const std::filesystem::path &dir,
+    std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::io::Writer &writer) {
-  for (auto &dir : dirs) {
-    // parse highway names and refs
-    auto hwys_ref_map = init_highway_names(dir);
 
-    // parse conditionals
-    init_under_construction(dir);
+  // parse highway names and refs
+  auto hwys_ref_map = init_highway_names(dir);
 
-    auto path = dir / STREETS_SHP;
-    auto ds = open_shape_file(path);
+  auto path = dir / STREETS_SHP;
+  auto ds = openDataSource(path);
+  if (!ds)
+    throw(shp_error(path.string()));
 
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error(path.string()));
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(path.string()));
 
-    osmium::memory::Buffer node_buffer(BUFFER_SIZE);
-    osmium::memory::Buffer way_buffer(BUFFER_SIZE);
-    for (auto &feat : *layer) {
-      process_way(feat, z_level_map, node_buffer, way_buffer);
-    }
-
-    node_buffer.commit();
-    way_buffer.commit();
-    writer(std::move(node_buffer));
-    writer(std::move(way_buffer));
-
-    g_hwys_ref_map.clear();
+  osmium::memory::Buffer node_buffer(BUFFER_SIZE);
+  osmium::memory::Buffer way_buffer(BUFFER_SIZE);
+  for (auto &feat : *layer) {
+    process_way(feat, z_level_map, node_buffer, way_buffer);
   }
+
+  node_buffer.commit();
+  way_buffer.commit();
+  writer(std::move(node_buffer));
+  writer(std::move(way_buffer));
 }
 
 std::map<uint64_t, std::map<uint, std::string>>
 StreetConverter::init_highway_names(const std::filesystem::path &dir) {
+
+  static const std::filesystem::path MAJ_HWYS_DBF = "MajHwys.dbf";
+  static const std::filesystem::path SEC_HWYS_DBF = "SecHwys.dbf";
+  static const std::filesystem::path STREETS_DBF = "Streets.dbf";
+
   std::map<uint64_t, std::map<uint, std::string>> hwys_ref_map;
-  if (dbf_file_exists(dir / MAJ_HWYS_DBF))
-    parse_highway_names(dir / MAJ_HWYS_DBF, hwys_ref_map, false);
-  if (dbf_file_exists(dir / SEC_HWYS_DBF))
-    parse_highway_names(dir / SEC_HWYS_DBF, hwys_ref_map, false);
-  if (dbf_file_exists(dir / ALT_STREETS_DBF))
-    parse_highway_names(dir / ALT_STREETS_DBF, hwys_ref_map, true);
-  if (dbf_file_exists(dir / STREETS_DBF))
-    parse_highway_names(dir / STREETS_DBF, hwys_ref_map, true);
+  parse_highway_names(dir / MAJ_HWYS_DBF, hwys_ref_map, false);
+  parse_highway_names(dir / SEC_HWYS_DBF, hwys_ref_map, false);
+  parse_highway_names(dir / ALT_STREETS_DBF, hwys_ref_map, true);
+  parse_highway_names(dir / STREETS_DBF, hwys_ref_map, true);
 
   return hwys_ref_map;
 }
@@ -427,42 +455,30 @@ void StreetConverter::parse_highway_names(
     const std::filesystem::path &dbf_file,
     std::map<uint64_t, std::map<uint, std::string>> &hwys_ref_map,
     bool isStreetLayer) {
-  DBFHandle hwys_handle = read_dbf_file(dbf_file);
-  for (int i = 0; i < DBFGetRecordCount(hwys_handle); i++) {
 
-    uint64_t link_id = dbf_get_uint_by_field(hwys_handle, i, LINK_ID.data());
-    std::string hwy_name;
-    if (isStreetLayer)
-      hwy_name = dbf_get_string_by_field(hwys_handle, i, ST_NAME.data());
-    else
-      hwy_name = dbf_get_string_by_field(hwys_handle, i, HIGHWAY_NM.data());
-
-    uint routeType = dbf_get_uint_by_field(hwys_handle, i, ROUTE.data());
-
-    hwys_ref_map[link_id].emplace(routeType, hwy_name);
-  }
-  DBFClose(hwys_handle);
-}
-
-void StreetConverter::init_under_construction(
-    const std::filesystem::path &dir) {
-  if (!dbf_file_exists(dir / CDMS_DBF))
+  auto ds = openDataSource(dbf_file);
+  if (!ds)
     return;
 
-  DBFHandle cond = read_dbf_file(dir / CDMS_DBF);
-  for (int i = 0; i < DBFGetRecordCount(cond); i++) {
-    uint64_t link_id = dbf_get_uint_by_field(cond, i, LINK_ID);
-    uint condType = dbf_get_uint_by_field(cond, i, COND_TYPE);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dbf_file.string()));
 
-    if (condType == 3)
-      g_construction_set.emplace(link_id);
+  for (auto &feat : *layer) {
+    uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
+    std::string hwy_name;
+    if (isStreetLayer)
+      hwy_name = get_field_from_feature(feat, ST_NAME);
+    else
+      hwy_name = get_field_from_feature(feat, HIGHWAY_NM);
+    uint routeType = get_uint_from_feature(feat, ROUTE);
+    hwys_ref_map[link_id].emplace(routeType, hwy_name);
   }
-  DBFClose(cond);
 }
 
 void StreetConverter::process_way(
     OGRFeatureUniquePtr &feat,
-    const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+    std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
 
   std::map<osmium::Location, osmium::unsigned_object_id_type> node_ref_map;
@@ -984,11 +1000,13 @@ void StreetConverter::add_highway_tag(
         if (!hwy_value.empty()) {
           builder.add_tag(highwayTagName, hwy_value.data());
         } else {
-          std::cerr << "ignoring highway_level'" << std::to_string(route_type)
-                    << "' for " << area_code_1 << std::endl;
+          BOOST_LOG_TRIVIAL(error)
+              << "ignoring highway_level'" << std::to_string(route_type)
+              << "' for " << area_code_1 << std::endl;
         }
       } else {
-        std::cerr << " highway misses route_type and func_class! " << std::endl;
+        BOOST_LOG_TRIVIAL(error)
+            << " highway misses route_type and func_class! " << std::endl;
       }
     }
   }
@@ -1479,36 +1497,36 @@ void StreetConverter::create_premium_house_numbers(
   }
 }
 
-void StreetConverter::process_house_numbers(
-    const std::vector<std::filesystem::path> &dirs,
-    osmium::io::Writer &writer) {
-  for (auto &dir : dirs) {
-    // create point addresses from PointAddress.dbf
-    auto pointMap = createPointAddressMapList(dir);
+void StreetConverter::process_house_numbers(const std::filesystem::path &dir,
+                                            osmium::io::Writer &writer) {
 
-    auto path = dir / STREETS_SHP;
-    auto ds = open_shape_file(path);
+  // create point addresses from PointAddress.dbf
+  auto pointMap = createPointAddressMapList(dir);
 
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error(path.string()));
+  auto path = dir / STREETS_SHP;
+  auto ds = openDataSource(path);
+  if (!ds)
+    throw(shp_error(path.string()));
 
-    osmium::memory::Buffer node_buffer(BUFFER_SIZE);
-    osmium::memory::Buffer way_buffer(BUFFER_SIZE);
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(path.string()));
 
-    int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
+  osmium::memory::Buffer node_buffer(BUFFER_SIZE);
+  osmium::memory::Buffer way_buffer(BUFFER_SIZE);
 
-    for (auto &feat : *layer) {
-      int linkId = feat->GetFieldAsInteger(linkIdField);
-      process_house_numbers(feat, *pointMap, linkId, node_buffer, way_buffer);
-    }
+  int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
 
-    node_buffer.commit();
-    way_buffer.commit();
-    writer(std::move(node_buffer));
-    writer(std::move(way_buffer));
-    delete pointMap;
+  for (auto &feat : *layer) {
+    int linkId = feat->GetFieldAsInteger(linkIdField);
+    process_house_numbers(feat, *pointMap, linkId, node_buffer, way_buffer);
   }
+
+  node_buffer.commit();
+  way_buffer.commit();
+  writer(std::move(node_buffer));
+  writer(std::move(way_buffer));
+  delete pointMap;
 }
 /**
  * \brief creates Way from linestring.
@@ -1542,38 +1560,42 @@ StreetConverter::createPointAddressMapList(const std::filesystem::path &dir) {
   auto pointAddressMap =
       new std::map<uint64_t,
                    std::vector<std::pair<osmium::Location, std::string>>>();
-  if (shp_file_exists(dir / POINT_ADDRESS_SHP)) {
-    auto ds = open_shape_file(dir / POINT_ADDRESS_SHP);
 
-    auto layer = ds->GetLayer(0);
-    if (layer == nullptr)
-      throw(shp_empty_error((dir / POINT_ADDRESS_SHP).string()));
+  static const std::filesystem::path POINT_ADDRESS_SHP = "PointAddress.shp";
 
-    int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
-    int latField = layer->FindFieldIndex("DISP_LAT", true);
-    int lonField = layer->FindFieldIndex("DISP_LON", true);
-    int addressField = layer->FindFieldIndex("ADDRESS", true);
+  auto ds = openDataSource(dir / POINT_ADDRESS_SHP);
+  if (!ds)
+    return pointAddressMap;
 
-    for (auto &feat : *layer) {
-      int linkId = feat->GetFieldAsInteger(linkIdField);
-      auto houseNumber = std::string(feat->GetFieldAsString(addressField));
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error((dir / POINT_ADDRESS_SHP).string()));
 
-      double lat = 0.0;
-      double lon = 0.0;
+  int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
+  int latField = layer->FindFieldIndex("DISP_LAT", true);
+  int lonField = layer->FindFieldIndex("DISP_LON", true);
+  int addressField = layer->FindFieldIndex("ADDRESS", true);
 
-      if (feat->IsFieldNull(lonField) && feat->IsFieldNull(latField)) {
-        auto point = static_cast<const OGRPoint *>(feat->GetGeometryRef());
-        lat = point->getY();
-        lon = point->getX();
-      } else {
-        lon = feat->GetFieldAsDouble(lonField);
-        lat = feat->GetFieldAsDouble(latField);
-      }
+  for (auto &feat : *layer) {
+    int linkId = feat->GetFieldAsInteger(linkIdField);
+    auto houseNumber = std::string(feat->GetFieldAsString(addressField));
 
-      (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
-                                              houseNumber);
+    double lat = 0.0;
+    double lon = 0.0;
+
+    if (feat->IsFieldNull(lonField) && feat->IsFieldNull(latField)) {
+      auto point = static_cast<const OGRPoint *>(feat->GetGeometryRef());
+      lat = point->getY();
+      lon = point->getX();
+    } else {
+      lon = feat->GetFieldAsDouble(lonField);
+      lat = feat->GetFieldAsDouble(latField);
     }
+
+    (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
+                                            houseNumber);
   }
+
   return pointAddressMap;
 }
 
@@ -1593,18 +1615,16 @@ void StreetConverter::set_ferry_z_lvls_to_zero(
     z_lvl_vec.erase(z_lvl_vec.end());
 }
 
-
 // TODO
 
-
 static std::set<short> z_lvl_set = {-4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
-void test__z_lvl_range(short z_lvl) {
+void StreetConverter::test__z_lvl_range(short z_lvl) {
   if (z_lvl_set.find(z_lvl) == z_lvl_set.end())
     throw(out_of_range_exception("z_lvl " + std::to_string(z_lvl) +
                                  " is not valid"));
 }
 
-bool is_ferry(const char *value) {
+bool StreetConverter::is_ferry(const char *value) {
   if (!strcmp(value, "H"))
     return false; // H --> not a ferry
   else if (!strcmp(value, "B"))
@@ -1620,7 +1640,7 @@ bool is_ferry(const char *value) {
  * \param than second z_level.
  * \return true if superior is greater or equal than.
  */
-bool is_superior_or_equal(short superior, short than) {
+bool StreetConverter::is_superior_or_equal(short superior, short than) {
   if (abs(superior) >= abs(than))
     return true;
   return false;
@@ -1633,13 +1653,14 @@ bool is_superior_or_equal(short superior, short than) {
  * \param than second z_level.
  * \return true if superior is superior to than.
  */
-bool is_superior(short superior, short than) {
+bool StreetConverter::is_superior(short superior, short than) {
   if (abs(superior) > abs(than))
     return true;
   return false;
 }
 
-uint get_number_after(const std::string &str, const char *start_str) {
+uint StreetConverter::get_number_after(const std::string &str,
+                                       const char *start_str) {
   if (!str.starts_with(start_str))
     return 0; /* doesn't start with start_str */
 
@@ -1661,7 +1682,7 @@ uint get_number_after(const std::string &str, const char *start_str) {
   }
 }
 
-const char *parse_house_number_schema(const char *schema) {
+const char *StreetConverter::parse_house_number_schema(const char *schema) {
   if (!strcmp(schema, "E"))
     return "even";
   if (!strcmp(schema, "O"))
@@ -1676,7 +1697,7 @@ const char *parse_house_number_schema(const char *schema) {
 /**
  * \brief converts pounds to metric tons
  */
-std::string lbs_to_metric_ton(double lbs) {
+std::string StreetConverter::lbs_to_metric_ton(double lbs) {
   double short_ton = lbs / (double)POUND_BASE;
   double metric_ton = short_ton * SHORT_TON;
   std::stringstream stream;
@@ -1685,65 +1706,9 @@ std::string lbs_to_metric_ton(double lbs) {
 }
 
 /**
- * \brief converts kilogram to tons
- */
-template <class T> std::string kg_to_t(T kilo) {
-  return std::to_string(kilo / 1000.0f);
-}
-/**
- * \brief converts centimeter to meters
- */
-template <class T> std::string cm_to_m(T meter) {
-  return std::to_string(meter / 100.0f);
-}
-/**
  * \brief converts inches to feet
  */
-std::string inch_to_feet(unsigned int inches) {
+std::string StreetConverter::inch_to_feet(unsigned int inches) {
   return std::to_string((unsigned int)floor(inches / INCH_BASE)) + "'" +
          std::to_string(inches % INCH_BASE) + "\"";
-}
-
-
-const int INCH_BASE = 12;
-const int POUND_BASE = 2000;
-// short ton in metric tons (source:
-// http://wiki.openstreetmap.org/wiki/Key:maxweight)
-const double SHORT_TON = 0.90718474;
-
-/**
- * \brief returns index of a given field in a DBFHandle
- * \param handle DBFHandle
- * \param field_name field of DBFhandle
- * \return index of given field
- */
-
-int dbf_get_field_index(DBFHandle handle, const char *field_name) {
-  assert(handle);
-  assert(field_name);
-  // if (row >= DBFGetRecordCount(handle)) throw(std::runtime_error("row=" +
-  // std::to_string(row) + " is out of bounds."));
-  int index = DBFGetFieldIndex(handle, field_name);
-  if (index == -1)
-    throw(std::runtime_error("DBFfile doesnt contain " +
-                             std::string(field_name)));
-  return index;
-}
-
-/**
- * \brief get field of a given DBFHandle as string
- */
-std::string dbf_get_string_by_field(DBFHandle handle, int row,
-                                    const char *field_name) {
-  return DBFReadStringAttribute(handle, row,
-                                dbf_get_field_index(handle, field_name));
-}
-
-/**
- * \brief get field of a given DBFHandle as uint64_t
- */
-uint64_t dbf_get_uint_by_field(DBFHandle handle, int row,
-                               const char *field_name) {
-  return DBFReadIntegerAttribute(handle, row,
-                                 dbf_get_field_index(handle, field_name));
 }

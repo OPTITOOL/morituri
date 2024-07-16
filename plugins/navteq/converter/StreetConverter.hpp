@@ -27,15 +27,15 @@ public:
   StreetConverter(const std::filesystem::path &executable_path);
   virtual ~StreetConverter();
 
-  virtual void convert(const std::vector<std::filesystem::path> &dirs,
-                       osmium::io::Writer &writer);
+  virtual void convert(const std::filesystem::path &dir,
+                       osmium::io::Writer &writer) override;
 
-private:
   struct z_lvl_index_type_t {
     ushort index;
     short z_level;
   };
 
+private:
   struct cond_type {
     uint64_t cond_id_type;
     uint64_t cond_type_type;
@@ -77,21 +77,23 @@ private:
     bool operator!=(cntry_ref_type rhs) { return !(*this == rhs); }
   };
 
-  std::map<uint64_t, ushort> process_alt_steets_route_types(
-      const std::vector<std::filesystem::path> &dirs);
+  std::map<uint64_t, ushort>
+  process_alt_steets_route_types(const std::filesystem::path &dir);
 
-  void add_street_shapes(const std::vector<std::filesystem::path> &dirs,
+  void add_street_shapes(const std::filesystem::path &dir,
                          osmium::io::Writer &writer);
 
   std::map<uint64_t, std::vector<z_lvl_index_type_t>>
-  process_z_levels(const std::vector<std::filesystem::path> &dirs);
+  process_z_levels(const std::filesystem::path &dir);
 
   void init_z_level_map(
-      std::filesystem::path dir,
+      const std::filesystem::path &dir,
       std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map);
 
   void set_ferry_z_lvls_to_zero(const OGRFeatureUniquePtr &feat,
                                 std::vector<z_lvl_index_type_t> &z_lvl_vec);
+
+  void test__z_lvl_range(short z_lvl);
 
   void init_conditional_modifications(const std::filesystem::path &dir);
   void init_g_cnd_mod_map(const std::filesystem::path &dir);
@@ -103,8 +105,9 @@ private:
 
   // process end nodes
   void process_way_end_nodes(
-      const std::vector<std::filesystem::path> &dirs,
-      const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+      const std::filesystem::path &dir,
+      const std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
+          &z_level_map,
       osmium::io::Writer &writer);
   void process_way_end_nodes(OGRFeatureUniquePtr &feat,
                              osmium::memory::Buffer &node_buffer);
@@ -121,14 +124,15 @@ private:
       std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
       const std::map<uint64_t, std::string> &junctionNames);
 
-  void process_way(
-      const std::vector<std::filesystem::path> &dirs,
-      const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
-      osmium::io::Writer &writer);
-  void process_way(
-      OGRFeatureUniquePtr &feat,
-      const std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
-      osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer);
+  void
+  process_way(const std::filesystem::path &dirs,
+              std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+              osmium::io::Writer &writer);
+  void
+  process_way(OGRFeatureUniquePtr &feat,
+              std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
+              osmium::memory::Buffer &node_buffer,
+              osmium::memory::Buffer &way_buffer);
 
   void middle_points_preparation(
       OGRLineString *ogr_ls,
@@ -256,8 +260,6 @@ private:
 
   bool only_pedestrians(const OGRFeatureUniquePtr &f);
 
-  void init_under_construction(const std::filesystem::path &dir);
-
   void add_here_speed_cat_tag(osmium::builder::TagListBuilder &builder,
                               const OGRFeatureUniquePtr &f);
 
@@ -276,7 +278,7 @@ private:
       const std::vector<std::pair<osmium::Location, std::string>> &addressList,
       int linkId, osmium::memory::Buffer &node_buffer);
 
-  void process_house_numbers(const std::vector<std::filesystem::path> &dirs,
+  void process_house_numbers(const std::filesystem::path &dirs,
                              osmium::io::Writer &writer);
 
   void process_house_numbers(
@@ -289,6 +291,28 @@ private:
 
   std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
   createPointAddressMapList(const std::filesystem::path &dir);
+
+  bool is_ferry(const char *value);
+
+  bool is_superior_or_equal(short superior, short than);
+
+  bool is_superior(short superior, short than);
+
+  uint get_number_after(const std::string &str, const char *start_str);
+
+  const char *parse_house_number_schema(const char *schema);
+
+  std::string lbs_to_metric_ton(double lbs);
+
+  std::string inch_to_feet(unsigned int inches);
+
+  template <class T> std::string kg_to_t(T kilo) {
+    return std::to_string(kilo / 1000.0f);
+  }
+
+  template <class T> std::string cm_to_m(T meter) {
+    return std::to_string(meter / 100.0f);
+  }
 
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";
@@ -419,6 +443,16 @@ private:
   const ushort MT_WIDTH_RESTRICTION = 45;
 
   const ushort RESTRICTED_DRIVING_MANOEUVRE = 7;
+
+  const int INCH_BASE = 12;
+  const int POUND_BASE = 2000;
+  // short ton in metric tons (source:
+  // http://wiki.openstreetmap.org/wiki/Key:maxweight)
+  const double SHORT_TON = 0.90718474;
+
+  const std::filesystem::path STREETS_SHP = "Streets.shp";
+
+  const std::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
 };
 
 #endif // STREETCONVERTER_HPP
