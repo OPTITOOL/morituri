@@ -7,11 +7,11 @@
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/object.hpp>
 #include <osmium/osm/types.hpp>
-
-#include "../../comm2osm_exceptions.hpp"
-#include "../../util.hpp"
+#include <unicode/unistr.h>
 
 osmium::unsigned_object_id_type Converter::g_osm_id = 1;
+
+std::map<std::string, std::string> Converter::lang_code_map;
 
 /**
  * \brief Dummy attributes enable josm to read output xml files.
@@ -224,17 +224,6 @@ Converter::build_node(const osmium::Location &location,
   return builder.object().id();
 }
 
-/**
- * \brief Sets object properties.
- *
- * \param builder Builder to set properties to.
- * */
-template <typename T> void Converter::setObjectProperties(T &builder) {
-  builder.object().set_id(g_osm_id++);
-  set_dummy_osm_object_attributes(builder.object());
-  builder.set_user(USER.data());
-}
-
 std::string Converter::navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int) {
   if (NAVTEQ_ADMIN_LVL_MIN > navteq_admin_lvl_int ||
       navteq_admin_lvl_int > NAVTEQ_ADMIN_LVL_MAX)
@@ -309,9 +298,11 @@ Converter::process_meta_areas(std::filesystem::path dir) {
 
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area_map;
 
-  auto layer = openDataSource(dir / MTD_AREA_DBF).or_else([]() -> OGRLayer * {
-    throw(std::runtime_error("could not open MtdArea.dbf"));
-  });
+  auto layer = openDataSource(dir / MTD_AREA_DBF)
+                   .or_else([&]() -> std::optional<OGRLayer *> {
+                     throw(std::runtime_error("could not open MtdArea.dbf"));
+                   })
+                   .value();
 
   for (auto &feat : *layer) {
     osmium::unsigned_object_id_type area_id =
@@ -380,7 +371,7 @@ uint Converter::get_area_code_l(
 }
 
 std::optional<OGRLayer *>
-openDataSource(const std::filesystem::path &shape_file) {
+Converter::openDataSource(const std::filesystem::path &shape_file) {
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(shape_file.c_str()));
   if (!ds) {
     BOOST_LOG_TRIVIAL(debug) << "No shp found in " << shape_file;
@@ -391,4 +382,78 @@ openDataSource(const std::filesystem::path &shape_file) {
     throw(shp_empty_error(shape_file.string()));
 
   return std::optional(layer);
+}
+
+std::string Converter::to_camel_case_with_spaces(const char *camel) {
+
+  std::string titleString;
+  icu::UnicodeString ustr(camel);
+  ustr.toTitle(nullptr);
+  ustr.toUTF8String(titleString);
+
+  return titleString;
+}
+
+std::string Converter::to_camel_case_with_spaces(const std::string &camel) {
+  return to_camel_case_with_spaces(camel.c_str());
+}
+
+void Converter::add_uint_tag(osmium::builder::TagListBuilder &tl_builder,
+                             const char *tag_key, uint uint_tag_val) {
+  std::string val_s = std::to_string(uint_tag_val);
+  if (tag_key) {
+    tl_builder.add_tag(tag_key, val_s);
+  }
+}
+
+bool Converter::parse_bool(const char *value) {
+  if (!strcmp(value, "Y"))
+    return true;
+  return false;
+}
+
+/**
+ * \brief returns field from OGRFeature
+ *        aborts if feature is nullpointer or field key is invalid
+ * \param feat feature from which field is read
+ * \param field field name as key
+ * \return const char* of field value
+ */
+const char *Converter::get_field_from_feature(const OGRFeatureUniquePtr &feat,
+                                              const std::string_view &field) {
+  int field_index = feat->GetFieldIndex(field.data());
+  if (field_index == -1)
+    BOOST_LOG_TRIVIAL(error) << field << std::endl;
+  return feat->GetFieldAsString(field_index);
+}
+/**
+ * \brief returns field from OGRFeature
+ *        throws exception if field_value is not
+ * \param feat feature from which field is read
+ * \param field field name as key
+ * \return field value as uint
+ */
+uint64_t Converter::get_uint_from_feature(const OGRFeatureUniquePtr &feat,
+                                          const std::string_view &field) {
+  const char *value = get_field_from_feature(feat, field.data());
+  assert(value);
+  try {
+    return std::stoul(value);
+  } catch (const std::invalid_argument &) {
+    throw format_error("Could not parse field='" + std::string(field) +
+                       "' with value='" + std::string(value) + "'");
+  }
+}
+
+bool Converter::string_is_unsigned_integer(const std::string &s) {
+  if (s.empty())
+    return false;
+  for (auto i : s)
+    if (!isdigit(i))
+      return false;
+  return true;
+}
+
+bool Converter::string_is_not_unsigned_integer(const std::string &s) {
+  return !string_is_unsigned_integer(s);
 }

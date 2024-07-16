@@ -21,9 +21,12 @@
 #include <map>
 #include <ogrsf_frmts.h>
 #include <optional>
+#include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/osm/types.hpp>
 #include <string_view>
 #include <vector>
+
+#include "../../comm2osm_exceptions.hpp"
 
 namespace osmium {
 class OSMObject;
@@ -32,12 +35,6 @@ class Location;
 namespace io {
 class Writer;
 } // namespace io
-
-namespace builder {
-class RelationBuilder;
-class NodeBuilder;
-class WayBuilder;
-} // namespace builder
 
 namespace memory {
 class Buffer;
@@ -124,7 +121,11 @@ protected:
   build_node(const osmium::Location &location,
              osmium::builder::NodeBuilder &builder);
 
-  template <typename T> void setObjectProperties(T &builder);
+  template <typename T> void setObjectProperties(T &builder) {
+    builder.object().set_id(g_osm_id++);
+    set_dummy_osm_object_attributes(builder.object());
+    builder.set_user(USER.data());
+  }
 
   std::string navteq_2_osm_admin_lvl(uint navteq_admin_lvl_int);
 
@@ -147,6 +148,24 @@ protected:
 
   std::optional<OGRLayer *>
   openDataSource(const std::filesystem::path &shape_file);
+
+  std::string to_camel_case_with_spaces(const char *camel);
+
+  std::string to_camel_case_with_spaces(const std::string &camel);
+
+  void add_uint_tag(osmium::builder::TagListBuilder &tl_builder,
+                    const char *tag_key, uint uint_tag_val);
+
+  bool parse_bool(const char *value);
+
+  const char *get_field_from_feature(const OGRFeatureUniquePtr &feat,
+                                     const std::string_view &field);
+
+  uint64_t get_uint_from_feature(const OGRFeatureUniquePtr &feat,
+                                 const std::string_view &field);
+
+  bool string_is_unsigned_integer(const std::string &s);
+  bool string_is_not_unsigned_integer(const std::string &s);
 
   static constexpr int BUFFER_SIZE = 10 * 1000 * 1000;
 

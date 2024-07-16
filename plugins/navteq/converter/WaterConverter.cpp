@@ -22,9 +22,6 @@
 #include <osmium/memory/buffer.hpp>
 #include <osmium/osm/types.hpp>
 
-#include "../../comm2osm_exceptions.hpp"
-#include "../../util.hpp"
-
 WaterConverter::WaterConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 

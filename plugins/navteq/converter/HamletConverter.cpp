@@ -23,9 +23,6 @@
 #include <osmium/osm/location.hpp>
 #include <osmium/osm/types.hpp>
 
-#include "../../comm2osm_exceptions.hpp"
-#include "../../util.hpp"
-
 HamletConverter::HamletConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 

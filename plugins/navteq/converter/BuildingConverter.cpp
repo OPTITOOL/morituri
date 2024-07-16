@@ -24,9 +24,6 @@
 #include <osmium/memory/buffer.hpp>
 #include <osmium/osm/types.hpp>
 
-#include "../../comm2osm_exceptions.hpp"
-#include "../../util.hpp"
-
 BuildingConverter::BuildingConverter(
     const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
@@ -46,17 +43,12 @@ void BuildingConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void BuildingConverter::add_building_shape(
     std::filesystem::path landmark_shape_file, osmium::io::Writer &writer) {
 
-  auto ds =
-      GDALDatasetUniquePtr(GDALDataset::Open(landmark_shape_file.c_str()));
-  if (!ds) {
-    BOOST_LOG_TRIVIAL(debug)
-        << "No building shp found in " << landmark_shape_file;
-    return;
-  }
-  auto layer = ds->GetLayer(0);
-  if (!layer) {
-    throw(shp_empty_error(landmark_shape_file.string()));
-  }
+  auto layer = openDataSource(landmark_shape_file)
+                   .or_else([&]() -> std::optional<OGRLayer *> {
+                     throw(std::runtime_error("could not open " +
+                                              landmark_shape_file.string()));
+                   })
+                   .value();
 
   assert(layer->GetGeomType() == wkbPolygon ||
          layer->GetGeomType() == wkbLineString);

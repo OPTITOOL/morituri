@@ -25,9 +25,6 @@
 #include <osmium/osm/types.hpp>
 #include <ranges>
 
-#include "../../comm2osm_exceptions.hpp"
-#include "../../util.hpp"
-
 AdminBoundariesConverter::AdminBoundariesConverter(
     const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
@@ -49,6 +46,7 @@ void AdminBoundariesConverter::convert(
   std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
       area_map;
 
+  // TODO: calculate in loop?
   addLevel1Boundaries(dirs, g_way_end_points_map, area_map, writer);
 
   for (auto dir : dirs) {
@@ -83,7 +81,7 @@ void AdminBoundariesConverter::addLevel1Boundaries(
   for (auto dir : dirs) {
     // for some countries the Adminbndy1.shp doesn't contain the whole country
     // border therefore we additionally add the links from AdminLine1.shp
-    if (shp_file_exists(dir / ADMINLINE_1_SHP)) {
+    if (std::filesystem::exists(dir / ADMINLINE_1_SHP)) {
       auto adminLine =
           add_admin_lines(dir / ADMINLINE_1_SHP, g_way_end_points_map, writer);
       // merge maps
@@ -91,7 +89,7 @@ void AdminBoundariesConverter::addLevel1Boundaries(
         std::ranges::copy(mapEntry.second,
                           std::back_inserter(map[mapEntry.first].first));
       }
-    } else if (shp_file_exists(dir / ADMINBNDY_1_SHP)) {
+    } else if (std::filesystem::exists(dir / ADMINBNDY_1_SHP)) {
       add_admin_shape(dir / ADMINBNDY_1_SHP, g_way_end_points_map, writer, map);
     }
   }
@@ -99,7 +97,6 @@ void AdminBoundariesConverter::addLevel1Boundaries(
   // create relations for admin boundary 1
   osmium::memory::Buffer rel_buffer(BUFFER_SIZE);
   for (auto &adminBoundary : map) {
-
     build_admin_boundary_relation_with_tags(
         adminBoundary.first, adminBoundary.second.first,
         adminBoundary.second.second, mtd_area_map, rel_buffer, 1);
@@ -117,10 +114,14 @@ void AdminBoundariesConverter::add_admin_shape(
                             std::vector<osmium::unsigned_object_id_type>>>
         &adminLineMap) {
 
-  auto ds = open_shape_file(admin_shape_file);
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(admin_shape_file.string()));
+  auto layer =
+      openDataSource(admin_shape_file)
+          .or_else([&] -> std::optional<OGRLayer *> {
+            throw std::runtime_error("Could not open data source for " +
+                                     admin_shape_file.string());
+          })
+          .value();
+
   assert(layer->GetGeomType() == wkbPolygon);
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
   osmium::memory::Buffer way_buffer(BUFFER_SIZE);
@@ -142,10 +143,14 @@ AdminBoundariesConverter::add_admin_lines(
     osmium::io::Writer &writer) {
   std::map<int, std::vector<osmium::unsigned_object_id_type>> result;
 
-  auto ds = open_shape_file(admin_line_shape_file);
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(admin_line_shape_file.string()));
+  auto layer =
+      openDataSource(admin_line_shape_file)
+          .or_else([&] -> std::optional<OGRLayer *> {
+            throw std::runtime_error("Could not open data source for " +
+                                     admin_line_shape_file.string());
+          })
+          .value();
+
   assert(layer->GetGeomType() == wkbLineString);
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
   osmium::memory::Buffer way_buffer(BUFFER_SIZE);

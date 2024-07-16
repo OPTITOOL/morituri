@@ -17,14 +17,14 @@
 #include <osmium/io/any_output.hpp>
 #include <ranges>
 
-#include "converter/AdminBoundariesConverter.hpp"
+// #include "converter/AdminBoundariesConverter.hpp"
 #include "converter/BuildingConverter.hpp"
 #include "converter/CityConverter.hpp"
 #include "converter/HamletConverter.hpp"
 #include "converter/LanduseConverter.hpp"
 #include "converter/RailwayConverter.hpp"
 #include "converter/RestAreaConverter.hpp"
-#include "converter/StreetConverter.hpp"
+// #include "converter/StreetConverter.hpp"
 #include "converter/WaterConverter.hpp"
 
 #include "../comm2osm_exceptions.hpp"
@@ -39,8 +39,8 @@
 navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
 
-  converter.emplace_back(new AdminBoundariesConverter(executable_path));
-  // converter.emplace_back(new StreetConverter(executable_path));
+  // converter.emplace_back(new AdminBoundariesConverter(executable_path));
+  //  converter.emplace_back(new StreetConverter(executable_path));
   converter.emplace_back(new LanduseConverter(executable_path));
   converter.emplace_back(new CityConverter(executable_path));
   converter.emplace_back(new HamletConverter(executable_path));
@@ -121,7 +121,13 @@ bool navteq_plugin::check_input(const std::filesystem::path &input_path,
        std::filesystem::recursive_directory_iterator(input_path) |
            std::views::filter(
                [](auto &entry) { return entry.is_directory(); })) {
-    check_files(entry).and_then([&](auto &path) { dataDirs.push_back(path); });
+
+    // add path to dataDirs
+    check_files(entry.path())
+        .and_then([&](auto path) -> std::optional<std::filesystem::path> {
+          dataDirs.push_back(path);
+          return std::nullopt;
+        });
   }
 
   if (!foundCountries.empty()) {
