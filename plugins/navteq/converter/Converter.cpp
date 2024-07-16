@@ -247,12 +247,12 @@ std::string Converter::navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {
 
 void Converter::parse_lang_code_file() {
   const std::filesystem::path PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT(
-      "plugins/navteq/ISO-639-2_utf-8.txt");
+      "ISO-639-2_utf-8.txt");
 
   if (executable_path.empty())
     throw(std::runtime_error("executable_path is empty"));
 
-  std::filesystem::path iso_file(executable_path /
+  std::filesystem::path iso_file(executable_path.parent_path() /
                                  PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT);
   std::ifstream file(iso_file.string());
   assert(file.is_open());

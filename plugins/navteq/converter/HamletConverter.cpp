@@ -41,9 +41,8 @@ void HamletConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void HamletConverter::add_hamlet(std::filesystem::path hamlet_file,
                                  osmium::io::Writer &writer) {
 
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(hamlet_file.c_str()));
+  auto ds = openDataSource(hamlet_file);
   if (!ds) {
-    BOOST_LOG_TRIVIAL(debug) << "No hamlet shp found in " << hamlet_file;
     return;
   }
   auto layer = ds->GetLayer(0);

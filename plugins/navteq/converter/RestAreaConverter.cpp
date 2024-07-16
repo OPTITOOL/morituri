@@ -41,9 +41,8 @@ void RestAreaConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void RestAreaConverter::add_rest_area(std::filesystem::path rest_area_file,
                                       osmium::io::Writer &writer) {
 
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(rest_area_file.c_str()));
+  auto ds = openDataSource(rest_area_file);
   if (!ds) {
-    BOOST_LOG_TRIVIAL(debug) << "No rest area shp found in " << rest_area_file;
     return;
   }
   auto layer = ds->GetLayer(0);

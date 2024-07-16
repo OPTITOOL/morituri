@@ -41,16 +41,14 @@ void RailwayConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void RailwayConverter::add_railways_shape(
     std::filesystem::path railway_shape_file, osmium::io::Writer &writer) {
 
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(railway_shape_file.c_str()));
-  if (!ds) {
-    BOOST_LOG_TRIVIAL(debug)
-        << "No railway shp found in " << railway_shape_file;
+  auto ds = openDataSource(railway_shape_file);
+  if (!ds)
     return;
-  }
+
   auto layer = ds->GetLayer(0);
-  if (!layer) {
+  if (!layer)
     throw(shp_empty_error(railway_shape_file.string()));
-  }
+
   assert(layer->GetGeomType() == OGRwkbGeometryType::wkbPolygon ||
          layer->GetGeomType() == OGRwkbGeometryType::wkbLineString);
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);

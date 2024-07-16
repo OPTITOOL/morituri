@@ -42,11 +42,11 @@ void WaterConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void WaterConverter::add_water_shape(std::filesystem::path water_shape_file,
                                      osmium::io::Writer &writer) {
 
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(water_shape_file.c_str()));
+  auto ds = openDataSource(water_shape_file);
   if (!ds) {
-    BOOST_LOG_TRIVIAL(debug) << "No water shp found in " << water_shape_file;
     return;
   }
+
   auto layer = ds->GetLayer(0);
   if (layer == nullptr) {
     throw(shp_empty_error(water_shape_file.string()));

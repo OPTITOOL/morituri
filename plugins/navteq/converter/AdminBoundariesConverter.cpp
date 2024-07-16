@@ -43,14 +43,10 @@ void AdminBoundariesConverter::convert(
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
 
-  std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
-      area_map;
-
-  // TODO: calculate in loop?
-  addLevel1Boundaries(dirs, g_way_end_points_map, area_map, writer);
-
   for (auto dir : dirs) {
     auto mtd_area_map = process_meta_areas(dir);
+
+    addLevel1Boundaries(dir, g_way_end_points_map, mtd_area_map, writer);
 
     addLevelNBoundaries(dir / ADMINBNDY_2_SHP, g_way_end_points_map,
                         mtd_area_map, writer, 2);
@@ -64,7 +60,7 @@ void AdminBoundariesConverter::convert(
 }
 
 void AdminBoundariesConverter::addLevel1Boundaries(
-    const std::vector<std::filesystem::path> &dirs,
+    const std::filesystem::path &dir,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
     const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
@@ -78,20 +74,18 @@ void AdminBoundariesConverter::addLevel1Boundaries(
                           std::vector<osmium::unsigned_object_id_type>>>
       map;
 
-  for (auto dir : dirs) {
-    // for some countries the Adminbndy1.shp doesn't contain the whole country
-    // border therefore we additionally add the links from AdminLine1.shp
-    if (std::filesystem::exists(dir / ADMINLINE_1_SHP)) {
-      auto adminLine =
-          add_admin_lines(dir / ADMINLINE_1_SHP, g_way_end_points_map, writer);
-      // merge maps
-      for (auto &mapEntry : adminLine) {
-        std::ranges::copy(mapEntry.second,
-                          std::back_inserter(map[mapEntry.first].first));
-      }
-    } else if (std::filesystem::exists(dir / ADMINBNDY_1_SHP)) {
-      add_admin_shape(dir / ADMINBNDY_1_SHP, g_way_end_points_map, writer, map);
+  // for some countries the Adminbndy1.shp doesn't contain the whole country
+  // border therefore we additionally add the links from AdminLine1.shp
+  auto adminLine =
+      add_admin_lines(dir / ADMINLINE_1_SHP, g_way_end_points_map, writer);
+  if (!adminLine.empty()) {
+    // merge maps
+    for (auto &mapEntry : adminLine) {
+      std::ranges::copy(mapEntry.second,
+                        std::back_inserter(map[mapEntry.first].first));
     }
+  } else {
+    add_admin_shape(dir / ADMINBNDY_1_SHP, g_way_end_points_map, writer, map);
   }
 
   // create relations for admin boundary 1

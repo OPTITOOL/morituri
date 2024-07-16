@@ -17,7 +17,7 @@
 #include <osmium/io/any_output.hpp>
 #include <ranges>
 
-// #include "converter/AdminBoundariesConverter.hpp"
+#include "converter/AdminBoundariesConverter.hpp"
 #include "converter/BuildingConverter.hpp"
 #include "converter/CityConverter.hpp"
 #include "converter/HamletConverter.hpp"
@@ -39,15 +39,15 @@
 navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
     : base_plugin::base_plugin("Navteq Plugin", executable_path) {
 
-  // converter.emplace_back(new AdminBoundariesConverter(executable_path));
+  converter.emplace_back(new AdminBoundariesConverter(executable_path));
   //  converter.emplace_back(new StreetConverter(executable_path));
   converter.emplace_back(new LanduseConverter(executable_path));
-  // converter.emplace_back(new CityConverter(executable_path));
-  // converter.emplace_back(new HamletConverter(executable_path));
-  // converter.emplace_back(new BuildingConverter(executable_path));
-  // converter.emplace_back(new RestAreaConverter(executable_path));
-  // converter.emplace_back(new RailwayConverter(executable_path));
-  // converter.emplace_back(new WaterConverter(executable_path));
+  converter.emplace_back(new CityConverter(executable_path));
+  converter.emplace_back(new HamletConverter(executable_path));
+  converter.emplace_back(new BuildingConverter(executable_path));
+  converter.emplace_back(new RestAreaConverter(executable_path));
+  converter.emplace_back(new RailwayConverter(executable_path));
+  converter.emplace_back(new WaterConverter(executable_path));
 }
 
 navteq_plugin::~navteq_plugin() {}

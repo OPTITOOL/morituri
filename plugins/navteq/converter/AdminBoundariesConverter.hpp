@@ -41,7 +41,7 @@ public:
 
 private:
   void addLevel1Boundaries(
-      const std::vector<std::filesystem::path> &dirs,
+      const std::filesystem::path &dir,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &g_way_end_points_map,
       const std::map<osmium::unsigned_object_id_type,
