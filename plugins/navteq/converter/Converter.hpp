@@ -146,8 +146,7 @@ protected:
 
   std::string parse_lang_code(std::string lang_code);
 
-  std::optional<OGRLayer *>
-  openDataSource(const std::filesystem::path &shape_file);
+  GDALDatasetUniquePtr openDataSource(const std::filesystem::path &shape_file);
 
   std::string to_camel_case_with_spaces(const char *camel);
 

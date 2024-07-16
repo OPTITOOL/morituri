@@ -41,9 +41,15 @@ void CityConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void CityConverter::add_city_shape(std::filesystem::path city_shape_file,
                                    osmium::io::Writer &writer) {
 
-  auto layer = openDataSource(city_shape_file).value_or(nullptr);
-  if (!layer)
+  auto ds = openDataSource(city_shape_file);
+  if (!ds) {
     return;
+  }
+
+  auto layer = ds->GetLayer(0);
+  if (!layer) {
+    throw(shp_empty_error(city_shape_file));
+  }
 
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
 

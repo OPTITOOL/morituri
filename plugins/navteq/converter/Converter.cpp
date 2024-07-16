@@ -298,11 +298,10 @@ Converter::process_meta_areas(std::filesystem::path dir) {
 
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area_map;
 
-  auto layer = openDataSource(dir / MTD_AREA_DBF)
-                   .or_else([&]() -> std::optional<OGRLayer *> {
-                     throw(std::runtime_error("could not open MtdArea.dbf"));
-                   })
-                   .value();
+  auto ds = openDataSource(dir / MTD_AREA_DBF);
+  auto layer = ds->GetLayer(0);
+  if (!layer)
+    throw(shp_empty_error(dir / MTD_AREA_DBF));
 
   for (auto &feat : *layer) {
     osmium::unsigned_object_id_type area_id =
@@ -370,18 +369,23 @@ uint Converter::get_area_code_l(
   return get_area_code_l(l_area_id, r_area_id, mtd_area_map);
 }
 
-std::optional<OGRLayer *>
+GDALDatasetUniquePtr
 Converter::openDataSource(const std::filesystem::path &shape_file) {
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(shape_file.c_str()));
+
+  std::string shape_file_str = shape_file.string();
+
+  // handle tar.gz files
+  if (shape_file.parent_path().string().ends_with(".tar.gz")) {
+    shape_file_str = "/vsitar/" + shape_file_str;
+  }
+
+  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(shape_file_str.c_str()));
   if (!ds) {
     BOOST_LOG_TRIVIAL(debug) << "No shp found in " << shape_file;
-    return std::nullopt;
+    return nullptr;
   }
-  auto layer = ds->GetLayer(0);
-  if (!layer)
-    throw(shp_empty_error(shape_file.string()));
 
-  return std::optional(layer);
+  return ds;
 }
 
 std::string Converter::to_camel_case_with_spaces(const char *camel) {

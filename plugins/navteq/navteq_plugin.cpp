@@ -42,12 +42,12 @@ navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
   // converter.emplace_back(new AdminBoundariesConverter(executable_path));
   //  converter.emplace_back(new StreetConverter(executable_path));
   converter.emplace_back(new LanduseConverter(executable_path));
-  converter.emplace_back(new CityConverter(executable_path));
-  converter.emplace_back(new HamletConverter(executable_path));
-  converter.emplace_back(new BuildingConverter(executable_path));
-  converter.emplace_back(new RestAreaConverter(executable_path));
-  converter.emplace_back(new RailwayConverter(executable_path));
-  converter.emplace_back(new WaterConverter(executable_path));
+  // converter.emplace_back(new CityConverter(executable_path));
+  // converter.emplace_back(new HamletConverter(executable_path));
+  // converter.emplace_back(new BuildingConverter(executable_path));
+  // converter.emplace_back(new RestAreaConverter(executable_path));
+  // converter.emplace_back(new RailwayConverter(executable_path));
+  // converter.emplace_back(new WaterConverter(executable_path));
 }
 
 navteq_plugin::~navteq_plugin() {}
@@ -74,11 +74,12 @@ navteq_plugin::check_files(const std::filesystem::path &dir) {
                                std::views::filter([](auto &entry) {
                                  return entry.is_regular_file();
                                })) {
-    if (entry.path().extension() == ".PROD.csv") {
+
+    if (entry.path().filename().string().ends_with(".PROD.csv")) {
       isHereDatatDir = true;
     }
 
-    if (entry.path().extension() == ".tar.gz") {
+    if (entry.path().filename().string().ends_with(".tar.gz")) {
       hasPackedData = true;
       tarFile = entry.path();
     }
@@ -87,8 +88,9 @@ navteq_plugin::check_files(const std::filesystem::path &dir) {
   if (!isHereDatatDir)
     return std::nullopt;
 
-  if (hasPackedData)
-    return std::optional<std::filesystem::path>(tarFile / "vsitar");
+  if (hasPackedData) {
+    return std::optional<std::filesystem::path>(tarFile);
+  }
 
   // check if the PROD.csv file exists
 

@@ -43,15 +43,13 @@ void LanduseConverter::add_landuse_shape(
     std::filesystem::path landuse_shape_file, osmium::io::Writer &writer) {
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_way_end_points_map;
-  auto ds = GDALDatasetUniquePtr(GDALDataset::Open(landuse_shape_file.c_str()));
-  if (ds == nullptr) {
-    BOOST_LOG_TRIVIAL(debug)
-        << "No landuse shp found in " << landuse_shape_file;
+  auto ds = openDataSource(landuse_shape_file);
+  if (!ds)
     return;
-  }
   auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(landuse_shape_file.string()));
+  if (!layer)
+    throw(shp_empty_error(landuse_shape_file));
+
   assert(layer->GetGeomType() == wkbPolygon);
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
   osmium::memory::Buffer way_buffer(BUFFER_SIZE);

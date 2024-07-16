@@ -114,13 +114,15 @@ void AdminBoundariesConverter::add_admin_shape(
                             std::vector<osmium::unsigned_object_id_type>>>
         &adminLineMap) {
 
-  auto layer =
-      openDataSource(admin_shape_file)
-          .or_else([&] -> std::optional<OGRLayer *> {
-            throw std::runtime_error("Could not open data source for " +
-                                     admin_shape_file.string());
-          })
-          .value();
+  auto ds = openDataSource(admin_shape_file);
+  if (!ds) {
+    return;
+  }
+
+  auto layer = ds->GetLayer(0);
+  if (!layer) {
+    throw(shp_empty_error(admin_shape_file));
+  }
 
   assert(layer->GetGeomType() == wkbPolygon);
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
@@ -143,13 +145,15 @@ AdminBoundariesConverter::add_admin_lines(
     osmium::io::Writer &writer) {
   std::map<int, std::vector<osmium::unsigned_object_id_type>> result;
 
-  auto layer =
-      openDataSource(admin_line_shape_file)
-          .or_else([&] -> std::optional<OGRLayer *> {
-            throw std::runtime_error("Could not open data source for " +
-                                     admin_line_shape_file.string());
-          })
-          .value();
+  auto ds = openDataSource(admin_line_shape_file);
+  if (!ds) {
+    return result;
+  }
+
+  auto layer = ds->GetLayer(0);
+  if (!layer) {
+    throw(shp_empty_error(admin_line_shape_file));
+  }
 
   assert(layer->GetGeomType() == wkbLineString);
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);

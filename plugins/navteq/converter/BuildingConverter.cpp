@@ -43,12 +43,15 @@ void BuildingConverter::convert(const std::vector<std::filesystem::path> &dirs,
 void BuildingConverter::add_building_shape(
     std::filesystem::path landmark_shape_file, osmium::io::Writer &writer) {
 
-  auto layer = openDataSource(landmark_shape_file)
-                   .or_else([&]() -> std::optional<OGRLayer *> {
-                     throw(std::runtime_error("could not open " +
-                                              landmark_shape_file.string()));
-                   })
-                   .value();
+  auto ds = openDataSource(landmark_shape_file);
+  if (!ds) {
+    return;
+  }
+
+  auto layer = ds->GetLayer(0);
+  if (!layer) {
+    throw(shp_empty_error(landmark_shape_file));
+  }
 
   assert(layer->GetGeomType() == wkbPolygon ||
          layer->GetGeomType() == wkbLineString);
