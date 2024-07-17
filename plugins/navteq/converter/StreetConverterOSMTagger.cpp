@@ -642,11 +642,6 @@ void StreetConverter::add_additional_restrictions(
   auto range = cdms_map.equal_range(link_id);
   for (auto it = range.first; it != range.second; ++it) {
     auto cond = it->second;
-    if (cond.cond_type_type == CT_RESTRICTED_DRIVING_MANOEUVRE ||
-        cond.cond_type_type == CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE)
-      continue; // TODO RESTRICTED_DRIVING_MANOEUVRE should apply as
-                // conditional turn restriction but not for current link id
-
     auto it2 = cnd_mod_map.find(cond.cond_id_type);
     if (it2 != cnd_mod_map.end()) {
       for (auto mod_group : it2->second) {

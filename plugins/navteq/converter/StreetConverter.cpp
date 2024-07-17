@@ -213,7 +213,10 @@ StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
     uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
     ushort cond_type = get_uint_from_feature(feat, COND_TYPE);
 
-    cdms_map.emplace(link_id, StreetConverter::cond_type{cond_id, cond_type});
+    // only store considered conditional modifications
+    if (cond_type == CT_TRANSPORT_ACCESS_RESTRICTION) {
+      cdms_map.emplace(link_id, StreetConverter::cond_type{cond_id, cond_type});
+    }
   }
 
   return cdms_map;
