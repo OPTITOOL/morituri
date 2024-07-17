@@ -33,10 +33,6 @@ StreetConverter::~StreetConverter() {}
 void StreetConverter::convert(const std::filesystem::path &dir,
                               osmium::io::Writer &writer) {
 
-  // should be global for connectivity between regions
-  std::map<osmium::Location, osmium::unsigned_object_id_type>
-      g_way_end_points_map;
-
   BOOST_LOG_TRIVIAL(info) << " processing alt_streets route types";
   auto route_type_map = process_alt_steets_route_types(dir);
 

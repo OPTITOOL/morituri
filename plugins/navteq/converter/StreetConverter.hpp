@@ -402,6 +402,10 @@ private:
   const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
   const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
   const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
+
+  // should be global for connectivity between regions
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+      g_way_end_points_map;
 };
 
 #endif // STREETCONVERTER_HPP
