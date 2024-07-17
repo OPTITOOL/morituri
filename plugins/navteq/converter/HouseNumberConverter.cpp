@@ -14,15 +14,27 @@
  * along with Morituri.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "StreetConverter.hpp"
+#include "HouseNumberConverter.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <osmium/io/writer.hpp>
 
 #include "../../ogr_util.hpp"
 
-void StreetConverter::process_house_numbers(const std::filesystem::path &dir,
-                                            osmium::io::Writer &writer) {
+HouseNumberConverter::HouseNumberConverter(
+    const std::filesystem::path &executable_path)
+    : Converter(executable_path) {}
+
+HouseNumberConverter::~HouseNumberConverter() {}
+
+void HouseNumberConverter::convert(const std::filesystem::path &dir,
+                                   osmium::io::Writer &writer) {
+
+  process_house_numbers(dir, writer);
+}
+
+void HouseNumberConverter::process_house_numbers(
+    const std::filesystem::path &dir, osmium::io::Writer &writer) {
 
   // create point addresses from PointAddress.dbf
   auto pointMap = createPointAddressMapList(dir);
@@ -59,7 +71,7 @@ void StreetConverter::process_house_numbers(const std::filesystem::path &dir,
  * \param ogr_ls linestring which provides the geometry.
  * \param z_level_map holds z_levels to Nodes of Ways.
  */
-void StreetConverter::process_house_numbers(
+void HouseNumberConverter::process_house_numbers(
     const OGRFeatureUniquePtr &feat,
     const std::map<uint64_t,
                    std::vector<std::pair<osmium::Location, std::string>>>
@@ -80,7 +92,8 @@ void StreetConverter::process_house_numbers(
 }
 
 std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
-StreetConverter::createPointAddressMapList(const std::filesystem::path &dir) {
+HouseNumberConverter::createPointAddressMapList(
+    const std::filesystem::path &dir) {
 
   auto pointAddressMap =
       new std::map<uint64_t,
@@ -124,15 +137,14 @@ StreetConverter::createPointAddressMapList(const std::filesystem::path &dir) {
   return pointAddressMap;
 }
 
-void StreetConverter::create_house_numbers(const OGRFeatureUniquePtr &feat,
-                                           const OGRLineString *ogr_ls,
-                                           osmium::memory::Buffer &node_buffer,
-                                           osmium::memory::Buffer &way_buffer) {
+void HouseNumberConverter::create_house_numbers(
+    const OGRFeatureUniquePtr &feat, const OGRLineString *ogr_ls,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
   create_house_numbers(feat, ogr_ls, true, node_buffer, way_buffer);
   create_house_numbers(feat, ogr_ls, false, node_buffer, way_buffer);
 }
 
-void StreetConverter::create_premium_house_numbers(
+void HouseNumberConverter::create_premium_house_numbers(
     const OGRFeatureUniquePtr &feat,
     const std::vector<std::pair<osmium::Location, std::string>> &addressList,
     int linkId, osmium::memory::Buffer &node_buffer) {
@@ -154,11 +166,9 @@ void StreetConverter::create_premium_house_numbers(
   }
 }
 
-void StreetConverter::create_house_numbers(const OGRFeatureUniquePtr &feat,
-                                           const OGRLineString *ogr_ls,
-                                           bool left,
-                                           osmium::memory::Buffer &node_buffer,
-                                           osmium::memory::Buffer &way_buffer) {
+void HouseNumberConverter::create_house_numbers(
+    const OGRFeatureUniquePtr &feat, const OGRLineString *ogr_ls, bool left,
+    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
   const std::string_view &ref_addr = left ? L_REFADDR : R_REFADDR;
   const std::string_view &nref_addr = left ? L_NREFADDR : R_NREFADDR;
   const std::string_view &addr_schema = left ? L_ADDRSCH : R_ADDRSCH;
@@ -245,7 +255,8 @@ void StreetConverter::create_house_numbers(const OGRFeatureUniquePtr &feat,
   way_buffer.commit();
 }
 
-const char *StreetConverter::parse_house_number_schema(const char *schema) {
+const char *
+HouseNumberConverter::parse_house_number_schema(const char *schema) {
   if (!strcmp(schema, "E"))
     return "even";
   if (!strcmp(schema, "O"))

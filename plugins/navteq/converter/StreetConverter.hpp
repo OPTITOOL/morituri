@@ -263,35 +263,6 @@ private:
   void add_here_speed_cat_tag(osmium::builder::TagListBuilder &builder,
                               const OGRFeatureUniquePtr &f);
 
-  void create_house_numbers(const OGRFeatureUniquePtr &feat,
-                            const OGRLineString *ogr_ls, bool left,
-                            osmium::memory::Buffer &node_buffer,
-                            osmium::memory::Buffer &way_buffer);
-
-  void create_house_numbers(const OGRFeatureUniquePtr &feat,
-                            const OGRLineString *ogr_ls,
-                            osmium::memory::Buffer &node_buffer,
-                            osmium::memory::Buffer &way_buffer);
-
-  void create_premium_house_numbers(
-      const OGRFeatureUniquePtr &feat,
-      const std::vector<std::pair<osmium::Location, std::string>> &addressList,
-      int linkId, osmium::memory::Buffer &node_buffer);
-
-  void process_house_numbers(const std::filesystem::path &dirs,
-                             osmium::io::Writer &writer);
-
-  void process_house_numbers(
-      const OGRFeatureUniquePtr &feat,
-      const std::map<uint64_t,
-                     std::vector<std::pair<osmium::Location, std::string>>>
-          &pointAddresses,
-      int linkId, osmium::memory::Buffer &node_buffer,
-      osmium::memory::Buffer &way_buffer);
-
-  std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
-  createPointAddressMapList(const std::filesystem::path &dir);
-
   bool is_ferry(const char *value);
 
   bool is_superior_or_equal(short superior, short than);
@@ -299,8 +270,6 @@ private:
   bool is_superior(short superior, short than);
 
   uint get_number_after(const std::string &str, const char *start_str);
-
-  const char *parse_house_number_schema(const char *schema);
 
   std::string lbs_to_metric_ton(double lbs);
 
@@ -378,17 +347,6 @@ private:
   static constexpr std::string_view HIGHWAY_NM = "HIGHWAY_NM";
   static constexpr std::string_view ST_NAME = "ST_NAME";
   static constexpr std::string_view COND_TYPE = "COND_TYPE";
-
-  static constexpr std::string_view ADDR_TYPE = "ADDR_TYPE";
-  static constexpr std::string_view L_REFADDR = "L_REFADDR";
-  const char *L_NREFADDR = "L_NREFADDR";
-  const char *L_ADDRSCH = "L_ADDRSCH";
-  // const char *L_ADDRFORM = "L_ADDRFORM";
-  const char *R_REFADDR = "R_REFADDR";
-  const char *R_NREFADDR = "R_NREFADDR";
-  const char *R_ADDRSCH = "R_ADDRSCH";
-
-  const double HOUSENUMBER_CURVE_OFFSET = 0.00005;
 
   const std::filesystem::path STREETS_SHP = "Streets.shp";
 

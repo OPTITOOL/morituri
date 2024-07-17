@@ -21,6 +21,7 @@
 #include "converter/BuildingConverter.hpp"
 #include "converter/CityConverter.hpp"
 #include "converter/HamletConverter.hpp"
+#include "converter/HouseNumberConverter.hpp"
 #include "converter/LanduseConverter.hpp"
 #include "converter/RailwayConverter.hpp"
 #include "converter/RestAreaConverter.hpp"
@@ -48,6 +49,7 @@ navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
   converter.emplace_back(new RestAreaConverter(executable_path));
   converter.emplace_back(new RailwayConverter(executable_path));
   converter.emplace_back(new WaterConverter(executable_path));
+  converter.emplace_back(new HouseNumberConverter(executable_path));
 }
 
 navteq_plugin::~navteq_plugin() {}

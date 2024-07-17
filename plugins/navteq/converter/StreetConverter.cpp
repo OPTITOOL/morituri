@@ -94,10 +94,6 @@ void StreetConverter::add_street_shapes(const std::filesystem::path &dir,
 
   BOOST_LOG_TRIVIAL(info) << " processing ways";
   process_way(dir, z_level_map, writer);
-
-  // create house numbers
-  BOOST_LOG_TRIVIAL(info) << " processing house numbers";
-  process_house_numbers(dir, writer);
 }
 
 std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
