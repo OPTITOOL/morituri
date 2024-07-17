@@ -83,7 +83,7 @@ public:
     std::multimap<uint64_t, StreetConverter::cond_type> cdms_map;
     std::map<uint64_t, uint64_t> area_govt_map;
     std::map<uint64_t, cntry_ref_type> cntry_map;
-    std::map<osmium::Location, std::map<uint, std::string>> ramp_names;
+    std::map<osmium::Location, std::tuple<std::string, std::string>> ramp_names;
     std::map<uint64_t, std::map<uint, std::string>> highway_names;
     std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area;
   };
@@ -113,13 +113,14 @@ private:
   init_highway_names(const std::filesystem::path &dir);
 
   // ramp names
-  std::map<osmium::Location, std::map<uint, std::string>>
+  std::map<osmium::Location, std::tuple<std::string, std::string>>
   init_ramp_names(const std::filesystem::path &dir);
   std::map<uint64_t, std::string>
   read_junction_names(const std::filesystem::path &dbf_file);
   void parse_ramp_names(
       const std::filesystem::path &shp_file,
-      std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
+      std::map<osmium::Location, std::tuple<std::string, std::string>>
+          &ramps_ref_map,
       const std::map<uint64_t, std::string> &junctionNames);
 
   // process end nodes

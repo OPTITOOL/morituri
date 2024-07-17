@@ -338,20 +338,21 @@ void StreetConverter::process_way_end_node(
   // add ramp tags
   auto ramp = data.ramp_names.find(location);
   if (ramp != data.ramp_names.end()) {
-    if (ramp->second.find(0) != ramp->second.end()) {
-      osmium::builder::TagListBuilder tglBuilder(builder);
-      tglBuilder.add_tag(HIGHWAY.data(), "motorway_junction");
-      tglBuilder.add_tag("ref", ramp->second.at(0));
-      tglBuilder.add_tag("name", to_camel_case_with_spaces(ramp->second.at(1)));
-    }
+    auto &[exitName, junctionName] = ramp->second;
+    osmium::builder::TagListBuilder tglBuilder(builder);
+    tglBuilder.add_tag(HIGHWAY.data(), "motorway_junction");
+    tglBuilder.add_tag("ref", exitName);
+    if (!junctionName.empty())
+      tglBuilder.add_tag("name", junctionName);
   }
   way_end_points_map.emplace(location, osm_id);
 }
 
-std::map<osmium::Location, std::map<uint, std::string>>
+std::map<osmium::Location, std::tuple<std::string, std::string>>
 StreetConverter::init_ramp_names(const std::filesystem::path &dir) {
 
-  std::map<osmium::Location, std::map<uint, std::string>> ramps_ref_map;
+  std::map<osmium::Location, std::tuple<std::string, std::string>>
+      ramps_ref_map;
   // read junction names from alt_streets
   auto junctionMap = read_junction_names(dir / ALT_STREETS_DBF);
 
@@ -386,7 +387,8 @@ StreetConverter::read_junction_names(const std::filesystem::path &dbf_file) {
 
 void StreetConverter::parse_ramp_names(
     const std::filesystem::path &shp_file,
-    std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
+    std::map<osmium::Location, std::tuple<std::string, std::string>>
+        &ramps_ref_map,
     const std::map<uint64_t, std::string> &junctionNames) {
 
   auto ds = openDataSource(shp_file);
@@ -419,13 +421,12 @@ void StreetConverter::parse_ramp_names(
     if (parse_bool(feat->GetFieldAsString(exitNameField))) {
       std::string exitName = feat->GetFieldAsString(baseNameField);
 
-      // add exit name
-      ramps_ref_map[location].emplace(0, exitName);
-
       // add junction name
       auto it = junctionNames.find(feat->GetFieldAsInteger(linkIdField));
       if (it != junctionNames.end()) {
-        ramps_ref_map[location].emplace(1, it->second);
+        ramps_ref_map.emplace(location, std::make_tuple(exitName, it->second));
+      } else {
+        ramps_ref_map.emplace(location, std::make_tuple(exitName, ""));
       }
     }
   }
