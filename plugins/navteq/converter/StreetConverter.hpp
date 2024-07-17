@@ -145,7 +145,7 @@ private:
       osmium::memory::Buffer &way_buffer, bool is_sub_linestring, short z_lvl);
 
   uint64_t build_tag_list(OGRFeatureUniquePtr &feat,
-                          osmium::builder::Builder *builder,
+                          osmium::builder::Builder &builder,
                           osmium::memory::Buffer &buf, short z_level);
 
   uint64_t parse_street_tags(
