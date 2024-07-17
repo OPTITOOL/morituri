@@ -17,8 +17,10 @@
 #include "StreetConverter.hpp"
 
 #include <boost/log/trivial.hpp>
+#include <ranges>
 
 // condition types (CT)
+const ushort CT_CONSTRUCTION_STATUS_CLOSED = 3;
 const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
 const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
 const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
@@ -86,7 +88,7 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
   uint64_t link_id = parse_street_tags(
       tl_builder, feat, &g_cdms_map, &g_cnd_mod_map, &g_area_to_govt_code_map,
       &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map,
-      g_construction_set, debugMode);
+      debugMode);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -107,7 +109,7 @@ uint64_t StreetConverter::parse_street_tags(
         &mtd_area_map,
     const std::map<uint64_t, ushort> &route_type_map,
     const std::map<uint64_t, std::map<uint, std::string>> &names_map,
-    const std::set<uint64_t> &construction_set, bool debugMode) {
+    bool debugMode) {
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   uint64_t link_id = std::stoul(link_id_s);
@@ -123,16 +125,21 @@ uint64_t StreetConverter::parse_street_tags(
       (!route_type || routeTypeIter->second < route_type))
     route_type = routeTypeIter->second;
 
-  // add tags for ref and int_ref to major highways
-  std::string ref_name =
-      add_highway_name_tags(builder, names_map, link_id, ramp);
-
-  bool underConstruction =
-      (construction_set.find(link_id) != construction_set.end());
-
   if (is_ferry(get_field_from_feature(f, FERRY))) {
     add_ferry_tag(builder, f);
   } else { // usual highways
+
+    // add tags for ref and int_ref to major highways
+    std::string ref_name =
+        add_highway_name_tags(builder, names_map, link_id, ramp);
+
+    // get under construction condition
+    auto itPair = cdms_map.equal_range(link_id);
+    bool underConstruction =
+        (std::find_if(itPair.first, itPair.second, [&](cond_type &cndt) {
+           return cndt.cond_type_type == CT_CONSTRUCTION_STATUS_CLOSED;
+         }) != itPair.second);
+
     add_highway_tags(builder, f, route_type, mtd_area_map, ref_name,
                      underConstruction);
   }
@@ -642,6 +649,7 @@ void StreetConverter::add_additional_restrictions(
         cond.cond_type_type == CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE)
       continue; // TODO RESTRICTED_DRIVING_MANOEUVRE should apply as
                 // conditional turn restriction but not for current link id
+
     auto it2 = cnd_mod_map.find(cond.cond_id_type);
     if (it2 != cnd_mod_map.end()) {
       for (auto mod_group : it2->second) {
