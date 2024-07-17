@@ -56,7 +56,7 @@ private:
       {"E1", "GBR"}, {"E2", "GBR"}, {"E3", "GBR"}, {"E4", "GBR"},
       {"E5", "GBR"}, {"E6", "GBR"}, // Great britain
       {"F1", "FRA"}, {"F2", "FRA"}, {"F3", "FRA"}, {"F4", "FRA"},
-      {"F5", "FRA"}, {"F6", "FRA"},                               // France
+      {"F5", "FRA"}, {"F6", "FRA"}, {"F7", "FRA"},                // France
       {"SP", "FIN"}, {"SQ", "FIN"}, {"SU", "FIN"}, {"SV", "FIN"}, // Finland
       {"G1", "DEU"}, {"G2", "DEU"}, {"G3", "DEU"}, {"G4", "DEU"},
       {"G5", "DEU"}, {"G6", "DEU"}, {"G7", "DEU"}, {"G8", "DEU"}, // Germany
