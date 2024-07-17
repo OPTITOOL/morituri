@@ -80,10 +80,9 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
                                          short z_level) {
   osmium::builder::TagListBuilder tl_builder(builder);
 
-  uint64_t link_id =
-      parse_street_tags(tl_builder, feat, data.cdms_map, data.cnd_mod_map,
-                        data.area_govt_map, data.cntry_map, &g_mtd_area_map,
-                        data.route_type_map, data.highway_names, debugMode);
+  uint64_t link_id = parse_street_tags(
+      tl_builder, feat, data.cdms_map, data.cnd_mod_map, data.area_govt_map,
+      data.cntry_map, data.mtd_area, data.route_type_map, data.highway_names);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -103,8 +102,7 @@ uint64_t StreetConverter::parse_street_tags(
     const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
         &mtd_area_map,
     const std::map<uint64_t, ushort> &route_type_map,
-    const std::map<uint64_t, std::map<uint, std::string>> &names_map,
-    bool debugMode) {
+    const std::map<uint64_t, std::map<uint, std::string>> &names_map) {
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   uint64_t link_id = std::stoul(link_id_s);

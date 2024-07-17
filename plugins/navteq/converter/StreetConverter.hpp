@@ -85,6 +85,7 @@ public:
     std::map<uint64_t, cntry_ref_type> cntry_map;
     std::map<osmium::Location, std::map<uint, std::string>> ramp_names;
     std::map<uint64_t, std::map<uint, std::string>> highway_names;
+    std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area;
   };
 
 private:
@@ -187,8 +188,7 @@ private:
       const std::map<osmium::unsigned_object_id_type,
                      Converter::mtd_area_dataset> &mtd_area_map,
       const std::map<uint64_t, ushort> &route_type_map,
-      const std::map<uint64_t, std::map<uint, std::string>> &names_map,
-      bool debugMode);
+      const std::map<uint64_t, std::map<uint, std::string>> &names_map);
 
   void set_ferry_z_lvls_to_zero(const OGRFeatureUniquePtr &feat,
                                 std::vector<z_lvl_index_type_t> &z_lvl_vec);

@@ -49,8 +49,8 @@ class OGRLinearRing;
 class Converter {
 
 public:
-  Converter(const std::filesystem::path &_executable_path)
-      : executable_path(_executable_path) {}
+  Converter(const std::filesystem::path &_executable_path, bool _debug = false)
+      : debugMode(_debug), executable_path(_executable_path) {}
   virtual ~Converter() {}
 
   virtual void convert(const std::filesystem::path &dir,
@@ -201,6 +201,8 @@ protected:
 
   static constexpr int NAVTEQ_ADMIN_LVL_MIN = 1;
   static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
+
+  bool debugMode;
 
 private:
   static std::map<std::string, std::string> lang_code_map;
