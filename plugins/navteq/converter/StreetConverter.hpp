@@ -76,20 +76,23 @@ public:
     bool operator!=(cntry_ref_type rhs) { return !(*this == rhs); }
   };
 
+  struct TagData {
+    std::map<uint64_t, ushort> route_type_map;
+    std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
+        cnd_mod_map;
+    std::multimap<uint64_t, StreetConverter::cond_type> cdms_map;
+    std::map<uint64_t, uint64_t> area_govt_map;
+    std::map<uint64_t, cntry_ref_type> cntry_map;
+    std::map<osmium::Location, std::map<uint, std::string>> ramp_names;
+    std::map<uint64_t, std::map<uint, std::string>> highway_names;
+  };
+
 private:
   std::map<uint64_t, ushort>
   process_alt_steets_route_types(const std::filesystem::path &dir);
 
-  void add_street_shapes(const std::filesystem::path &dir,
-                         osmium::io::Writer &writer);
-
   std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
   init_z_level_map(const std::filesystem::path &dir);
-
-  void set_ferry_z_lvls_to_zero(const OGRFeatureUniquePtr &feat,
-                                std::vector<z_lvl_index_type_t> &z_lvl_vec);
-
-  void test__z_lvl_range(short z_lvl);
 
   std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
   init_g_cnd_mod_map(
@@ -101,19 +104,12 @@ private:
 
   std::map<uint64_t, uint64_t>
   init_g_area_to_govt_code_map(const std::filesystem::path &dir);
+
   std::map<uint64_t, StreetConverter::cntry_ref_type>
   init_g_cntry_ref_map(const std::filesystem::path &dir);
 
-  // process end nodes
-  void process_way_end_nodes(
-      const std::filesystem::path &dir,
-      const std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
-          &z_level_map,
-      osmium::io::Writer &writer);
-  void process_way_end_nodes(OGRFeatureUniquePtr &feat,
-                             osmium::memory::Buffer &node_buffer);
-  void process_way_end_node(const osmium::Location &location,
-                            osmium::memory::Buffer &node_buffer);
+  std::map<uint64_t, std::map<uint, std::string>>
+  init_highway_names(const std::filesystem::path &dir);
 
   // ramp names
   std::map<osmium::Location, std::map<uint, std::string>>
@@ -125,12 +121,42 @@ private:
       std::map<osmium::Location, std::map<uint, std::string>> &ramps_ref_map,
       const std::map<uint64_t, std::string> &junctionNames);
 
+  // process end nodes
+  void process_way_end_nodes(
+      const std::filesystem::path &dir, const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
+      std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
+          &z_level_map,
+      osmium::io::Writer &writer);
+
+  void process_way_end_nodes(
+      OGRFeatureUniquePtr &feat, const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
+      osmium::memory::Buffer &node_buffer);
+
+  void process_way_end_node(
+      const osmium::Location &location, const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
+      osmium::memory::Buffer &node_buffer);
+
   void
-  process_way(const std::filesystem::path &dirs,
+  process_way(const std::filesystem::path &dir,
+              const StreetConverter::TagData &data,
+              std::map<osmium::Location, osmium::unsigned_object_id_type>
+                  &way_end_points_map,
+              std::map<std::pair<osmium::Location, short>,
+                       osmium::unsigned_object_id_type> &z_lvl_nodes_map,
               std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
               osmium::io::Writer &writer);
   void
-  process_way(OGRFeatureUniquePtr &feat,
+  process_way(OGRFeatureUniquePtr &feat, const StreetConverter::TagData &data,
+              std::map<osmium::Location, osmium::unsigned_object_id_type>
+                  &way_end_points_map,
+              std::map<std::pair<osmium::Location, short>,
+                       osmium::unsigned_object_id_type> &z_lvl_nodes_map,
               std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
               osmium::memory::Buffer &node_buffer,
               osmium::memory::Buffer &way_buffer);
@@ -143,9 +169,12 @@ private:
   osmium::unsigned_object_id_type build_way(
       OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+      const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
       osmium::memory::Buffer &way_buffer, bool is_sub_linestring, short z_lvl);
 
-  uint64_t build_tag_list(OGRFeatureUniquePtr &feat,
+  uint64_t build_tag_list(OGRFeatureUniquePtr &feat, const TagData &data,
                           osmium::builder::Builder &builder, short z_level);
 
   uint64_t parse_street_tags(
@@ -161,8 +190,10 @@ private:
       const std::map<uint64_t, std::map<uint, std::string>> &names_map,
       bool debugMode);
 
-  std::map<uint64_t, std::map<uint, std::string>>
-  init_highway_names(const std::filesystem::path &dir);
+  void set_ferry_z_lvls_to_zero(const OGRFeatureUniquePtr &feat,
+                                std::vector<z_lvl_index_type_t> &z_lvl_vec);
+
+  void test__z_lvl_range(short z_lvl);
 
   void parse_highway_names(
       const std::filesystem::path &dbf_file,
@@ -182,18 +213,28 @@ private:
   void process_end_point(
       bool first, short z_lvl, OGRLineString *ogr_ls,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
+      std::map<std::pair<osmium::Location, short>,
+               osmium::unsigned_object_id_type> &z_lvl_nodes_map,
       osmium::memory::Buffer &node_buffer);
 
   void split_way_by_z_level(
       OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
       const std::vector<z_lvl_index_type_t> &node_z_level_vector,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+      const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
       uint64_t link_id, osmium::memory::Buffer &way_buffer);
 
   void build_sub_way_by_index(
       OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls, ushort start_index,
       ushort end_index,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+      const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
       osmium::memory::Buffer &way_buffer, short z_lvl);
 
   ushort create_continuing_sub_ways(
@@ -201,6 +242,9 @@ private:
       ushort start_index, ushort last_index, uint link_id,
       const std::vector<z_lvl_index_type_t> &node_z_level_vector,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+      const StreetConverter::TagData &data,
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &way_end_points_map,
       osmium::memory::Buffer &way_buffer);
 
   bool is_imperial(uint64_t l_area_id, uint64_t r_area_id,

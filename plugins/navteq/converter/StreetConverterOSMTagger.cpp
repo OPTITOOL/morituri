@@ -75,14 +75,15 @@ static constexpr std::array<std::string_view, 9> speed_cat_metric{
     "", ">130", "101-130", "91-100", "71-90", "51-70", "31-50", "11-30", "<11"};
 
 uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
+                                         const TagData &data,
                                          osmium::builder::Builder &builder,
                                          short z_level) {
   osmium::builder::TagListBuilder tl_builder(builder);
 
-  uint64_t link_id = parse_street_tags(
-      tl_builder, feat, &g_cdms_map, &g_cnd_mod_map, &g_area_to_govt_code_map,
-      &g_cntry_ref_map, &g_mtd_area_map, &g_route_type_map, &g_hwys_ref_map,
-      debugMode);
+  uint64_t link_id =
+      parse_street_tags(tl_builder, feat, data.cdms_map, data.cnd_mod_map,
+                        data.area_govt_map, data.cntry_map, &g_mtd_area_map,
+                        data.route_type_map, data.highway_names, debugMode);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -129,10 +130,13 @@ uint64_t StreetConverter::parse_street_tags(
 
     // get under construction condition
     auto itPair = cdms_map.equal_range(link_id);
-    bool underConstruction =
-        (std::find_if(itPair.first, itPair.second, [&](cond_type &cndt) {
-           return cndt.cond_type_type == CT_CONSTRUCTION_STATUS_CLOSED;
-         }) != itPair.second);
+    bool underConstruction = false;
+    for (auto i = itPair.first; i != itPair.second; ++i) {
+      if (i->second.cond_type_type == CT_CONSTRUCTION_STATUS_CLOSED) {
+        underConstruction = true;
+        break;
+      }
+    }
 
     add_highway_tags(builder, f, route_type, mtd_area_map, ref_name,
                      underConstruction);

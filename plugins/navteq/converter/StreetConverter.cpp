@@ -33,9 +33,44 @@ StreetConverter::~StreetConverter() {}
 void StreetConverter::convert(const std::filesystem::path &dir,
                               osmium::io::Writer &writer) {
 
+  // should be global for connectivity between regions
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+      g_way_end_points_map;
+
+  BOOST_LOG_TRIVIAL(info) << " processing alt_streets route types";
   auto route_type_map = process_alt_steets_route_types(dir);
 
-  add_street_shapes(dir, writer);
+  BOOST_LOG_TRIVIAL(info) << " processing conditional modifications ";
+  auto cdms_map = init_g_cdms_map(dir);
+  auto cnd_mod_map = init_g_cnd_mod_map(cdms_map, dir);
+
+  BOOST_LOG_TRIVIAL(info) << " processing country reference";
+  auto area_to_govt_code_map = init_g_area_to_govt_code_map(dir);
+  auto cntry_ref_map = init_g_cntry_ref_map(dir);
+
+  BOOST_LOG_TRIVIAL(info) << " processing ramps";
+  auto ramps_ref_map = init_ramp_names(dir);
+
+  BOOST_LOG_TRIVIAL(info) << " processing highway names";
+  auto hwys_ref_map = init_highway_names(dir);
+
+  // fill data struct for tag processing
+  TagData data = {route_type_map,        cnd_mod_map,   cdms_map,
+                  area_to_govt_code_map, cntry_ref_map, ramps_ref_map,
+                  hwys_ref_map};
+
+  BOOST_LOG_TRIVIAL(info) << " processing z-levels";
+  auto z_level_map = init_z_level_map(dir);
+
+  std::map<std::pair<osmium::Location, short>, osmium::unsigned_object_id_type>
+      z_lvl_nodes_map;
+
+  BOOST_LOG_TRIVIAL(info) << " processing way end points";
+  process_way_end_nodes(dir, data, g_way_end_points_map, z_level_map, writer);
+
+  BOOST_LOG_TRIVIAL(info) << " processing ways";
+  process_way(dir, data, g_way_end_points_map, z_lvl_nodes_map, z_level_map,
+              writer);
 }
 
 std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
@@ -73,27 +108,6 @@ std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
   }
 
   return route_type_map;
-}
-
-void StreetConverter::add_street_shapes(const std::filesystem::path &dir,
-                                        osmium::io::Writer &writer) {
-
-  BOOST_LOG_TRIVIAL(info) << " processing z-levels";
-  auto z_level_map = init_z_level_map(dir);
-
-  BOOST_LOG_TRIVIAL(info) << " processing conditional modifications ";
-  auto cdms_map = init_g_cdms_map(dir);
-  auto cnd_mod_map = init_g_cnd_mod_map(cdms_map, dir);
-
-  BOOST_LOG_TRIVIAL(info) << " processing country reference";
-  auto area_to_govt_code_map = init_g_area_to_govt_code_map(dir);
-  auto g_cntry_ref_map = init_g_cntry_ref_map(dir);
-
-  BOOST_LOG_TRIVIAL(info) << " processing way end points";
-  process_way_end_nodes(dir, z_level_map, writer);
-
-  BOOST_LOG_TRIVIAL(info) << " processing ways";
-  process_way(dir, z_level_map, writer);
 }
 
 std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
@@ -259,14 +273,12 @@ StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
 }
 
 void StreetConverter::process_way_end_nodes(
-    const std::filesystem::path &dir,
-    const std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
+    const std::filesystem::path &dir, const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
+    std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
         &z_level_map,
     osmium::io::Writer &writer) {
-
-  // parse ramp names and refs
-  std::map<osmium::Location, std::map<uint, std::string>> ramps_ref_map =
-      init_ramp_names(dir);
 
   auto path = dir / STREETS_SHP;
   auto ds = openDataSource(path);
@@ -287,45 +299,51 @@ void StreetConverter::process_way_end_nodes(
     // omit way end nodes with different z-levels (they have to be handled
     // extra)
     if (z_level_map.find(link_id) == z_level_map.end())
-      process_way_end_nodes(feat, node_buffer);
+      process_way_end_nodes(feat, data, way_end_points_map, node_buffer);
   }
   node_buffer.commit();
   writer(std::move(node_buffer));
 }
 
 void StreetConverter::process_way_end_nodes(
-    OGRFeatureUniquePtr &feat, osmium::memory::Buffer &node_buffer) {
+    OGRFeatureUniquePtr &feat, const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
+    osmium::memory::Buffer &node_buffer) {
 
   auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
-  process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)),
-                       node_buffer);
+  process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)), data,
+                       way_end_points_map, node_buffer);
   process_way_end_node(
       osmium::Location(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
                        ogr_ls->getY(ogr_ls->getNumPoints() - 1)),
-      node_buffer);
+      data, way_end_points_map, node_buffer);
 }
 
 void StreetConverter::process_way_end_node(
-    const osmium::Location &location, osmium::memory::Buffer &node_buffer) {
+    const osmium::Location &location, const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
+    osmium::memory::Buffer &node_buffer) {
 
-  auto it = g_way_end_points_map.find(location);
-  if (it != g_way_end_points_map.end())
+  auto it = way_end_points_map.find(location);
+  if (it != way_end_points_map.end())
     return;
 
   osmium::builder::NodeBuilder builder(node_buffer);
   osmium::unsigned_object_id_type osm_id = build_node(location, builder);
   // add ramp tags
-  auto ramp = g_ramps_ref_map.find(location);
-  if (ramp != g_ramps_ref_map.end()) {
+  auto ramp = data.ramp_names.find(location);
+  if (ramp != data.ramp_names.end()) {
     if (ramp->second.find(0) != ramp->second.end()) {
       osmium::builder::TagListBuilder tglBuilder(builder);
       tglBuilder.add_tag(HIGHWAY.data(), "motorway_junction");
-      tglBuilder.add_tag("ref", ramp->second[0]);
-      tglBuilder.add_tag("name", to_camel_case_with_spaces(ramp->second[1]));
+      tglBuilder.add_tag("ref", ramp->second.at(0));
+      tglBuilder.add_tag("name", to_camel_case_with_spaces(ramp->second.at(1)));
     }
   }
-  g_way_end_points_map.emplace(location, osm_id);
+  way_end_points_map.emplace(location, osm_id);
 }
 
 std::map<osmium::Location, std::map<uint, std::string>>
@@ -412,12 +430,13 @@ void StreetConverter::parse_ramp_names(
 }
 
 void StreetConverter::process_way(
-    const std::filesystem::path &dir,
+    const std::filesystem::path &dir, const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
+    std::map<std::pair<osmium::Location, short>,
+             osmium::unsigned_object_id_type> &z_lvl_nodes_map,
     std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::io::Writer &writer) {
-
-  // parse highway names and refs
-  auto hwys_ref_map = init_highway_names(dir);
 
   auto path = dir / STREETS_SHP;
   auto ds = openDataSource(path);
@@ -431,7 +450,8 @@ void StreetConverter::process_way(
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
   osmium::memory::Buffer way_buffer(BUFFER_SIZE);
   for (auto &feat : *layer) {
-    process_way(feat, z_level_map, node_buffer, way_buffer);
+    process_way(feat, data, way_end_points_map, z_lvl_nodes_map, z_level_map,
+                node_buffer, way_buffer);
   }
 
   node_buffer.commit();
@@ -482,7 +502,11 @@ void StreetConverter::parse_highway_names(
 }
 
 void StreetConverter::process_way(
-    OGRFeatureUniquePtr &feat,
+    OGRFeatureUniquePtr &feat, const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
+    std::map<std::pair<osmium::Location, short>,
+             osmium::unsigned_object_id_type> &z_lvl_nodes_map,
     std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
 
@@ -499,7 +523,8 @@ void StreetConverter::process_way(
 
   auto it = z_level_map.find(link_id);
   if (it == z_level_map.end()) {
-    build_way(feat, ogr_ls, node_ref_map, way_buffer, false, -5);
+    build_way(feat, ogr_ls, node_ref_map, data, way_end_points_map, way_buffer,
+              false, -5);
   } else {
     auto &index_z_lvl_vector = it->second;
 
@@ -510,7 +535,8 @@ void StreetConverter::process_way(
     if (first_point_with_different_z_lvl.index == first_index)
       first_z_lvl = first_point_with_different_z_lvl.z_level;
 
-    process_end_point(true, first_z_lvl, ogr_ls, node_ref_map, node_buffer);
+    process_end_point(true, first_z_lvl, ogr_ls, node_ref_map,
+                      way_end_points_map, z_lvl_nodes_map, node_buffer);
 
     auto &last_point_with_different_z_lvl = index_z_lvl_vector.back();
     auto last_index = ogr_ls->getNumPoints() - 1;
@@ -518,15 +544,16 @@ void StreetConverter::process_way(
     if (last_point_with_different_z_lvl.index == last_index)
       last_z_lvl = last_point_with_different_z_lvl.z_level;
 
-    process_end_point(false, last_z_lvl, ogr_ls, node_ref_map, node_buffer);
+    process_end_point(false, last_z_lvl, ogr_ls, node_ref_map,
+                      way_end_points_map, z_lvl_nodes_map, node_buffer);
 
     way_buffer.commit();
 
     if (is_ferry(get_field_from_feature(feat, FERRY)))
       set_ferry_z_lvls_to_zero(feat, index_z_lvl_vector);
 
-    split_way_by_z_level(feat, ogr_ls, index_z_lvl_vector, node_ref_map,
-                         link_id, way_buffer);
+    split_way_by_z_level(feat, ogr_ls, index_z_lvl_vector, node_ref_map, data,
+                         way_end_points_map, link_id, way_buffer);
   }
 }
 
@@ -545,6 +572,9 @@ void StreetConverter::middle_points_preparation(
 osmium::unsigned_object_id_type StreetConverter::build_way(
     OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
     std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+    const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
     osmium::memory::Buffer &way_buffer, bool is_sub_linestring = false,
     short z_lvl = -5) {
 
@@ -567,7 +597,7 @@ osmium::unsigned_object_id_type StreetConverter::build_way(
           *map_containing_node;
       if (!is_sub_linestring) {
         if (is_end_point)
-          map_containing_node = &g_way_end_points_map;
+          map_containing_node = &way_end_points_map;
         else
           map_containing_node = &node_ref_map;
       } else {
@@ -575,9 +605,8 @@ osmium::unsigned_object_id_type StreetConverter::build_way(
           map_containing_node = &node_ref_map;
         } else {
           // node has to be in node_ref_map or way_end_points_map
-          assert(g_way_end_points_map.find(location) !=
-                 g_way_end_points_map.end());
-          map_containing_node = &g_way_end_points_map;
+          assert(way_end_points_map.find(location) != way_end_points_map.end());
+          map_containing_node = &way_end_points_map;
         }
       }
 
@@ -586,31 +615,35 @@ osmium::unsigned_object_id_type StreetConverter::build_way(
     }
   }
 
-  build_tag_list(feat, builder, z_lvl);
+  build_tag_list(feat, data, builder, z_lvl);
   return builder.object().id();
 }
 
 void StreetConverter::process_end_point(
     bool first, short z_lvl, OGRLineString *ogr_ls,
     std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
+    std::map<std::pair<osmium::Location, short>,
+             osmium::unsigned_object_id_type> &z_lvl_nodes_map,
     osmium::memory::Buffer &node_buffer) {
   ushort i = first ? 0 : ogr_ls->getNumPoints() - 1;
   osmium::Location location(ogr_ls->getX(i), ogr_ls->getY(i));
 
   if (z_lvl != 0) {
     auto node_id = std::make_pair(location, z_lvl);
-    auto it = g_z_lvl_nodes_map.find(node_id);
-    if (it != g_z_lvl_nodes_map.end()) {
+    auto it = z_lvl_nodes_map.find(node_id);
+    if (it != z_lvl_nodes_map.end()) {
       node_ref_map.emplace(location, it->second);
     } else {
       osmium::unsigned_object_id_type osm_id =
           build_node(location, node_buffer);
       node_ref_map.emplace(location, osm_id);
-      g_z_lvl_nodes_map.emplace(node_id, osm_id);
+      z_lvl_nodes_map.emplace(node_id, osm_id);
     }
   } else {
     // adds all zero z-level end points to g_way_end_points_map
-    g_way_end_points_map.emplace(location, build_node(location, node_buffer));
+    way_end_points_map.emplace(location, build_node(location, node_buffer));
   }
 }
 
@@ -618,6 +651,9 @@ void StreetConverter::split_way_by_z_level(
     OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls,
     const std::vector<z_lvl_index_type_t> &node_z_level_vector,
     std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+    const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
     uint64_t link_id, osmium::memory::Buffer &way_buffer) {
 
   ushort first_index = 0, last_index = ogr_ls->getNumPoints() - 1;
@@ -632,7 +668,7 @@ void StreetConverter::split_way_by_z_level(
   //	if (DEBUG) print_z_level_map(link_id, true);
   if (first_index != start_index) {
     build_sub_way_by_index(feat, ogr_ls, first_index, start_index, node_ref_map,
-                           way_buffer, 0);
+                           data, way_end_points_map, way_buffer, 0);
     BOOST_LOG_TRIVIAL(debug)
         << " 1 ## " << link_id << " ## " << first_index << "/" << last_index
         << "  -  " << start_index << "/" << last_index << ": \tz_lvl=" << 0
@@ -641,11 +677,11 @@ void StreetConverter::split_way_by_z_level(
 
   start_index = create_continuing_sub_ways(
       feat, ogr_ls, first_index, start_index, last_index, link_id,
-      node_z_level_vector, node_ref_map, way_buffer);
+      node_z_level_vector, node_ref_map, data, way_end_points_map, way_buffer);
 
   if (start_index < last_index) {
     build_sub_way_by_index(feat, ogr_ls, start_index, last_index, node_ref_map,
-                           way_buffer, 0);
+                           data, way_end_points_map, way_buffer, 0);
     BOOST_LOG_TRIVIAL(debug)
         << " 4 ## " << link_id << " ## " << start_index << "/" << last_index
         << "  -  " << last_index << "/" << last_index << ": \tz_lvl=" << 0
@@ -657,12 +693,16 @@ void StreetConverter::build_sub_way_by_index(
     OGRFeatureUniquePtr &feat, OGRLineString *ogr_ls, ushort start_index,
     ushort end_index,
     std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+    const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
     osmium::memory::Buffer &way_buffer, short z_lvl = 0) {
   assert(start_index < end_index || end_index == -1);
   assert(start_index < ogr_ls->getNumPoints());
   OGRLineString subLineString;
   subLineString.addSubLineString(ogr_ls, start_index, end_index);
-  build_way(feat, &subLineString, node_ref_map, way_buffer, true, z_lvl);
+  build_way(feat, &subLineString, node_ref_map, data, way_end_points_map,
+            way_buffer, true, z_lvl);
 }
 
 ushort StreetConverter::create_continuing_sub_ways(
@@ -670,6 +710,9 @@ ushort StreetConverter::create_continuing_sub_ways(
     ushort start_index, ushort last_index, uint link_id,
     const std::vector<z_lvl_index_type_t> &node_z_level_vector,
     std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
+    const StreetConverter::TagData &data,
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &way_end_points_map,
     osmium::memory::Buffer &way_buffer) {
 
   for (auto it = node_z_level_vector.cbegin(); it != node_z_level_vector.cend();
@@ -724,14 +767,14 @@ ushort StreetConverter::create_continuing_sub_ways(
           << "  -  " << to << "/" << last_index << ": \tz_lvl=" << z_lvl
           << std::endl;
       if (from < to) {
-        build_sub_way_by_index(feat, ogr_ls, from, to, node_ref_map, way_buffer,
-                               z_lvl);
+        build_sub_way_by_index(feat, ogr_ls, from, to, node_ref_map, data,
+                               way_end_points_map, way_buffer, z_lvl);
         start_index = to;
       }
 
       if (not_last_element && to < next_index - 1) {
         build_sub_way_by_index(feat, ogr_ls, to, next_index - 1, node_ref_map,
-                               way_buffer);
+                               data, way_end_points_map, way_buffer);
         BOOST_LOG_TRIVIAL(debug)
             << " 3 ## " << link_id << " ## " << to << "/" << last_index
             << "  -  " << next_index - 1 << "/" << last_index
