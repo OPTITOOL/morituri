@@ -35,7 +35,6 @@ public:
     short z_level;
   };
 
-private:
   struct cond_type {
     uint64_t cond_id_type;
     uint64_t cond_type_type;
@@ -77,31 +76,33 @@ private:
     bool operator!=(cntry_ref_type rhs) { return !(*this == rhs); }
   };
 
+private:
   std::map<uint64_t, ushort>
   process_alt_steets_route_types(const std::filesystem::path &dir);
 
   void add_street_shapes(const std::filesystem::path &dir,
                          osmium::io::Writer &writer);
 
-  std::map<uint64_t, std::vector<z_lvl_index_type_t>>
-  process_z_levels(const std::filesystem::path &dir);
-
-  void init_z_level_map(
-      const std::filesystem::path &dir,
-      std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map);
+  std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
+  init_z_level_map(const std::filesystem::path &dir);
 
   void set_ferry_z_lvls_to_zero(const OGRFeatureUniquePtr &feat,
                                 std::vector<z_lvl_index_type_t> &z_lvl_vec);
 
   void test__z_lvl_range(short z_lvl);
 
-  void init_conditional_modifications(const std::filesystem::path &dir);
-  void init_g_cnd_mod_map(const std::filesystem::path &dir);
-  void init_g_cdms_map(const std::filesystem::path &dir);
+  std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
+  init_g_cnd_mod_map(
+      const std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
+      const std::filesystem::path &dir);
 
-  void init_country_reference(const std::filesystem::path &dir);
-  void init_g_area_to_govt_code_map(const std::filesystem::path &dir);
-  void init_g_cntry_ref_map(const std::filesystem::path &dir);
+  std::multimap<uint64_t, StreetConverter::cond_type>
+  init_g_cdms_map(const std::filesystem::path &dir);
+
+  std::map<uint64_t, uint64_t>
+  init_g_area_to_govt_code_map(const std::filesystem::path &dir);
+  std::map<uint64_t, StreetConverter::cntry_ref_type>
+  init_g_cntry_ref_map(const std::filesystem::path &dir);
 
   // process end nodes
   void process_way_end_nodes(
@@ -158,7 +159,7 @@ private:
                      Converter::mtd_area_dataset> &mtd_area_map,
       const std::map<uint64_t, ushort> &route_type_map,
       const std::map<uint64_t, std::map<uint, std::string>> &names_map,
-      const std::set<uint64_t> &construction_set, bool debugMode);
+      bool debugMode);
 
   std::map<uint64_t, std::map<uint, std::string>>
   init_highway_names(const std::filesystem::path &dir);
@@ -392,6 +393,12 @@ private:
   const std::filesystem::path STREETS_SHP = "Streets.shp";
 
   const std::filesystem::path ALT_STREETS_DBF = "AltStreets.dbf";
+
+  // condition types (CT)
+  const ushort CT_CONSTRUCTION_STATUS_CLOSED = 3;
+  const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
+  const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
+  const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
 };
 
 #endif // STREETCONVERTER_HPP

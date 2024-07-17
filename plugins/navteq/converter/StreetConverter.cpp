@@ -79,7 +79,15 @@ void StreetConverter::add_street_shapes(const std::filesystem::path &dir,
                                         osmium::io::Writer &writer) {
 
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
-  auto z_level_map = process_z_levels(dir);
+  auto z_level_map = init_z_level_map(dir);
+
+  BOOST_LOG_TRIVIAL(info) << " processing conditional modifications ";
+  auto cdms_map = init_g_cdms_map(dir);
+  auto cnd_mod_map = init_g_cnd_mod_map(cdms_map, dir);
+
+  BOOST_LOG_TRIVIAL(info) << " processing country reference";
+  auto area_to_govt_code_map = init_g_area_to_govt_code_map(dir);
+  auto g_cntry_ref_map = init_g_cntry_ref_map(dir);
 
   BOOST_LOG_TRIVIAL(info) << " processing way end points";
   process_way_end_nodes(dir, z_level_map, writer);
@@ -93,29 +101,9 @@ void StreetConverter::add_street_shapes(const std::filesystem::path &dir,
 }
 
 std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
-StreetConverter::process_z_levels(const std::filesystem::path &dir) {
+StreetConverter::init_z_level_map(const std::filesystem::path &dir) {
 
   std::map<uint64_t, std::vector<z_lvl_index_type_t>> z_level_map;
-
-  auto ds = openDataSource(dir / STREETS_SHP);
-  if (!ds)
-    throw(shp_error(dir / STREETS_SHP));
-
-  auto layer = ds->GetLayer(0);
-  if (layer == nullptr)
-    throw(shp_empty_error(dir / STREETS_SHP));
-  assert(layer->GetGeomType() == wkbLineString);
-
-  init_z_level_map(dir, z_level_map);
-  init_conditional_modifications(dir);
-  init_country_reference(dir);
-
-  return z_level_map;
-}
-
-void StreetConverter::init_z_level_map(
-    const std::filesystem::path &dir,
-    std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map) {
 
   const std::filesystem::path ZLEVELS_DBF = "Zlevels.dbf";
 
@@ -146,20 +134,26 @@ void StreetConverter::init_z_level_map(
 
   if (!v.empty())
     z_level_map.emplace(last_link_id, v);
+
+  return z_level_map;
 }
 
-void StreetConverter::init_conditional_modifications(
+std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
+StreetConverter::init_g_cnd_mod_map(
+    const std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
     const std::filesystem::path &dir) {
-  init_g_cnd_mod_map(dir);
-  init_g_cdms_map(dir);
-}
-
-void StreetConverter::init_g_cnd_mod_map(const std::filesystem::path &dir) {
   const std::filesystem::path CND_MOD_DBF = "CndMod.dbf";
+
+  std::unordered_map<uint64_t, std::vector<mod_group_type>> cnd_mod_map;
+
+  std::set<uint64_t> cond_ids;
+  for (const auto &[_, cond] : cdms_map) {
+    cond_ids.insert(cond.cond_id_type);
+  }
 
   auto ds = openDataSource(dir / CND_MOD_DBF);
   if (!ds)
-    return;
+    return cnd_mod_map;
 
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -167,29 +161,40 @@ void StreetConverter::init_g_cnd_mod_map(const std::filesystem::path &dir) {
 
   for (auto &feat : *layer) {
     uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
+
+    // only process conditional modifications for the given cond_ids
+    if (cond_ids.find(cond_id) == cond_ids.end())
+      continue;
+
     std::string lang_code = get_field_from_feature(feat, LANG_CODE);
     uint64_t mod_type = get_uint_from_feature(feat, CM_MOD_TYPE);
     uint64_t mod_val = get_uint_from_feature(feat, CM_MOD_VAL);
 
-    auto it2 = g_cnd_mod_map.find(cond_id);
-    if (it2 == g_cnd_mod_map.end()) {
+    auto it2 = cnd_mod_map.find(cond_id);
+    if (it2 == cnd_mod_map.end()) {
       std::vector<mod_group_type> new_vector;
       new_vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      g_cnd_mod_map.emplace(cond_id, new_vector);
+      cnd_mod_map.emplace(cond_id, new_vector);
     } else {
       auto vector = it2->second;
-      g_cnd_mod_map.erase(it2);
+      cnd_mod_map.erase(it2);
       vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      g_cnd_mod_map.emplace(cond_id, vector);
+      cnd_mod_map.emplace(cond_id, vector);
     }
   }
+
+  return cnd_mod_map;
 }
 
-void StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
+std::multimap<uint64_t, StreetConverter::cond_type>
+StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
+
+  std::multimap<uint64_t, cond_type> cdms_map;
+
   const std::filesystem::path CDMS_DBF = "Cdms.dbf";
   auto ds = openDataSource(dir / CDMS_DBF);
   if (!ds)
-    return;
+    return cdms_map;
 
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -199,25 +204,23 @@ void StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
     uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
     uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
     ushort cond_type = get_uint_from_feature(feat, COND_TYPE);
-    g_cdms_map.emplace(link_id, cond_pair_type(cond_id, cond_type));
-    if (cond_type == 3)
-      g_construction_set.emplace(link_id);
+
+    cdms_map.emplace(link_id, StreetConverter::cond_type{cond_id, cond_type});
   }
+
+  return cdms_map;
 }
 
-void StreetConverter::init_country_reference(const std::filesystem::path &dir) {
-  init_g_area_to_govt_code_map(dir);
-  init_g_cntry_ref_map(dir);
-}
-
-void StreetConverter::init_g_area_to_govt_code_map(
+std::map<uint64_t, uint64_t> StreetConverter::init_g_area_to_govt_code_map(
     const std::filesystem::path &dir) {
+
+  std::map<uint64_t, uint64_t> area_to_govt_code_map;
 
   const std::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
 
   auto ds = openDataSource(dir / MTD_AREA_DBF);
   if (!ds)
-    return;
+    return area_to_govt_code_map;
 
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -226,17 +229,22 @@ void StreetConverter::init_g_area_to_govt_code_map(
   for (auto &feat : *layer) {
     uint64_t area_id = get_uint_from_feature(feat, AREA_ID);
     uint64_t govt_code = get_uint_from_feature(feat, GOVT_CODE);
-    g_area_to_govt_code_map.emplace(area_id, govt_code);
+    area_to_govt_code_map.emplace(area_id, govt_code);
   }
+
+  return area_to_govt_code_map;
 }
 
-void StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
+std::map<uint64_t, StreetConverter::cntry_ref_type>
+StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
+
+  std::map<uint64_t, cntry_ref_type> cntry_ref_map;
 
   static const std::filesystem::path MTD_CNTRY_REF_DBF = "MtdCntryRef.dbf";
 
   auto ds = openDataSource(dir / MTD_CNTRY_REF_DBF);
   if (!ds)
-    return;
+    return cntry_ref_map;
 
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -248,8 +256,10 @@ void StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
     std::string speed_limit_unit = get_field_from_feature(feat, SPEEDLIMITUNIT);
     std::string iso_code = get_field_from_feature(feat, ISO_CODE);
     cntry_ref_type cntry_ref(unit_measure, speed_limit_unit, iso_code);
-    g_cntry_ref_map.emplace(govt_code, cntry_ref);
+    cntry_ref_map.emplace(govt_code, cntry_ref);
   }
+
+  return cntry_ref_map;
 }
 
 void StreetConverter::process_way_end_nodes(

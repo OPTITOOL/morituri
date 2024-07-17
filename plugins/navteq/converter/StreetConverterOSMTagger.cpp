@@ -19,12 +19,6 @@
 #include <boost/log/trivial.hpp>
 #include <ranges>
 
-// condition types (CT)
-const ushort CT_CONSTRUCTION_STATUS_CLOSED = 3;
-const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
-const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
-const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
-
 // modifier types (MT)
 const ushort MT_HAZARDOUS_RESTRICTION = 39;
 const ushort MT_HEIGHT_RESTRICTION = 41;
