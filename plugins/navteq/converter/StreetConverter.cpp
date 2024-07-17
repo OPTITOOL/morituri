@@ -671,10 +671,11 @@ void StreetConverter::split_way_by_z_level(
   if (first_index != start_index) {
     build_sub_way_by_index(feat, ogr_ls, first_index, start_index, node_ref_map,
                            data, way_end_points_map, way_buffer, 0);
-    BOOST_LOG_TRIVIAL(debug)
-        << " 1 ## " << link_id << " ## " << first_index << "/" << last_index
-        << "  -  " << start_index << "/" << last_index << ": \tz_lvl=" << 0
-        << std::endl;
+    if (debugMode)
+      BOOST_LOG_TRIVIAL(debug)
+          << " 1 ## " << link_id << " ## " << first_index << "/" << last_index
+          << "  -  " << start_index << "/" << last_index << ": \tz_lvl=" << 0
+          << std::endl;
   }
 
   start_index = create_continuing_sub_ways(
@@ -684,10 +685,11 @@ void StreetConverter::split_way_by_z_level(
   if (start_index < last_index) {
     build_sub_way_by_index(feat, ogr_ls, start_index, last_index, node_ref_map,
                            data, way_end_points_map, way_buffer, 0);
-    BOOST_LOG_TRIVIAL(debug)
-        << " 4 ## " << link_id << " ## " << start_index << "/" << last_index
-        << "  -  " << last_index << "/" << last_index << ": \tz_lvl=" << 0
-        << std::endl;
+    if (debugMode)
+      BOOST_LOG_TRIVIAL(debug)
+          << " 4 ## " << link_id << " ## " << start_index << "/" << last_index
+          << "  -  " << last_index << "/" << last_index << ": \tz_lvl=" << 0
+          << std::endl;
   }
 }
 
@@ -732,11 +734,13 @@ ushort StreetConverter::create_continuing_sub_ways(
       next_z_lvl = next_it->z_level;
       test__z_lvl_range(next_z_lvl);
     }
-    BOOST_LOG_TRIVIAL(debug)
-        << "first_index=" << first_index << "   "
-        << "start_index=" << start_index << "   " << "last_index=" << last_index
-        << "   " << "index=" << index << "   " << "z_lvl=" << z_lvl << "   "
-        << "next_z_lvl=" << next_z_lvl << std::endl;
+    if (debugMode)
+      BOOST_LOG_TRIVIAL(debug)
+          << "first_index=" << first_index << "   "
+          << "start_index=" << start_index << "   "
+          << "last_index=" << last_index << "   " << "index=" << index << "   "
+          << "z_lvl=" << z_lvl << "   " << "next_z_lvl=" << next_z_lvl
+          << std::endl;
 
     if (not_last_element) {
       if (index + 2 == next_index && z_lvl == next_z_lvl)
@@ -764,10 +768,11 @@ ushort StreetConverter::create_continuing_sub_ways(
         to = std::min((ushort)(index + 1), last_index);
       else
         to = index;
-      BOOST_LOG_TRIVIAL(debug)
-          << " 2 ## " << link_id << " ## " << from << "/" << last_index
-          << "  -  " << to << "/" << last_index << ": \tz_lvl=" << z_lvl
-          << std::endl;
+      if (debugMode)
+        BOOST_LOG_TRIVIAL(debug)
+            << " 2 ## " << link_id << " ## " << from << "/" << last_index
+            << "  -  " << to << "/" << last_index << ": \tz_lvl=" << z_lvl
+            << std::endl;
       if (from < to) {
         build_sub_way_by_index(feat, ogr_ls, from, to, node_ref_map, data,
                                way_end_points_map, way_buffer, z_lvl);
@@ -777,10 +782,11 @@ ushort StreetConverter::create_continuing_sub_ways(
       if (not_last_element && to < next_index - 1) {
         build_sub_way_by_index(feat, ogr_ls, to, next_index - 1, node_ref_map,
                                data, way_end_points_map, way_buffer);
-        BOOST_LOG_TRIVIAL(debug)
-            << " 3 ## " << link_id << " ## " << to << "/" << last_index
-            << "  -  " << next_index - 1 << "/" << last_index
-            << ": \tz_lvl=" << 0 << std::endl;
+        if (debugMode)
+          BOOST_LOG_TRIVIAL(debug)
+              << " 3 ## " << link_id << " ## " << to << "/" << last_index
+              << "  -  " << next_index - 1 << "/" << last_index
+              << ": \tz_lvl=" << 0 << std::endl;
         start_index = next_index - 1;
       }
     }

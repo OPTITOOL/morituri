@@ -381,7 +381,8 @@ Converter::openDataSource(const std::filesystem::path &shape_file) {
 
   auto ds = GDALDatasetUniquePtr(GDALDataset::Open(shape_file_str.c_str()));
   if (!ds) {
-    BOOST_LOG_TRIVIAL(debug) << "No shp found in " << shape_file;
+    if (debugMode)
+      BOOST_LOG_TRIVIAL(debug) << "No shp found in " << shape_file;
     return nullptr;
   }
 
@@ -439,14 +440,10 @@ const char *Converter::get_field_from_feature(const OGRFeatureUniquePtr &feat,
  */
 uint64_t Converter::get_uint_from_feature(const OGRFeatureUniquePtr &feat,
                                           const std::string_view &field) {
-  const char *value = get_field_from_feature(feat, field.data());
-  assert(value);
-  try {
-    return std::stoul(value);
-  } catch (const std::invalid_argument &) {
-    throw format_error("Could not parse field='" + std::string(field) +
-                       "' with value='" + std::string(value) + "'");
-  }
+  int field_index = feat->GetFieldIndex(field.data());
+  if (field_index == -1)
+    BOOST_LOG_TRIVIAL(error) << field << std::endl;
+  return feat->GetFieldAsInteger64(field_index);
 }
 
 bool Converter::string_is_unsigned_integer(const std::string &s) {

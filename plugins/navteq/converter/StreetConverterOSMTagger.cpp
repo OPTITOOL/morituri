@@ -328,8 +328,9 @@ void StreetConverter::add_one_way_tag(osmium::builder::TagListBuilder &builder,
     builder.add_tag("oneway", "-1"); // todo reverse way instead using "-1"
   else if (!strcmp(value, "B"))      // B --> BOTH ways are allowed
     return;
-  throw(
-      format_error("value '" + std::string(value) + "' for oneway not valid"));
+  else
+    throw(format_error("value '" + std::string(value) +
+                       "' for oneway not valid"));
 }
 
 void StreetConverter::add_access_tags(osmium::builder::TagListBuilder &builder,
