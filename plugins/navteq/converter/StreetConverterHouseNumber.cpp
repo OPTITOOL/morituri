@@ -16,6 +16,7 @@
 
 #include "StreetConverter.hpp"
 
+#include <boost/log/trivial.hpp>
 #include <osmium/io/writer.hpp>
 
 #include "../../ogr_util.hpp"
@@ -242,4 +243,16 @@ void StreetConverter::create_house_numbers(const OGRFeatureUniquePtr &feat,
   }
   node_buffer.commit();
   way_buffer.commit();
+}
+
+const char *StreetConverter::parse_house_number_schema(const char *schema) {
+  if (!strcmp(schema, "E"))
+    return "even";
+  if (!strcmp(schema, "O"))
+    return "odd";
+  BOOST_LOG_TRIVIAL(error) << "schema = " << schema << " unsupported"
+                           << std::endl;
+  return "";
+  throw std::runtime_error("scheme " + std::string(schema) +
+                           " is currently not supported");
 }

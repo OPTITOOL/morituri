@@ -18,11 +18,70 @@
 
 #include <boost/log/trivial.hpp>
 
+// condition types (CT)
+const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
+const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
+const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
+
+// modifier types (MT)
+const ushort MT_HAZARDOUS_RESTRICTION = 39;
+const ushort MT_HEIGHT_RESTRICTION = 41;
+const ushort MT_WEIGHT_RESTRICTION = 42;
+const ushort MT_WEIGHT_PER_AXLE_RESTRICTION = 43;
+const ushort MT_LENGTH_RESTRICTION = 44;
+const ushort MT_WIDTH_RESTRICTION = 45;
+
+const ushort RESTRICTED_DRIVING_MANOEUVRE = 7;
+
+const int INCH_BASE = 12;
+const int POUND_BASE = 2000;
+// short ton in metric tons (source:
+// http://wiki.openstreetmap.org/wiki/Key:maxweight)
+const double SHORT_TON = 0.90718474;
+
+static constexpr std::string_view MOTORWAY = "motorway";
+static constexpr std::string_view MOTORWAY_LINK = "motorway_link";
+static constexpr std::string_view TRUNK = "trunk";
+static constexpr std::string_view PRIMARY = "primary";
+static constexpr std::string_view PRIMARY_LINK = "primary_link";
+static constexpr std::string_view SECONDARY = "secondary";
+static constexpr std::string_view SECONDARY_LINK = "secondary_link";
+static constexpr std::string_view TERTIARY = "tertiary";
+static constexpr std::string_view UNCLASSIFIED = "unclassified";
+static constexpr std::string_view RESIDENTIAL = "residential";
+static constexpr std::string_view TRACK = "track";
+static constexpr std::string_view PATH = "path";
+static constexpr std::string_view FOOTWAY = "footway";
+
+static constexpr std::string_view CONSTRUCTION = "construction";
+
+// higway classification
+const std::vector<std::string_view> DEFAULT_HWY_FUNC_TYPE = {
+    "", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL};
+
+std::map<int, std::vector<std::string_view>> const HWY_FUNC_CLASS_MAP = {
+    /* Applied with functional classes:
+     *                         1,       2,         3,        4,        5 +
+     * rural,    5 + urban */
+    {0 /*"DEFAULT"*/, DEFAULT_HWY_FUNC_TYPE},
+    {3 /*"GER"*/,
+     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+    {8 /*"CHE"*/,
+     {"", PRIMARY, SECONDARY, TERTIARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+    {108 /*"DEN"*/,
+     {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+    {107 /*"SWE"*/,
+     {"", PRIMARY, SECONDARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}},
+    {9 /*"AUT"*/,
+     {"", PRIMARY, PRIMARY, SECONDARY, TERTIARY, UNCLASSIFIED, RESIDENTIAL}}};
+
+static constexpr std::array<std::string_view, 9> speed_cat_metric{
+    "", ">130", "101-130", "91-100", "71-90", "51-70", "31-50", "11-30", "<11"};
+
 uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
                                          osmium::builder::Builder &builder,
-                                         osmium::memory::Buffer &buf,
                                          short z_level) {
-  osmium::builder::TagListBuilder tl_builder(buf, builder);
+  osmium::builder::TagListBuilder tl_builder(builder);
 
   uint64_t link_id = parse_street_tags(
       tl_builder, feat, &g_cdms_map, &g_cnd_mod_map, &g_area_to_govt_code_map,
@@ -663,25 +722,9 @@ uint StreetConverter::get_number_after(const std::string &str,
     number_str += *it;
   }
 
-  uint StreetConverter::get_number_after(const std::string &str,
-                                         const char *start_str) {
-    if (!str.starts_with(start_str))
-      return 0; /* doesn't start with start_str */
-
-    /* Get number string after start_str until first non-digit appears */
-    std::string end_str = str.substr(strlen(start_str));
-    std::string number_str;
-    for (auto it = end_str.begin(); it != end_str.end(); ++it) {
-      if (!std::isdigit(*it)) {
-        /* break because B107a should return 107*/
-        break;
-      }
-      number_str += *it;
-    }
-
-    try {
-      return std::stoul(number_str);
-    } catch (const std::invalid_argument &) {
-      return 0;
-    }
+  try {
+    return std::stoul(number_str);
+  } catch (const std::invalid_argument &) {
+    return 0;
   }
+}
