@@ -20,14 +20,13 @@
 #include <ranges>
 
 // modifier types (MT)
+const ushort MT_DIRECTION_CLOSURE = 38;
 const ushort MT_HAZARDOUS_RESTRICTION = 39;
 const ushort MT_HEIGHT_RESTRICTION = 41;
 const ushort MT_WEIGHT_RESTRICTION = 42;
 const ushort MT_WEIGHT_PER_AXLE_RESTRICTION = 43;
 const ushort MT_LENGTH_RESTRICTION = 44;
 const ushort MT_WIDTH_RESTRICTION = 45;
-
-const ushort RESTRICTED_DRIVING_MANOEUVRE = 7;
 
 const int INCH_BASE = 12;
 const int POUND_BASE = 2000;
@@ -81,8 +80,8 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
   osmium::builder::TagListBuilder tl_builder(builder);
 
   uint64_t link_id = parse_street_tags(
-      tl_builder, feat, data.cdms_map, data.cnd_mod_map, data.area_govt_map,
-      data.cntry_map, data.mtd_area, data.route_type_map, data.highway_names);
+      tl_builder, feat, data.cdms_map, data.area_govt_map, data.cntry_map,
+      data.mtd_area, data.route_type_map, data.highway_names);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -95,8 +94,6 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
 uint64_t StreetConverter::parse_street_tags(
     osmium::builder::TagListBuilder &builder, OGRFeatureUniquePtr &f,
     const std::multimap<uint64_t, cond_type> &cdms_map,
-    const std::unordered_map<uint64_t, std::vector<mod_group_type>>
-        &cnd_mod_map,
     const std::map<uint64_t, uint64_t> &area_govt_map,
     const std::map<uint64_t, cntry_ref_type> &cntry_map,
     const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
@@ -144,8 +141,7 @@ uint64_t StreetConverter::parse_street_tags(
   uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
   // tags which apply to highways and ferry routes
   add_additional_restrictions(builder, link_id, l_area_id, r_area_id, cdms_map,
-                              cnd_mod_map, area_govt_map, cntry_map,
-                              mtd_area_map);
+                              area_govt_map, cntry_map, mtd_area_map);
 
   // tag for debug purpose
   if (debugMode) {
@@ -225,15 +221,13 @@ void StreetConverter::add_postcode_tag(osmium::builder::TagListBuilder &builder,
 
 void StreetConverter::add_maxspeed_tags(
     osmium::builder::TagListBuilder &builder, const OGRFeatureUniquePtr &f) {
-  char *from_speed_limit_s = strdup(get_field_from_feature(f, FR_SPEED_LIMIT));
-  char *to_speed_limit_s = strdup(get_field_from_feature(f, TO_SPEED_LIMIT));
 
   uint from_speed_limit = get_uint_from_feature(f, FR_SPEED_LIMIT);
   uint to_speed_limit = get_uint_from_feature(f, TO_SPEED_LIMIT);
 
   if (from_speed_limit >= 1000 || to_speed_limit >= 1000)
-    throw(format_error("from_speed_limit='" + std::string(from_speed_limit_s) +
-                       "' or to_speed_limit='" + std::string(to_speed_limit_s) +
+    throw(format_error("from_speed_limit='" + std::string(from_speed_limit) +
+                       "' or to_speed_limit='" + std::string(to_speed_limit) +
                        "' is not valid (>= 1000)"));
 
   // 998 is a ramp without speed limit information
@@ -241,8 +235,10 @@ void StreetConverter::add_maxspeed_tags(
     return;
 
   // 999 means no speed limit at all
-  const char *from = from_speed_limit == 999 ? "none" : from_speed_limit_s;
-  const char *to = to_speed_limit == 999 ? "none" : to_speed_limit_s;
+  std::string from =
+      from_speed_limit == 999 ? "none" : std::to_string(from_speed_limit);
+  std::string to =
+      to_speed_limit == 999 ? "none" : std::to_string(to_speed_limit);
 
   if (from_speed_limit != 0 && to_speed_limit != 0) {
     if (from_speed_limit != to_speed_limit) {
@@ -256,9 +252,6 @@ void StreetConverter::add_maxspeed_tags(
   } else if (from_speed_limit == 0 && to_speed_limit != 0) {
     builder.add_tag("maxspeed", to);
   }
-
-  free(from_speed_limit_s);
-  free(to_speed_limit_s);
 }
 
 void StreetConverter::add_ferry_tag(osmium::builder::TagListBuilder &builder,
@@ -619,91 +612,120 @@ void StreetConverter::add_additional_restrictions(
     osmium::builder::TagListBuilder &builder, uint64_t link_id,
     uint64_t l_area_id, uint64_t r_area_id,
     const std::multimap<uint64_t, cond_type> &cdms_map,
-    const std::unordered_map<uint64_t, std::vector<mod_group_type>>
-        &cnd_mod_map,
     const std::map<uint64_t, uint64_t> &area_govt_map,
     const std::map<uint64_t, cntry_ref_type> &cntry_map,
     const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
         &mtd_area_map) {
-  if (cdms_map.empty() || cnd_mod_map.empty())
+  if (cdms_map.empty())
     return;
 
   // default is metric units
   bool imperial_units =
       is_imperial(l_area_id, r_area_id, area_govt_map, cntry_map);
 
-  uint64_t max_height = 0;
-  uint64_t max_width = 0;
-  uint64_t max_length = 0;
-  uint64_t max_weight = 0;
-  uint64_t max_axleload = 0;
-
-  std::vector<mod_group_type> mod_group_vector;
   auto range = cdms_map.equal_range(link_id);
   for (auto it = range.first; it != range.second; ++it) {
-    auto cond = it->second;
-    auto it2 = cnd_mod_map.find(cond.cond_id_type);
-    if (it2 != cnd_mod_map.end()) {
-      for (auto mod_group : it2->second) {
-        mod_group_vector.push_back(mod_group);
+    if (it->second.cond_type_type == CT_TRANSPORT_ACCESS_RESTRICTION) {
+      uint64_t max_height = 0;
+      uint64_t max_width = 0;
+      uint64_t max_length = 0;
+      uint64_t max_weight = 0;
+      uint64_t max_axleload = 0;
+      int direction = 0; // 1 = both, 2 = forward, 3 = backward
+
+      if (it->second.dt_mod.hasDateTimeMod) {
+        BOOST_LOG_TRIVIAL(debug)
+            << "Skip Condition because of DateTimeMod for link_id " << link_id
+            << std::endl;
+        continue;
       }
+
+      for (auto mod_group : it->second.mod_group_map | std::views::values) {
+        auto mod_type = mod_group.mod_type;
+        auto mod_val = mod_group.mod_val;
+        if (mod_type == MT_HEIGHT_RESTRICTION) {
+          if (!max_height || mod_val < max_height)
+            max_height = mod_val;
+        } else if (mod_type == MT_WIDTH_RESTRICTION) {
+          if (!max_width || mod_val < max_width)
+            max_width = mod_val;
+        } else if (mod_type == MT_LENGTH_RESTRICTION) {
+          if (!max_length || mod_val < max_length)
+            max_length = mod_val;
+        } else if (mod_type == MT_WEIGHT_RESTRICTION) {
+          if (!max_weight || mod_val < max_weight)
+            max_weight = mod_val;
+        } else if (mod_type == MT_WEIGHT_PER_AXLE_RESTRICTION) {
+          if (!max_axleload || mod_val < max_axleload)
+            max_axleload = mod_val;
+        } else if (mod_type == MT_HAZARDOUS_RESTRICTION) {
+          add_hazmat_tag(builder, mod_val);
+        } else if (mod_type == MT_DIRECTION_CLOSURE) {
+          direction = mod_val;
+        } else {
+          if (debugMode)
+            BOOST_LOG_TRIVIAL(debug)
+                << "Unknown modifier type " << mod_type << " value " << mod_val
+                << " for Condition Type " << it->second.cond_type_type
+                << " for link_id " << link_id << std::endl;
+        }
+      }
+
+      if (get_area_code_l(l_area_id, r_area_id, mtd_area_map) == 107) {
+        /** exceptional handling for Sweden as there are BK Roads
+         *
+         * HERE tags these roads with the most conservative values,
+         * which would make it unroutable for nearly every truck.
+         * Therefore we use the highest value and add a marker for BK2 / BK3 */
+        if (max_weight == 16000 && max_axleload == 10000) {
+          builder.add_tag("maxweight:class", "BK2");
+          max_weight = 51400;
+        } else if (max_weight == 12000 && max_axleload == 8000) {
+          builder.add_tag("maxweight:class", "BK3");
+          max_weight = 37000;
+        }
+      }
+
+      if (max_height > 0)
+        addRestrictionTag(builder, "maxheight", direction, imperial_units,
+                          max_height);
+      if (max_width > 0)
+        addRestrictionTag(builder, "maxwidth", direction, imperial_units,
+                          max_width);
+      if (max_length > 0)
+        addRestrictionTag(builder, "maxlength", direction, imperial_units,
+                          max_length);
+      if (max_weight > 0)
+        addRestrictionTag(builder, "maxweight", direction, imperial_units,
+                          max_weight);
+      if (max_axleload > 0)
+        addRestrictionTag(builder, "maxaxleload", direction, imperial_units,
+                          max_weight);
+
+    } else if (it->second.cond_type_type ==
+               CT_TRANSPORT_SPECIAL_SPEED_SITUATION) {
+
+      BOOST_LOG_TRIVIAL(debug)
+          << "Special speed situation detected for link_id " << link_id
+          << std::endl;
     }
   }
+}
 
-  for (auto mod_group : mod_group_vector) {
-    auto mod_type = mod_group.mod_type;
-    auto mod_val = mod_group.mod_val;
-    if (mod_type == MT_HEIGHT_RESTRICTION) {
-      if (!max_height || mod_val < max_height)
-        max_height = mod_val;
-    } else if (mod_type == MT_WIDTH_RESTRICTION) {
-      if (!max_width || mod_val < max_width)
-        max_width = mod_val;
-    } else if (mod_type == MT_LENGTH_RESTRICTION) {
-      if (!max_length || mod_val < max_length)
-        max_length = mod_val;
-    } else if (mod_type == MT_WEIGHT_RESTRICTION) {
-      if (!max_weight || mod_val < max_weight)
-        max_weight = mod_val;
-    } else if (mod_type == MT_WEIGHT_PER_AXLE_RESTRICTION) {
-      if (!max_axleload || mod_val < max_axleload)
-        max_axleload = mod_val;
-    } else if (mod_type == MT_HAZARDOUS_RESTRICTION) {
-      add_hazmat_tag(builder, mod_val);
-    }
+void StreetConverter::addRestrictionTag(
+    osmium::builder::TagListBuilder &builder, const std::string &restriction,
+    int direction, bool is_imperial_units, uint64_t max_value) {
+  {
+    std::string convertedValue =
+        is_imperial_units ? inch_to_feet(max_value) : cm_to_m(max_value);
+
+    if (direction == 2)
+      builder.add_tag(restriction + ":forward", convertedValue);
+    else if (direction == 3)
+      builder.add_tag(restriction + ":backward", convertedValue);
+    else
+      builder.add_tag(restriction, convertedValue);
   }
-
-  if (get_area_code_l(l_area_id, r_area_id, mtd_area_map) == 107) {
-    /** exceptional handling for Sweden as there are BK Roads
-     *
-     * HERE tags these roads with the most conservative values,
-     * which would make it unroutable for nearly every truck.
-     * Therefore we use the highest value and add a marker for BK2 / BK3 */
-    if (max_weight == 16000 && max_axleload == 10000) {
-      builder.add_tag("maxweight:class", "BK2");
-      max_weight = 51400;
-    } else if (max_weight == 12000 && max_axleload == 8000) {
-      builder.add_tag("maxweight:class", "BK3");
-      max_weight = 37000;
-    }
-  }
-
-  if (max_height > 0)
-    builder.add_tag("maxheight", imperial_units ? inch_to_feet(max_height)
-                                                : cm_to_m(max_height));
-  if (max_width > 0)
-    builder.add_tag("maxwidth", imperial_units ? inch_to_feet(max_width)
-                                               : cm_to_m(max_width));
-  if (max_length > 0)
-    builder.add_tag("maxlength", imperial_units ? inch_to_feet(max_length)
-                                                : cm_to_m(max_length));
-  if (max_weight > 0)
-    builder.add_tag("maxweight", imperial_units ? lbs_to_metric_ton(max_weight)
-                                                : kg_to_t(max_weight));
-  if (max_axleload > 0)
-    builder.add_tag("maxaxleload", imperial_units
-                                       ? lbs_to_metric_ton(max_axleload)
-                                       : kg_to_t(max_axleload));
 }
 
 uint StreetConverter::get_number_after(const std::string &str,
@@ -711,7 +733,8 @@ uint StreetConverter::get_number_after(const std::string &str,
   if (!str.starts_with(start_str))
     return 0; /* doesn't start with start_str */
 
-  /* Get number string after start_str until first non-digit appears */
+  /* Get number string after start_str until first
+   * non-digit appears */
   std::string end_str = str.substr(strlen(start_str));
   std::string number_str;
   for (auto it = end_str.begin(); it != end_str.end(); ++it) {

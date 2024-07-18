@@ -35,11 +35,6 @@ public:
     short z_level;
   };
 
-  struct cond_type {
-    uint64_t cond_id_type;
-    uint64_t cond_type_type;
-  };
-
   struct mod_group_type {
     std::string lang_code;
     uint64_t mod_type;
@@ -50,6 +45,17 @@ public:
       this->mod_type = mod_type;
       this->mod_val = mod_val;
     }
+  };
+
+  struct dateTimeMod {
+    bool hasDateTimeMod = false;
+  };
+
+  struct cond_type {
+    uint64_t cond_id_type;
+    uint64_t cond_type_type;
+    std::map<uint64_t, StreetConverter::mod_group_type> mod_group_map;
+    dateTimeMod dt_mod;
   };
 
   struct cntry_ref_type {
@@ -78,8 +84,7 @@ public:
 
   struct TagData {
     std::map<uint64_t, ushort> route_type_map;
-    std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
-        cnd_mod_map;
+
     std::multimap<uint64_t, StreetConverter::cond_type> cdms_map;
     std::map<uint64_t, uint64_t> area_govt_map;
     std::map<uint64_t, cntry_ref_type> cntry_map;
@@ -95,13 +100,16 @@ private:
   std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
   init_z_level_map(const std::filesystem::path &dir);
 
-  std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
-  init_g_cnd_mod_map(
-      const std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
-      const std::filesystem::path &dir);
+  void
+  init_cnd_mod(std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
+               const std::filesystem::path &dir);
+
+  void
+  init_cnd_dt_mod(std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
+                  const std::filesystem::path &dir);
 
   std::multimap<uint64_t, StreetConverter::cond_type>
-  init_g_cdms_map(const std::filesystem::path &dir);
+  init_cdms_map(const std::filesystem::path &dir);
 
   std::map<uint64_t, uint64_t>
   init_g_area_to_govt_code_map(const std::filesystem::path &dir);
@@ -117,6 +125,7 @@ private:
   init_ramp_names(const std::filesystem::path &dir);
   std::map<uint64_t, std::string>
   read_junction_names(const std::filesystem::path &dbf_file);
+
   void parse_ramp_names(
       const std::filesystem::path &shp_file,
       std::map<osmium::Location, std::tuple<std::string, std::string>>
@@ -182,8 +191,6 @@ private:
   uint64_t parse_street_tags(
       osmium::builder::TagListBuilder &builder, OGRFeatureUniquePtr &f,
       const std::multimap<uint64_t, cond_type> &cdms_map,
-      const std::unordered_map<uint64_t, std::vector<mod_group_type>>
-          &cnd_mod_map,
       const std::map<uint64_t, uint64_t> &area_govt_map,
       const std::map<uint64_t, cntry_ref_type> &cntry_map,
       const std::map<osmium::unsigned_object_id_type,
@@ -204,8 +211,6 @@ private:
       osmium::builder::TagListBuilder &builder, uint64_t link_id,
       uint64_t l_area_id, uint64_t r_area_id,
       const std::multimap<uint64_t, cond_type> &cdms_map,
-      const std::unordered_map<uint64_t, std::vector<mod_group_type>>
-          &cnd_mod_map,
       const std::map<uint64_t, uint64_t> &area_govt_map,
       const std::map<uint64_t, cntry_ref_type> &cntry_map,
       const std::map<osmium::unsigned_object_id_type,
@@ -328,6 +333,10 @@ private:
     return std::to_string(meter / 100.0f);
   }
 
+  void addRestrictionTag(osmium::builder::TagListBuilder &builder,
+                         const std::string &restriction, int direction,
+                         bool is_imperial_units, uint64_t max_value);
+
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";
   static constexpr std::string_view CM_MOD_VAL = "MOD_VAL";
@@ -399,9 +408,8 @@ private:
 
   // condition types (CT)
   const ushort CT_CONSTRUCTION_STATUS_CLOSED = 3;
-  const ushort CT_RESTRICTED_DRIVING_MANOEUVRE = 7;
   const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
-  const ushort CT_TRANSPORT_RESTRICTED_DRIVING_MANOEUVRE = 26;
+  const ushort CT_TRANSPORT_SPECIAL_SPEED_SITUATION = 24;
 
   // should be global for connectivity between regions
   std::map<osmium::Location, osmium::unsigned_object_id_type>

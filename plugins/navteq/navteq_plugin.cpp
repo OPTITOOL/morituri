@@ -174,9 +174,12 @@ void navteq_plugin::execute() {
   hdr.set("xml_josm_upload", "false");
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
 
+  int i = 0;
+
   // run converters
   for (auto &dir : dataDirs) {
-    BOOST_LOG_TRIVIAL(info) << "Processing " << dir;
+    BOOST_LOG_TRIVIAL(info)
+        << "Processing " << dir << " (" << ++i << "/" << dataDirs.size() << ")";
     for (auto &c : converter)
       c->convert(dir, writer);
   }

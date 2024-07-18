@@ -37,8 +37,9 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   auto route_type_map = process_alt_steets_route_types(dir);
 
   BOOST_LOG_TRIVIAL(info) << " processing conditional modifications ";
-  auto cdms_map = init_g_cdms_map(dir);
-  auto cnd_mod_map = init_g_cnd_mod_map(cdms_map, dir);
+  auto cdms_map = init_cdms_map(dir);
+  init_cnd_mod(cdms_map, dir);
+  init_cnd_dt_mod(cdms_map, dir);
 
   BOOST_LOG_TRIVIAL(info) << " processing country reference";
   auto area_to_govt_code_map = init_g_area_to_govt_code_map(dir);
@@ -53,9 +54,9 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   auto mtd_area = process_meta_areas(dir);
 
   // fill data struct for tag processing
-  TagData data = {route_type_map,        cnd_mod_map,   cdms_map,
-                  area_to_govt_code_map, cntry_ref_map, ramps_ref_map,
-                  hwys_ref_map,          mtd_area};
+  TagData data = {route_type_map, cdms_map,      area_to_govt_code_map,
+                  cntry_ref_map,  ramps_ref_map, hwys_ref_map,
+                  mtd_area};
 
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
   auto z_level_map = init_z_level_map(dir);
@@ -146,22 +147,19 @@ StreetConverter::init_z_level_map(const std::filesystem::path &dir) {
   return z_level_map;
 }
 
-std::unordered_map<uint64_t, std::vector<StreetConverter::mod_group_type>>
-StreetConverter::init_g_cnd_mod_map(
-    const std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
+void StreetConverter::init_cnd_mod(
+    std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
     const std::filesystem::path &dir) {
   const std::filesystem::path CND_MOD_DBF = "CndMod.dbf";
 
-  std::unordered_map<uint64_t, std::vector<mod_group_type>> cnd_mod_map;
-
-  std::set<uint64_t> cond_ids;
-  for (const auto &[_, cond] : cdms_map) {
-    cond_ids.insert(cond.cond_id_type);
+  std::map<uint64_t, cond_type *> conditions;
+  for (auto &entry : cdms_map) {
+    conditions.emplace(entry.second.cond_id_type, &entry.second);
   }
 
   auto ds = openDataSource(dir / CND_MOD_DBF);
   if (!ds)
-    return cnd_mod_map;
+    return;
 
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -171,31 +169,51 @@ StreetConverter::init_g_cnd_mod_map(
     uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
 
     // only process conditional modifications for the given cond_ids
-    if (cond_ids.find(cond_id) == cond_ids.end())
+    auto it = conditions.find(cond_id);
+    if (it == conditions.end())
       continue;
 
     std::string lang_code = get_field_from_feature(feat, LANG_CODE);
     uint64_t mod_type = get_uint_from_feature(feat, CM_MOD_TYPE);
     uint64_t mod_val = get_uint_from_feature(feat, CM_MOD_VAL);
 
-    auto it2 = cnd_mod_map.find(cond_id);
-    if (it2 == cnd_mod_map.end()) {
-      std::vector<mod_group_type> new_vector;
-      new_vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      cnd_mod_map.emplace(cond_id, new_vector);
-    } else {
-      auto vector = it2->second;
-      cnd_mod_map.erase(it2);
-      vector.push_back(mod_group_type(mod_type, mod_val, lang_code));
-      cnd_mod_map.emplace(cond_id, vector);
-    }
+    it->second->mod_group_map.emplace(
+        mod_type, mod_group_type(mod_type, mod_val, lang_code));
+  }
+}
+
+void StreetConverter::init_cnd_dt_mod(
+    std::multimap<uint64_t, StreetConverter::cond_type> &cdms_map,
+    const std::filesystem::path &dir) {
+  const std::filesystem::path CND_DT_MOD_DBF = "CdmsDtmod.dbf";
+
+  std::map<uint64_t, cond_type *> conditions;
+  for (auto &entry : cdms_map) {
+    conditions.emplace(entry.second.cond_id_type, &entry.second);
   }
 
-  return cnd_mod_map;
+  auto ds = openDataSource(dir / CND_DT_MOD_DBF);
+  if (!ds)
+    return;
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / CND_DT_MOD_DBF));
+
+  for (auto &feat : *layer) {
+    uint64_t cond_id = get_uint_from_feature(feat, COND_ID);
+
+    // only process conditional modifications for the given cond_ids
+    auto it = conditions.find(cond_id);
+    if (it == conditions.end())
+      continue;
+
+    it->second->dt_mod.hasDateTimeMod = true;
+  }
 }
 
 std::multimap<uint64_t, StreetConverter::cond_type>
-StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
+StreetConverter::init_cdms_map(const std::filesystem::path &dir) {
 
   std::multimap<uint64_t, cond_type> cdms_map;
 
@@ -214,8 +232,11 @@ StreetConverter::init_g_cdms_map(const std::filesystem::path &dir) {
     ushort cond_type = get_uint_from_feature(feat, COND_TYPE);
 
     // only store considered conditional modifications
-    if (cond_type == CT_TRANSPORT_ACCESS_RESTRICTION) {
-      cdms_map.emplace(link_id, StreetConverter::cond_type{cond_id, cond_type});
+    if (cond_type == CT_TRANSPORT_ACCESS_RESTRICTION ||
+        cond_type == CT_CONSTRUCTION_STATUS_CLOSED ||
+        cond_type == CT_TRANSPORT_SPECIAL_SPEED_SITUATION) {
+      cdms_map.emplace(link_id,
+                       StreetConverter::cond_type{cond_id, cond_type, {}, {}});
     }
   }
 
