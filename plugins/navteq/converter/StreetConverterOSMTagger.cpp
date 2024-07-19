@@ -17,6 +17,7 @@
 #include "StreetConverter.hpp"
 
 #include <boost/log/trivial.hpp>
+#include <format>
 #include <ranges>
 
 // modifier types (MT)
@@ -94,12 +95,14 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
 uint64_t StreetConverter::parse_street_tags(
     osmium::builder::TagListBuilder &builder, OGRFeatureUniquePtr &f,
     const std::multimap<uint64_t, cond_type> &cdms_map,
-    const std::map<uint64_t, uint64_t> &area_govt_map,
+    const std::map<uint64_t, uint64_t> &area_to_areacode1_map,
     const std::map<uint64_t, cntry_ref_type> &cntry_map,
     const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
         &mtd_area_map,
     const std::map<uint64_t, ushort> &route_type_map,
     const std::map<uint64_t, std::map<uint, std::string>> &names_map) {
+
+  cntry_ref_type cntry_ref = get_cntry_ref(f, area_to_areacode1_map, cntry_map);
 
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   uint64_t link_id = std::stoul(link_id_s);
@@ -107,7 +110,7 @@ uint64_t StreetConverter::parse_street_tags(
   bool ramp = parse_bool(get_field_from_feature(f, RAMP));
 
   ushort route_type = 0;
-  if (!((std::string)get_field_from_feature(f, ROUTE)).empty())
+  if (!(std::string(get_field_from_feature(f, ROUTE)).empty()))
     route_type = get_uint_from_feature(f, ROUTE);
 
   auto routeTypeIter = route_type_map.find(link_id);
@@ -118,7 +121,6 @@ uint64_t StreetConverter::parse_street_tags(
   if (is_ferry(get_field_from_feature(f, FERRY))) {
     add_ferry_tag(builder, f);
   } else { // usual highways
-
     // add tags for ref and int_ref to major highways
     std::string ref_name =
         add_highway_name_tags(builder, names_map, link_id, ramp);
@@ -133,15 +135,12 @@ uint64_t StreetConverter::parse_street_tags(
       }
     }
 
-    add_highway_tags(builder, f, route_type, mtd_area_map, ref_name,
+    add_highway_tags(builder, f, route_type, cntry_ref, ref_name,
                      underConstruction);
   }
 
-  uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID);
-  uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
   // tags which apply to highways and ferry routes
-  add_additional_restrictions(builder, link_id, l_area_id, r_area_id, cdms_map,
-                              area_govt_map, cntry_map, mtd_area_map);
+  add_additional_restrictions(builder, link_id, cdms_map, cntry_ref);
 
   // tag for debug purpose
   if (debugMode) {
@@ -160,7 +159,7 @@ uint64_t StreetConverter::parse_street_tags(
     if (!func_class.empty())
       builder.add_tag("here:func_class", func_class.c_str());
 
-    add_uint_tag(builder, "here:area_code", get_area_code_l(f, mtd_area_map));
+    add_uint_tag(builder, "here:area_code", cntry_ref.area_code_1);
   }
   return link_id;
 }
@@ -226,9 +225,9 @@ void StreetConverter::add_maxspeed_tags(
   uint to_speed_limit = get_uint_from_feature(f, TO_SPEED_LIMIT);
 
   if (from_speed_limit >= 1000 || to_speed_limit >= 1000)
-    throw(format_error("from_speed_limit='" + std::string(from_speed_limit) +
-                       "' or to_speed_limit='" + std::string(to_speed_limit) +
-                       "' is not valid (>= 1000)"));
+    throw(format_error(std::format(
+        "from_speed_limit='{}' or to_speed_limit='{}' is not valid (>= 1000)",
+        from_speed_limit, to_speed_limit)));
 
   // 998 is a ramp without speed limit information
   if (from_speed_limit == 998 || to_speed_limit == 998)
@@ -274,23 +273,23 @@ void StreetConverter::add_ferry_tag(osmium::builder::TagListBuilder &builder,
   } else if (!strcmp(ferry, "R")) {
     builder.add_tag("railway", "ferry");
   } else
-    throw(format_error("value '" + std::string(ferry) + "' for " +
-                       std::string(FERRY) + " not valid"));
+    throw(
+        format_error(std::format("value '{}' for {} not valid", ferry, FERRY)));
 }
 
-void StreetConverter::add_highway_tags(
-    osmium::builder::TagListBuilder &builder, const OGRFeatureUniquePtr &f,
-    ushort route_type,
-    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
-        &mtd_area_map,
-    const std::string &ref_name, bool underConstruction) {
+void StreetConverter::add_highway_tags(osmium::builder::TagListBuilder &builder,
+                                       const OGRFeatureUniquePtr &f,
+                                       ushort route_type,
+                                       const cntry_ref_type &cntry_ref,
+                                       const std::string &ref_name,
+                                       bool underConstruction) {
 
   ushort func_class = 0;
   std::string func_class_s = get_field_from_feature(f, FUNC_CLASS);
   if (!func_class_s.empty())
     func_class = get_uint_from_feature(f, FUNC_CLASS);
 
-  add_highway_tag(builder, f, route_type, func_class, mtd_area_map, ref_name,
+  add_highway_tag(builder, f, route_type, func_class, cntry_ref, ref_name,
                   underConstruction);
 
   add_one_way_tag(builder, get_field_from_feature(f, DIR_TRAVEL));
@@ -478,12 +477,12 @@ void StreetConverter::add_hazmat_tag(osmium::builder::TagListBuilder &builder,
   }
 }
 
-void StreetConverter::add_highway_tag(
-    osmium::builder::TagListBuilder &builder, const OGRFeatureUniquePtr &f,
-    ushort route_type, ushort func_class,
-    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
-        &mtd_area_map,
-    const std::string &ref_name, bool underConstruction) {
+void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
+                                      const OGRFeatureUniquePtr &f,
+                                      ushort route_type, ushort func_class,
+                                      const cntry_ref_type &cntry_ref,
+                                      const std::string &ref_name,
+                                      bool underConstruction) {
 
   bool paved = parse_bool(get_field_from_feature(f, PAVED));
   bool motorized_allowed = is_motorized_allowed(f);
@@ -514,7 +513,6 @@ void StreetConverter::add_highway_tag(
       bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
       bool urban = parse_bool(get_field_from_feature(f, URBAN));
       bool ramp = parse_bool(get_field_from_feature(f, RAMP));
-      uint area_code_1 = get_area_code_l(f, mtd_area_map);
 
       if (controlled_access) {
         // controlled_access => motorway
@@ -523,14 +521,14 @@ void StreetConverter::add_highway_tag(
         else
           builder.add_tag(highwayTagName, MOTORWAY.data());
       } else if (func_class || route_type) {
-        std::string_view hwy_value =
-            get_hwy_value(route_type, func_class, area_code_1, ref_name, urban);
+        std::string_view hwy_value = get_hwy_value(
+            route_type, func_class, cntry_ref.area_code_1, ref_name, urban);
         if (!hwy_value.empty()) {
           builder.add_tag(highwayTagName, hwy_value.data());
         } else {
           BOOST_LOG_TRIVIAL(error)
               << "ignoring highway_level'" << std::to_string(route_type)
-              << "' for " << area_code_1 << std::endl;
+              << "' for " << cntry_ref.area_code_1 << std::endl;
         }
       } else {
         BOOST_LOG_TRIVIAL(error)
@@ -610,18 +608,13 @@ std::string_view StreetConverter::get_hwy_value(ushort route_type,
 
 void StreetConverter::add_additional_restrictions(
     osmium::builder::TagListBuilder &builder, uint64_t link_id,
-    uint64_t l_area_id, uint64_t r_area_id,
     const std::multimap<uint64_t, cond_type> &cdms_map,
-    const std::map<uint64_t, uint64_t> &area_govt_map,
-    const std::map<uint64_t, cntry_ref_type> &cntry_map,
-    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
-        &mtd_area_map) {
+    const cntry_ref_type &cntry_ref) {
   if (cdms_map.empty())
     return;
 
   // default is metric units
-  bool imperial_units =
-      is_imperial(l_area_id, r_area_id, area_govt_map, cntry_map);
+  bool imperial_units = is_imperial(cntry_ref);
 
   auto range = cdms_map.equal_range(link_id);
   for (auto it = range.first; it != range.second; ++it) {
@@ -671,7 +664,7 @@ void StreetConverter::add_additional_restrictions(
         }
       }
 
-      if (get_area_code_l(l_area_id, r_area_id, mtd_area_map) == 107) {
+      if (cntry_ref.area_code_1 == 107) {
         /** exceptional handling for Sweden as there are BK Roads
          *
          * HERE tags these roads with the most conservative values,
@@ -750,4 +743,39 @@ uint StreetConverter::get_number_after(const std::string &str,
   } catch (const std::invalid_argument &) {
     return 0;
   }
+}
+
+bool StreetConverter::is_imperial(const cntry_ref_type &cntry_ref) {
+  auto unit_measure = cntry_ref.unit_measure;
+  if (unit_measure == "E") {
+    return true;
+  } else if (unit_measure != "M") {
+    format_error("unit_measure in navteq data is invalid: '" + unit_measure +
+                 "'");
+  }
+  return false;
+}
+
+StreetConverter::cntry_ref_type StreetConverter::get_cntry_ref(
+    const OGRFeatureUniquePtr &f,
+    const std::map<uint64_t, uint64_t> &area_to_areacode1_map,
+    const std::map<uint64_t, cntry_ref_type> &cntry_map) {
+  uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID);
+  if (auto l_area_iter = area_to_areacode1_map.find(l_area_id);
+      l_area_iter != area_to_areacode1_map.end()) {
+    if (auto l_cntry_ref = cntry_map.find(l_area_iter->second);
+        l_cntry_ref != cntry_map.end())
+      return l_cntry_ref->second;
+  }
+
+  uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
+  if (auto r_area_iter = area_to_areacode1_map.find(r_area_id);
+      r_area_iter != area_to_areacode1_map.end()) {
+    if (auto r_cntry_ref = cntry_map.find(r_area_iter->second);
+        r_cntry_ref != cntry_map.end())
+      return r_cntry_ref->second;
+  }
+
+  throw format_error("cntry_ref not found for link_id " +
+                     std::to_string(get_uint_from_feature(f, LINK_ID)));
 }

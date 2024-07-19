@@ -62,6 +62,7 @@ public:
     std::string unit_measure;
     std::string speed_limit_unit;
     std::string iso_code;
+    uint64_t area_code_1;
     cntry_ref_type() {}
     cntry_ref_type(const std::string &unit_measure,
                    const std::string &speed_limit_unit,
@@ -76,6 +77,8 @@ public:
       if (this->speed_limit_unit != rhs.speed_limit_unit)
         return false;
       if (this->iso_code != rhs.iso_code)
+        return false;
+      if (this->area_code_1 != rhs.area_code_1)
         return false;
       return true;
     }
@@ -111,8 +114,9 @@ private:
   std::multimap<uint64_t, StreetConverter::cond_type>
   init_cdms_map(const std::filesystem::path &dir);
 
-  std::map<uint64_t, uint64_t>
-  init_g_area_to_govt_code_map(const std::filesystem::path &dir);
+  std::map<uint64_t, uint64_t> init_g_area_to_govt_code_map(
+      std::map<uint64_t, StreetConverter::cntry_ref_type> &cntry_ref_map,
+      const std::filesystem::path &dir);
 
   std::map<uint64_t, StreetConverter::cntry_ref_type>
   init_g_cntry_ref_map(const std::filesystem::path &dir);
@@ -207,14 +211,11 @@ private:
       const std::filesystem::path &dbf_file,
       std::map<uint64_t, std::map<uint, std::string>> &hwys_ref_map,
       bool isStreetLayer);
+
   void add_additional_restrictions(
       osmium::builder::TagListBuilder &builder, uint64_t link_id,
-      uint64_t l_area_id, uint64_t r_area_id,
       const std::multimap<uint64_t, cond_type> &cdms_map,
-      const std::map<uint64_t, uint64_t> &area_govt_map,
-      const std::map<uint64_t, cntry_ref_type> &cntry_map,
-      const std::map<osmium::unsigned_object_id_type,
-                     Converter::mtd_area_dataset> &mtd_area_map);
+      const cntry_ref_type &cntry_ref);
 
   void process_end_point(
       bool first, short z_lvl, OGRLineString *ogr_ls,
@@ -253,30 +254,24 @@ private:
           &way_end_points_map,
       osmium::memory::Buffer &way_buffer);
 
-  bool is_imperial(uint64_t l_area_id, uint64_t r_area_id,
-                   const std::map<uint64_t, uint64_t> &area_govt_map,
-                   const std::map<uint64_t, cntry_ref_type> &cntry_map);
+  StreetConverter::cntry_ref_type
+  get_cntry_ref(const OGRFeatureUniquePtr &f,
+                const std::map<uint64_t, uint64_t> &area_to_areacode1_map,
+                const std::map<uint64_t, cntry_ref_type> &cntry_map);
 
-  bool is_imperial(uint64_t area_id,
-                   const std::map<uint64_t, uint64_t> &area_govt_map,
-                   const std::map<uint64_t, cntry_ref_type> &cntry_map);
+  bool is_imperial(const cntry_ref_type &cntry_ref);
 
   bool is_motorized_allowed(const OGRFeatureUniquePtr &f);
 
-  void
-  add_highway_tags(osmium::builder::TagListBuilder &builder,
-                   const OGRFeatureUniquePtr &f, ushort route_type,
-                   const std::map<osmium::unsigned_object_id_type,
-                                  Converter::mtd_area_dataset> &mtd_area_map,
-                   const std::string &ref_name, bool underConstruction);
+  void add_highway_tags(osmium::builder::TagListBuilder &builder,
+                        const OGRFeatureUniquePtr &f, ushort route_type,
+                        const cntry_ref_type &cntry_ref,
+                        const std::string &ref_name, bool underConstruction);
 
-  void
-  add_highway_tag(osmium::builder::TagListBuilder &builder,
-                  const OGRFeatureUniquePtr &f, ushort route_type,
-                  ushort func_class,
-                  const std::map<osmium::unsigned_object_id_type,
-                                 Converter::mtd_area_dataset> &mtd_area_map,
-                  const std::string &ref_name, bool underConstruction);
+  void add_highway_tag(osmium::builder::TagListBuilder &builder,
+                       const OGRFeatureUniquePtr &f, ushort route_type,
+                       ushort func_class, const cntry_ref_type &cntry_ref,
+                       const std::string &ref_name, bool underConstruction);
 
   std::string_view get_hwy_value(ushort route_type, ushort func_class,
                                  uint area_code_1, const std::string &ref_name,
@@ -346,6 +341,7 @@ private:
   static constexpr std::string_view POINT_NUM = "POINT_NUM";
 
   static constexpr std::string_view GOVT_CODE = "GOVT_CODE";
+  static constexpr std::string_view AREACODE_1 = "AREACODE_1";
 
   // RDMS_DBF columns
   static constexpr std::string_view COND_ID = "COND_ID";

@@ -342,33 +342,6 @@ Converter::process_meta_areas(std::filesystem::path dir) {
   return mtd_area_map;
 }
 
-uint Converter::get_area_code_l(
-    uint64_t l_area_id, uint64_t r_area_id,
-    const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
-        &mtd_area_map) {
-
-  auto l_area = mtd_area_map.find(l_area_id);
-  if (l_area != mtd_area_map.end())
-    return l_area->second.area_code_1;
-
-  auto r_area = mtd_area_map.find(r_area_id);
-  if (r_area != mtd_area_map.end())
-    return r_area->second.area_code_1;
-
-  throw(out_of_range_exception("could not find area_id " +
-                               std::to_string(mtd_area_map.size())));
-}
-
-uint Converter::get_area_code_l(
-    const OGRFeatureUniquePtr &f,
-    const std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
-        &mtd_area_map) {
-  uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID);
-  uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
-
-  return get_area_code_l(l_area_id, r_area_id, mtd_area_map);
-}
-
 GDALDatasetUniquePtr
 Converter::openDataSource(const std::filesystem::path &shape_file) {
 

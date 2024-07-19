@@ -134,14 +134,6 @@ protected:
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
   process_meta_areas(std::filesystem::path dir);
 
-  uint get_area_code_l(uint64_t l_area_id, uint64_t r_area_id,
-                       const std::map<osmium::unsigned_object_id_type,
-                                      mtd_area_dataset> &mtd_area_map);
-
-  uint get_area_code_l(const OGRFeatureUniquePtr &f,
-                       const std::map<osmium::unsigned_object_id_type,
-                                      mtd_area_dataset> &mtd_area_map);
-
   void parse_lang_code_file();
 
   std::string parse_lang_code(std::string lang_code);

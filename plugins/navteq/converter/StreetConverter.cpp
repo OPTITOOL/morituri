@@ -42,8 +42,8 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   init_cnd_dt_mod(cdms_map, dir);
 
   BOOST_LOG_TRIVIAL(info) << " processing country reference";
-  auto area_to_govt_code_map = init_g_area_to_govt_code_map(dir);
   auto cntry_ref_map = init_g_cntry_ref_map(dir);
+  auto area_to_govt_code_map = init_g_area_to_govt_code_map(cntry_ref_map, dir);
 
   BOOST_LOG_TRIVIAL(info) << " processing ramps";
   auto ramps_ref_map = init_ramp_names(dir);
@@ -244,15 +244,16 @@ StreetConverter::init_cdms_map(const std::filesystem::path &dir) {
 }
 
 std::map<uint64_t, uint64_t> StreetConverter::init_g_area_to_govt_code_map(
+    std::map<uint64_t, StreetConverter::cntry_ref_type> &cntry_ref_map,
     const std::filesystem::path &dir) {
 
-  std::map<uint64_t, uint64_t> area_to_govt_code_map;
+  std::map<uint64_t, uint64_t> area_to_area_code_map;
 
   const std::filesystem::path MTD_AREA_DBF = "MtdArea.dbf";
 
   auto ds = openDataSource(dir / MTD_AREA_DBF);
   if (!ds)
-    return area_to_govt_code_map;
+    return area_to_area_code_map;
 
   auto layer = ds->GetLayer(0);
   if (layer == nullptr)
@@ -260,11 +261,20 @@ std::map<uint64_t, uint64_t> StreetConverter::init_g_area_to_govt_code_map(
 
   for (auto &feat : *layer) {
     uint64_t area_id = get_uint_from_feature(feat, AREA_ID);
+    uint64_t areacode_1 = get_uint_from_feature(feat, AREA_CODE_1);
     uint64_t govt_code = get_uint_from_feature(feat, GOVT_CODE);
-    area_to_govt_code_map.emplace(area_id, govt_code);
+
+    // found the area id of the admin 1 area
+    if (auto cntry_ref = cntry_ref_map.find(govt_code);
+        cntry_ref != cntry_ref_map.end()) {
+      // store the area code of the admin 1 area in cntry_ref_map
+      cntry_ref->second.area_code_1 = areacode_1;
+    }
+
+    area_to_area_code_map.emplace(area_id, areacode_1);
   }
 
-  return area_to_govt_code_map;
+  return area_to_area_code_map;
 }
 
 std::map<uint64_t, StreetConverter::cntry_ref_type>
@@ -813,34 +823,6 @@ ushort StreetConverter::create_continuing_sub_ways(
     }
   }
   return start_index;
-}
-
-bool StreetConverter::is_imperial(
-    uint64_t l_area_id, uint64_t r_area_id,
-    const std::map<uint64_t, uint64_t> &area_govt_map,
-    const std::map<uint64_t, cntry_ref_type> &cntry_map) {
-  if (is_imperial(l_area_id, area_govt_map, cntry_map))
-    return true;
-  if (is_imperial(r_area_id, area_govt_map, cntry_map))
-    return true;
-  return false;
-}
-
-bool StreetConverter::is_imperial(
-    uint64_t area_id, const std::map<uint64_t, uint64_t> &area_govt_map,
-    const std::map<uint64_t, cntry_ref_type> &cntry_map) {
-  if (area_govt_map.find(area_id) != area_govt_map.end()) {
-    if (cntry_map.find(area_govt_map.at(area_id)) != cntry_map.end()) {
-      auto unit_measure = cntry_map.at(area_govt_map.at(area_id)).unit_measure;
-      if (unit_measure == "E") {
-        return true;
-      } else if (unit_measure != "M") {
-        format_error("unit_measure in navteq data is invalid: '" +
-                     unit_measure + "'");
-      }
-    }
-  }
-  return false;
 }
 
 void StreetConverter::set_ferry_z_lvls_to_zero(
