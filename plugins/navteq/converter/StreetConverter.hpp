@@ -62,7 +62,7 @@ public:
     std::string unit_measure;
     std::string speed_limit_unit;
     std::string iso_code;
-    uint64_t area_code_1;
+    uint64_t area_code_1 = 0;
     cntry_ref_type() {}
     cntry_ref_type(const std::string &unit_measure,
                    const std::string &speed_limit_unit,
@@ -197,8 +197,6 @@ private:
       const std::multimap<uint64_t, cond_type> &cdms_map,
       const std::map<uint64_t, uint64_t> &area_govt_map,
       const std::map<uint64_t, cntry_ref_type> &cntry_map,
-      const std::map<osmium::unsigned_object_id_type,
-                     Converter::mtd_area_dataset> &mtd_area_map,
       const std::map<uint64_t, ushort> &route_type_map,
       const std::map<uint64_t, std::map<uint, std::string>> &names_map);
 

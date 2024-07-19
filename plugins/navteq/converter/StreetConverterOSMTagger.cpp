@@ -80,9 +80,9 @@ uint64_t StreetConverter::build_tag_list(OGRFeatureUniquePtr &feat,
                                          short z_level) {
   osmium::builder::TagListBuilder tl_builder(builder);
 
-  uint64_t link_id = parse_street_tags(
-      tl_builder, feat, data.cdms_map, data.area_govt_map, data.cntry_map,
-      data.mtd_area, data.route_type_map, data.highway_names);
+  uint64_t link_id = parse_street_tags(tl_builder, feat, data.cdms_map,
+                                       data.area_govt_map, data.cntry_map,
+                                       data.route_type_map, data.highway_names);
 
   if (z_level != -5 && z_level != 0)
     tl_builder.add_tag("layer", std::to_string(z_level));
@@ -97,8 +97,6 @@ uint64_t StreetConverter::parse_street_tags(
     const std::multimap<uint64_t, cond_type> &cdms_map,
     const std::map<uint64_t, uint64_t> &area_to_areacode1_map,
     const std::map<uint64_t, cntry_ref_type> &cntry_map,
-    const std::map<osmium::unsigned_object_id_type, Converter::mtd_area_dataset>
-        &mtd_area_map,
     const std::map<uint64_t, ushort> &route_type_map,
     const std::map<uint64_t, std::map<uint, std::string>> &names_map) {
 
@@ -627,9 +625,10 @@ void StreetConverter::add_additional_restrictions(
       int direction = 0; // 1 = both, 2 = forward, 3 = backward
 
       if (it->second.dt_mod.hasDateTimeMod) {
-        BOOST_LOG_TRIVIAL(debug)
-            << "Skip Condition because of DateTimeMod for link_id " << link_id
-            << std::endl;
+        if (debugMode)
+          BOOST_LOG_TRIVIAL(debug)
+              << "Skip Condition because of DateTimeMod for link_id " << link_id
+              << std::endl;
         continue;
       }
 
@@ -763,7 +762,11 @@ StreetConverter::cntry_ref_type StreetConverter::get_cntry_ref(
   uint64_t l_area_id = get_uint_from_feature(f, L_AREA_ID);
   if (auto l_area_iter = area_to_areacode1_map.find(l_area_id);
       l_area_iter != area_to_areacode1_map.end()) {
-    if (auto l_cntry_ref = cntry_map.find(l_area_iter->second);
+    if (auto l_cntry_ref = std::ranges::find_if(
+            cntry_map,
+            [l_area_iter](const auto &pair) {
+              return pair.second.area_code_1 == l_area_iter->second;
+            });
         l_cntry_ref != cntry_map.end())
       return l_cntry_ref->second;
   }
@@ -771,7 +774,11 @@ StreetConverter::cntry_ref_type StreetConverter::get_cntry_ref(
   uint64_t r_area_id = get_uint_from_feature(f, R_AREA_ID);
   if (auto r_area_iter = area_to_areacode1_map.find(r_area_id);
       r_area_iter != area_to_areacode1_map.end()) {
-    if (auto r_cntry_ref = cntry_map.find(r_area_iter->second);
+    if (auto r_cntry_ref = std::ranges::find_if(
+            cntry_map,
+            [r_area_iter](const auto &pair) {
+              return pair.second.area_code_1 == r_area_iter->second;
+            });
         r_cntry_ref != cntry_map.end())
       return r_cntry_ref->second;
   }

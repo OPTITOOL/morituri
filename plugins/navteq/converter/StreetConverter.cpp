@@ -260,15 +260,26 @@ std::map<uint64_t, uint64_t> StreetConverter::init_g_area_to_govt_code_map(
     throw(shp_empty_error(dir / MTD_AREA_DBF));
 
   for (auto &feat : *layer) {
+    std::string area_type = get_field_from_feature(feat, "AREA_TYPE");
+    if (area_type != "B")
+      continue;
+
     uint64_t area_id = get_uint_from_feature(feat, AREA_ID);
     uint64_t areacode_1 = get_uint_from_feature(feat, AREA_CODE_1);
     uint64_t govt_code = get_uint_from_feature(feat, GOVT_CODE);
+    uint64_t admin_level = get_uint_from_feature(feat, ADMIN_LVL);
 
     // found the area id of the admin 1 area
     if (auto cntry_ref = cntry_ref_map.find(govt_code);
-        cntry_ref != cntry_ref_map.end()) {
+        admin_level == 1 && cntry_ref != cntry_ref_map.end()) {
       // store the area code of the admin 1 area in cntry_ref_map
-      cntry_ref->second.area_code_1 = areacode_1;
+      if (cntry_ref->second.area_code_1 == 0) {
+        cntry_ref->second.area_code_1 = areacode_1;
+      } else if (cntry_ref->second.area_code_1 != areacode_1) {
+        BOOST_LOG_TRIVIAL(error)
+            << "Area code already set for govt code: " << govt_code << " old "
+            << cntry_ref->second.area_code_1 << " new " << areacode_1;
+      }
     }
 
     area_to_area_code_map.emplace(area_id, areacode_1);
