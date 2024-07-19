@@ -93,7 +93,6 @@ public:
     std::map<uint64_t, cntry_ref_type> cntry_map;
     std::map<osmium::Location, std::tuple<std::string, std::string>> ramp_names;
     std::map<uint64_t, std::map<uint, std::string>> highway_names;
-    std::map<osmium::unsigned_object_id_type, mtd_area_dataset> mtd_area;
   };
 
 private:
@@ -293,7 +292,8 @@ private:
                        const OGRFeatureUniquePtr &f);
 
   void add_maxspeed_tags(osmium::builder::TagListBuilder &builder,
-                         const OGRFeatureUniquePtr &f);
+                         const OGRFeatureUniquePtr &f,
+                         const cntry_ref_type &cntry_ref);
 
   void add_lanes_tag(osmium::builder::TagListBuilder &builder,
                      const OGRFeatureUniquePtr &f);

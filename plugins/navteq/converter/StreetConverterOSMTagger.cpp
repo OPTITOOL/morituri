@@ -217,7 +217,8 @@ void StreetConverter::add_postcode_tag(osmium::builder::TagListBuilder &builder,
 }
 
 void StreetConverter::add_maxspeed_tags(
-    osmium::builder::TagListBuilder &builder, const OGRFeatureUniquePtr &f) {
+    osmium::builder::TagListBuilder &builder, const OGRFeatureUniquePtr &f,
+    const cntry_ref_type &cntry_ref) {
 
   uint from_speed_limit = get_uint_from_feature(f, FR_SPEED_LIMIT);
   uint to_speed_limit = get_uint_from_feature(f, TO_SPEED_LIMIT);
@@ -231,11 +232,15 @@ void StreetConverter::add_maxspeed_tags(
   if (from_speed_limit == 998 || to_speed_limit == 998)
     return;
 
+  bool mph = cntry_ref.speed_limit_unit == "MPH";
+
   // 999 means no speed limit at all
-  std::string from =
-      from_speed_limit == 999 ? "none" : std::to_string(from_speed_limit);
-  std::string to =
-      to_speed_limit == 999 ? "none" : std::to_string(to_speed_limit);
+  std::string from = from_speed_limit == 999 ? "none"
+                     : mph ? std::format("{} mph", from_speed_limit)
+                           : std::to_string(from_speed_limit);
+  std::string to = to_speed_limit == 999 ? "none"
+                   : mph                 ? std::format("{} mph", to_speed_limit)
+                                         : std::to_string(to_speed_limit);
 
   if (from_speed_limit != 0 && to_speed_limit != 0) {
     if (from_speed_limit != to_speed_limit) {
@@ -292,7 +297,7 @@ void StreetConverter::add_highway_tags(osmium::builder::TagListBuilder &builder,
 
   add_one_way_tag(builder, get_field_from_feature(f, DIR_TRAVEL));
   add_access_tags(builder, f);
-  add_maxspeed_tags(builder, f);
+  add_maxspeed_tags(builder, f, cntry_ref);
   add_lanes_tag(builder, f);
   add_postcode_tag(builder, f);
 

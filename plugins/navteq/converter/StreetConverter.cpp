@@ -51,12 +51,9 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   BOOST_LOG_TRIVIAL(info) << " processing highway names";
   auto hwys_ref_map = init_highway_names(dir);
 
-  auto mtd_area = process_meta_areas(dir);
-
   // fill data struct for tag processing
   TagData data = {route_type_map, cdms_map,      area_to_govt_code_map,
-                  cntry_ref_map,  ramps_ref_map, hwys_ref_map,
-                  mtd_area};
+                  cntry_ref_map,  ramps_ref_map, hwys_ref_map};
 
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
   auto z_level_map = init_z_level_map(dir);
