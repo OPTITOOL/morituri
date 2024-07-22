@@ -742,7 +742,7 @@ void StreetConverter::addTransportAccessRestriction(
   uint64_t max_length = 0;
   uint64_t max_weight = 0;
   uint64_t max_axleload = 0;
-  int direction = 0; // 1 = both, 2 = forward, 3 = backward
+  int direction = 1; // 1 = both, 2 = forward, 3 = backward
 
   for (auto mod_group : it->second.mod_group_map | std::views::values) {
     auto mod_type = mod_group.mod_type;
@@ -765,7 +765,8 @@ void StreetConverter::addTransportAccessRestriction(
     } else if (mod_type == MT_TA_HAZARDOUS_RESTRICTION) {
       add_hazmat_tag(builder, mod_val);
     } else if (mod_type == MT_TA_DIRECTION_CLOSURE) {
-      direction = mod_val;
+      // not supported
+      // direction = mod_val;
     } else {
       if (debugMode)
         BOOST_LOG_TRIVIAL(debug)
