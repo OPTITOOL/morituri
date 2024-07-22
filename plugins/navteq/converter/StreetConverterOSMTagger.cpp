@@ -21,13 +21,22 @@
 #include <ranges>
 
 // modifier types (MT)
-const ushort MT_DIRECTION_CLOSURE = 38;
-const ushort MT_HAZARDOUS_RESTRICTION = 39;
-const ushort MT_HEIGHT_RESTRICTION = 41;
-const ushort MT_WEIGHT_RESTRICTION = 42;
-const ushort MT_WEIGHT_PER_AXLE_RESTRICTION = 43;
-const ushort MT_LENGTH_RESTRICTION = 44;
-const ushort MT_WIDTH_RESTRICTION = 45;
+const ushort MT_TA_DIRECTION_CLOSURE = 38;
+const ushort MT_TA_HAZARDOUS_RESTRICTION = 39;
+const ushort MT_TA_HEIGHT_RESTRICTION = 41;
+const ushort MT_TA_WEIGHT_RESTRICTION = 42;
+const ushort MT_TA_WEIGHT_PER_AXLE_RESTRICTION = 43;
+const ushort MT_TA_LENGTH_RESTRICTION = 44;
+const ushort MT_TA_WIDTH_RESTRICTION = 45;
+
+const ushort MT_SSS_SPEED_LIMIT = 48;
+const ushort MT_SSS_SPEED_SITUATION_TYPE = 59;
+const ushort MT_SSS_DIRECTION_CLOSURE = 60;
+const ushort MT_SSS_WEIGHT_DEPENDENT = 61;
+const ushort MT_SSS_WEATHER_TYPE = 62;
+const ushort MT_SSS_SPEED_LIMIT_TYPE = 83;
+const ushort MT_SSS_HAZARDOUS_DEPENDENT = 39;
+const ushort MT_SSS_TRAILER_DEPENDENT = 46;
 
 const int INCH_BASE = 12;
 const int POUND_BASE = 2000;
@@ -427,22 +436,37 @@ void StreetConverter::add_here_speed_cat_tag(
 }
 
 bool StreetConverter::is_motorized_allowed(const OGRFeatureUniquePtr &f) {
-  if (parse_bool(get_field_from_feature(f, AR_AUTO)))
+  if (get_bool_from_feature(f, AR_AUTO))
     return true;
-  if (parse_bool(get_field_from_feature(f, AR_BUS)))
+  if (get_bool_from_feature(f, AR_TRUCKS))
     return true;
-  if (parse_bool(get_field_from_feature(f, AR_TAXIS)))
+  if (get_bool_from_feature(f, AR_DELIV))
     return true;
-  if (parse_bool(get_field_from_feature(f, AR_TRUCKS)))
+  if (get_bool_from_feature(f, AR_EMERVEH))
     return true;
-  if (parse_bool(get_field_from_feature(f, AR_DELIV)))
+  if (get_bool_from_feature(f, AR_MOTORCYCLES))
     return true;
-  if (parse_bool(get_field_from_feature(f, AR_EMERVEH)))
+  if (get_bool_from_feature(f, AR_BUS))
     return true;
-  if (parse_bool(get_field_from_feature(f, AR_MOTORCYCLES)))
+  if (get_bool_from_feature(f, AR_TAXIS))
     return true;
 
   return false;
+}
+
+bool StreetConverter::need_to_consider(const OGRFeatureUniquePtr &f) {
+  return get_bool_from_feature(f, AR_AUTO) ||
+         get_bool_from_feature(f, AR_TRUCKS) ||
+         get_bool_from_feature(f, "AR_DELIVER") ||
+         get_bool_from_feature(f, "AR_THRUTR");
+}
+
+bool StreetConverter::is_hgv_only(const OGRFeatureUniquePtr &f) {
+  if (get_bool_from_feature(f, AR_AUTO))
+    return false;
+
+  return get_bool_from_feature(f, AR_TRUCKS) ||
+         get_bool_from_feature(f, "AR_DELIVER");
 }
 
 void StreetConverter::add_hazmat_tag(osmium::builder::TagListBuilder &builder,
@@ -621,92 +645,166 @@ void StreetConverter::add_additional_restrictions(
 
   auto range = cdms_map.equal_range(link_id);
   for (auto it = range.first; it != range.second; ++it) {
+
+    if (it->second.dt_mod.hasDateTimeMod) {
+      if (debugMode)
+        BOOST_LOG_TRIVIAL(debug)
+            << "Skip Condition because of DateTimeMod for link_id " << link_id
+            << std::endl;
+      continue;
+    }
+
     if (it->second.cond_type_type == CT_TRANSPORT_ACCESS_RESTRICTION) {
-      uint64_t max_height = 0;
-      uint64_t max_width = 0;
-      uint64_t max_length = 0;
-      uint64_t max_weight = 0;
-      uint64_t max_axleload = 0;
-      int direction = 0; // 1 = both, 2 = forward, 3 = backward
-
-      if (it->second.dt_mod.hasDateTimeMod) {
-        if (debugMode)
-          BOOST_LOG_TRIVIAL(debug)
-              << "Skip Condition because of DateTimeMod for link_id " << link_id
-              << std::endl;
-        continue;
-      }
-
-      for (auto mod_group : it->second.mod_group_map | std::views::values) {
-        auto mod_type = mod_group.mod_type;
-        auto mod_val = mod_group.mod_val;
-        if (mod_type == MT_HEIGHT_RESTRICTION) {
-          if (!max_height || mod_val < max_height)
-            max_height = mod_val;
-        } else if (mod_type == MT_WIDTH_RESTRICTION) {
-          if (!max_width || mod_val < max_width)
-            max_width = mod_val;
-        } else if (mod_type == MT_LENGTH_RESTRICTION) {
-          if (!max_length || mod_val < max_length)
-            max_length = mod_val;
-        } else if (mod_type == MT_WEIGHT_RESTRICTION) {
-          if (!max_weight || mod_val < max_weight)
-            max_weight = mod_val;
-        } else if (mod_type == MT_WEIGHT_PER_AXLE_RESTRICTION) {
-          if (!max_axleload || mod_val < max_axleload)
-            max_axleload = mod_val;
-        } else if (mod_type == MT_HAZARDOUS_RESTRICTION) {
-          add_hazmat_tag(builder, mod_val);
-        } else if (mod_type == MT_DIRECTION_CLOSURE) {
-          direction = mod_val;
-        } else {
-          if (debugMode)
-            BOOST_LOG_TRIVIAL(debug)
-                << "Unknown modifier type " << mod_type << " value " << mod_val
-                << " for Condition Type " << it->second.cond_type_type
-                << " for link_id " << link_id << std::endl;
-        }
-      }
-
-      if (cntry_ref.area_code_1 == 107) {
-        /** exceptional handling for Sweden as there are BK Roads
-         *
-         * HERE tags these roads with the most conservative values,
-         * which would make it unroutable for nearly every truck.
-         * Therefore we use the highest value and add a marker for BK2 / BK3 */
-        if (max_weight == 16000 && max_axleload == 10000) {
-          builder.add_tag("maxweight:class", "BK2");
-          max_weight = 51400;
-        } else if (max_weight == 12000 && max_axleload == 8000) {
-          builder.add_tag("maxweight:class", "BK3");
-          max_weight = 37000;
-        }
-      }
-
-      if (max_height > 0)
-        addRestrictionTag(builder, "maxheight", direction, imperial_units,
-                          max_height);
-      if (max_width > 0)
-        addRestrictionTag(builder, "maxwidth", direction, imperial_units,
-                          max_width);
-      if (max_length > 0)
-        addRestrictionTag(builder, "maxlength", direction, imperial_units,
-                          max_length);
-      if (max_weight > 0)
-        addRestrictionTag(builder, "maxweight", direction, imperial_units,
-                          max_weight);
-      if (max_axleload > 0)
-        addRestrictionTag(builder, "maxaxleload", direction, imperial_units,
-                          max_weight);
-
+      addTransportAccessRestriction(it, builder, link_id, cntry_ref,
+                                    imperial_units);
     } else if (it->second.cond_type_type ==
                CT_TRANSPORT_SPECIAL_SPEED_SITUATION) {
-
-      BOOST_LOG_TRIVIAL(debug)
-          << "Special speed situation detected for link_id " << link_id
-          << std::endl;
+      addSpecialSpeedSituation(it, link_id, cntry_ref, builder, imperial_units);
     }
   }
+}
+
+void StreetConverter::addSpecialSpeedSituation(
+    std::multimap<uint64_t, StreetConverter::cond_type>::const_iterator &it,
+    uint64_t link_id, const StreetConverter::cntry_ref_type &cntry_ref,
+    osmium::builder::TagListBuilder &builder, bool imperial_units) {
+  uint64_t speed_limit = 0;
+  int direction = 0; // 1 = both, 2 = forward, 3 = backward
+  int weight_dependent = 0;
+
+  for (auto mod_group : it->second.mod_group_map | std::views::values) {
+    auto mod_type = mod_group.mod_type;
+    auto mod_val = mod_group.mod_val;
+    if (mod_type == MT_SSS_SPEED_SITUATION_TYPE) {
+      if (mod_val != 3) // Weight dependent only
+        return;
+    } else if (mod_type == MT_SSS_SPEED_LIMIT) {
+      speed_limit = mod_val;
+    } else if (mod_type == MT_SSS_DIRECTION_CLOSURE) {
+      direction = mod_val;
+    } else if (mod_type == MT_SSS_SPEED_LIMIT_TYPE) {
+      if ((mod_val == 2)) // ignore advisory speed
+        return;
+    } else if (mod_type == MT_SSS_WEATHER_TYPE) {
+      // ignore weather type
+    } else if (mod_type == MT_SSS_HAZARDOUS_DEPENDENT) {
+      // ignore hazardous dependent
+    } else if (mod_type == MT_SSS_TRAILER_DEPENDENT) {
+      // ignore trailer dependent
+    } else if (mod_type == MT_SSS_WEIGHT_DEPENDENT) {
+      weight_dependent = mod_val;
+    } else {
+
+      BOOST_LOG_TRIVIAL(debug)
+          << "Unknown modifier type " << mod_type << " value " << mod_val
+          << " for Condition Type " << it->second.cond_type_type
+          << " for link_id " << link_id << std::endl;
+    }
+  }
+
+  std::string key = "maxspeed";
+
+  // hgvs have a different speed limit
+  if (it->second.only_hgv)
+    key += ":hgv";
+
+  // handle direction
+  if (direction == 1)
+    key += ":forward";
+  else if (direction == 2)
+    key += ":backward";
+
+  std::string convertedWeigthDepended;
+  if (weight_dependent != 0) {
+    // add conditional weight dependent speed limit
+    convertedWeigthDepended = imperial_units
+                                  ? lbs_to_metric_ton(weight_dependent)
+                                  : kg_to_t(weight_dependent);
+    key += ":conditional";
+  }
+
+  std::string speed_limit_str = cntry_ref.speed_limit_unit == "MPH"
+                                    ? std::to_string(speed_limit) + " mph"
+                                    : std::to_string(speed_limit);
+
+  if (!convertedWeigthDepended.empty())
+    speed_limit_str += " @ weight>" + convertedWeigthDepended;
+
+  builder.add_tag(key, speed_limit_str);
+}
+
+void StreetConverter::addTransportAccessRestriction(
+    std::multimap<uint64_t, StreetConverter::cond_type>::const_iterator &it,
+    osmium::builder::TagListBuilder &builder, uint64_t link_id,
+    const StreetConverter::cntry_ref_type &cntry_ref, bool imperial_units) {
+  uint64_t max_height = 0;
+  uint64_t max_width = 0;
+  uint64_t max_length = 0;
+  uint64_t max_weight = 0;
+  uint64_t max_axleload = 0;
+  int direction = 0; // 1 = both, 2 = forward, 3 = backward
+
+  for (auto mod_group : it->second.mod_group_map | std::views::values) {
+    auto mod_type = mod_group.mod_type;
+    auto mod_val = mod_group.mod_val;
+    if (mod_type == MT_TA_HEIGHT_RESTRICTION) {
+      if (!max_height || mod_val < max_height)
+        max_height = mod_val;
+    } else if (mod_type == MT_TA_WIDTH_RESTRICTION) {
+      if (!max_width || mod_val < max_width)
+        max_width = mod_val;
+    } else if (mod_type == MT_TA_LENGTH_RESTRICTION) {
+      if (!max_length || mod_val < max_length)
+        max_length = mod_val;
+    } else if (mod_type == MT_TA_WEIGHT_RESTRICTION) {
+      if (!max_weight || mod_val < max_weight)
+        max_weight = mod_val;
+    } else if (mod_type == MT_TA_WEIGHT_PER_AXLE_RESTRICTION) {
+      if (!max_axleload || mod_val < max_axleload)
+        max_axleload = mod_val;
+    } else if (mod_type == MT_TA_HAZARDOUS_RESTRICTION) {
+      add_hazmat_tag(builder, mod_val);
+    } else if (mod_type == MT_TA_DIRECTION_CLOSURE) {
+      direction = mod_val;
+    } else {
+      if (debugMode)
+        BOOST_LOG_TRIVIAL(debug)
+            << "Unknown modifier type " << mod_type << " value " << mod_val
+            << " for Condition Type " << it->second.cond_type_type
+            << " for link_id " << link_id << std::endl;
+    }
+  }
+
+  if (cntry_ref.area_code_1 == 107) {
+    /** exceptional handling for Sweden as there are BK Roads
+     *
+     * HERE tags these roads with the most conservative values,
+     * which would make it unroutable for nearly every truck.
+     * Therefore we use the highest value and add a marker for BK2 / BK3 */
+    if (max_weight == 16000 && max_axleload == 10000) {
+      builder.add_tag("maxweight:class", "BK2");
+      max_weight = 51400;
+    } else if (max_weight == 12000 && max_axleload == 8000) {
+      builder.add_tag("maxweight:class", "BK3");
+      max_weight = 37000;
+    }
+  }
+
+  if (max_height > 0)
+    addRestrictionTag(builder, "maxheight", direction, imperial_units,
+                      max_height);
+  if (max_width > 0)
+    addRestrictionTag(builder, "maxwidth", direction, imperial_units,
+                      max_width);
+  if (max_length > 0)
+    addRestrictionTag(builder, "maxlength", direction, imperial_units,
+                      max_length);
+  if (max_weight > 0)
+    addRestrictionTag(builder, "maxweight", direction, imperial_units,
+                      max_weight);
+  if (max_axleload > 0)
+    addRestrictionTag(builder, "maxaxleload", direction, imperial_units,
+                      max_weight);
 }
 
 void StreetConverter::addRestrictionTag(

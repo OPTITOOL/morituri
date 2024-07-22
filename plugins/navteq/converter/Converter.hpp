@@ -155,6 +155,9 @@ protected:
   uint64_t get_uint_from_feature(const OGRFeatureUniquePtr &feat,
                                  const std::string_view &field);
 
+  bool get_bool_from_feature(const OGRFeatureUniquePtr &feat,
+                             const std::string_view &field);
+
   bool string_is_unsigned_integer(const std::string &s);
   bool string_is_not_unsigned_integer(const std::string &s);
 

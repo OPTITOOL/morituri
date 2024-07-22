@@ -54,6 +54,7 @@ public:
   struct cond_type {
     uint64_t cond_id_type;
     uint64_t cond_type_type;
+    bool only_hgv;
     std::map<uint64_t, StreetConverter::mod_group_type> mod_group_map;
     dateTimeMod dt_mod;
   };
@@ -214,6 +215,16 @@ private:
       const std::multimap<uint64_t, cond_type> &cdms_map,
       const cntry_ref_type &cntry_ref);
 
+  void addSpecialSpeedSituation(
+      std::multimap<uint64_t, StreetConverter::cond_type>::const_iterator &it,
+      uint64_t link_id, const StreetConverter::cntry_ref_type &cntry_ref,
+      osmium::builder::TagListBuilder &builder, bool imperial_units);
+
+  void addTransportAccessRestriction(
+      std::multimap<uint64_t, StreetConverter::cond_type>::const_iterator &it,
+      osmium::builder::TagListBuilder &builder, uint64_t link_id,
+      const StreetConverter::cntry_ref_type &cntry_ref, bool imperial_units);
+
   void process_end_point(
       bool first, short z_lvl, OGRLineString *ogr_ls,
       std::map<osmium::Location, osmium::unsigned_object_id_type> &node_ref_map,
@@ -259,6 +270,10 @@ private:
   bool is_imperial(const cntry_ref_type &cntry_ref);
 
   bool is_motorized_allowed(const OGRFeatureUniquePtr &f);
+
+  bool is_hgv_only(const OGRFeatureUniquePtr &f);
+
+  bool need_to_consider(const OGRFeatureUniquePtr &f);
 
   void add_highway_tags(osmium::builder::TagListBuilder &builder,
                         const OGRFeatureUniquePtr &f, ushort route_type,
@@ -403,7 +418,7 @@ private:
   // condition types (CT)
   const ushort CT_CONSTRUCTION_STATUS_CLOSED = 3;
   const ushort CT_TRANSPORT_ACCESS_RESTRICTION = 23;
-  const ushort CT_TRANSPORT_SPECIAL_SPEED_SITUATION = 24;
+  const ushort CT_TRANSPORT_SPECIAL_SPEED_SITUATION = 25;
 
   // should be global for connectivity between regions
   std::map<osmium::Location, osmium::unsigned_object_id_type>

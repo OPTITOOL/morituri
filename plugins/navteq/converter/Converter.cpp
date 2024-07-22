@@ -419,6 +419,14 @@ uint64_t Converter::get_uint_from_feature(const OGRFeatureUniquePtr &feat,
   return feat->GetFieldAsInteger64(field_index);
 }
 
+bool Converter::get_bool_from_feature(const OGRFeatureUniquePtr &feat,
+                                      const std::string_view &field) {
+  int field_index = feat->GetFieldIndex(field.data());
+  if (field_index == -1)
+    BOOST_LOG_TRIVIAL(error) << field << std::endl;
+  return parse_bool(feat->GetFieldAsString(field_index));
+}
+
 bool Converter::string_is_unsigned_integer(const std::string &s) {
   if (s.empty())
     return false;
