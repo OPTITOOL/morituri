@@ -10,21 +10,22 @@
 
 #include <assert.h>
 #include <boost/filesystem/operations.hpp>
-#include <boost/filesystem/path.hpp>
+#include <filesystem>
+#include <set>
 
 #include <osmium/io/error.hpp>
 
 class base_plugin {
 public:
   std::string name;
-  boost::filesystem::path input_path;
-  boost::filesystem::path output_path;
-  boost::filesystem::path executable_path;
+  std::filesystem::path input_path;
+  std::filesystem::path output_path;
+  std::filesystem::path executable_path;
 
   base_plugin() { this->name = ""; };
   base_plugin(const std::string &name) { this->name = name; };
   base_plugin(const std::string &name,
-              const boost::filesystem::path &executable_path) {
+              const std::filesystem::path &executable_path) {
     this->name = name;
     this->executable_path = executable_path.parent_path();
   }
@@ -42,14 +43,14 @@ public:
    * \param	inputh_path_rhs	input path to set
    * \param	output_path_rhs	output path to set (may be ommited)
    * */
-  void plugin_setup(const boost::filesystem::path &input_path_rhs,
-                    const boost::filesystem::path &output_path_rhs =
-                        boost::filesystem::path()) {
+  void plugin_setup(
+      const std::filesystem::path &input_path_rhs,
+      const std::filesystem::path &output_path_rhs = std::filesystem::path()) {
     input_path = input_path_rhs;
-    if (!boost::filesystem::is_directory(input_path))
+    if (!std::filesystem::is_directory(input_path))
       throw(osmium::io_error("input_path '" + input_path.string() +
                              "' is not valid."));
-    if (boost::filesystem::is_directory(output_path_rhs.parent_path()))
+    if (std::filesystem::is_directory(output_path_rhs.parent_path()))
       output_path = output_path_rhs;
   }
 
@@ -74,9 +75,9 @@ public:
    *
    * \return returns true if input is existing and valid
    *  */
-  virtual bool check_input(const boost::filesystem::path &input_path,
-                           const boost::filesystem::path &output_path =
-                               boost::filesystem::path("")) = 0;
+  virtual bool check_input(
+      const std::filesystem::path &input_path,
+      const std::filesystem::path &output_path = std::filesystem::path("")) = 0;
 
   /**
    * \brief	Converts input to OSM files
@@ -92,7 +93,7 @@ public:
   virtual void setBoundingBox(double minX, double minY, double maxX,
                               double maxY) = 0;
 
-  virtual void setCountries(const std::vector<std::string> &_countries) = 0;
+  virtual void setCountries(const std::set<std::string> &_countries) = 0;
 
   virtual void setDebug(bool debug) = 0;
 };

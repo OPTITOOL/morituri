@@ -11,15 +11,16 @@
 #include <iostream>
 #include <memory>
 #include <ogrsf_frmts.h>
+#include <set>
 #include <vector>
 
 #include "plugins/base_plugin.hpp"
 #include "plugins/dummy/dummy_plugin.hpp"
 #include "plugins/navteq/navteq_plugin.hpp"
 
-boost::filesystem::path input_path, output_file;
+std::filesystem::path input_path, output_file;
 std::vector<double> boundingBox;
-std::vector<std::string> countries;
+std::set<std::string> countries;
 static bool debug = false;
 
 void check_args_and_setup(int argc, char *argv[]) {
@@ -99,7 +100,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::unique_ptr<base_plugin>> plugins;
 
-  boost::filesystem::path executable_path(argv[0]);
+  std::filesystem::path executable_path(argv[0]);
 
   // plugins.emplace_back(std::make_unique<dummy_plugin>());
   plugins.emplace_back(std::make_unique<navteq_plugin>(executable_path));

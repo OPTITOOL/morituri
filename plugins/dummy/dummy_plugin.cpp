@@ -12,8 +12,7 @@ dummy_plugin::dummy_plugin() : base_plugin::base_plugin("Dummy Plugin") {}
 
 dummy_plugin::~dummy_plugin() {}
 
-bool dummy_plugin::check_input(boost::filesystem::path,
-                               boost::filesystem::path) {
+bool dummy_plugin::check_input(std::filesystem::path, std::filesystem::path) {
   return true;
 }
 

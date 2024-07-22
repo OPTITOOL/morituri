@@ -26,11 +26,10 @@ ENDIF()
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
-find_package(Boost REQUIRED COMPONENTS system filesystem log program_options)
+find_package(Boost REQUIRED COMPONENTS system log program_options)
 find_package(GDAL REQUIRED)
 find_package(geos REQUIRED)
 find_path(OSMIUM_INCLUDE_DIRS "osmium/version.hpp")
-find_package(shapelib CONFIG REQUIRED)
 find_package(ICU COMPONENTS uc data io i18n tu)
 
 # Find includes in corresponding build directories
@@ -50,6 +49,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
   PRIVATE GEOS::geos
   PRIVATE ${OSMIUM_INCLUDE_DIRS}
   PRIVATE GDAL::GDAL
-  PRIVATE shapelib::shp
   PRIVATE expat bz2
   )
