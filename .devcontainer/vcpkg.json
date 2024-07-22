@@ -3,8 +3,6 @@
         "boost-log",
         "boost-program-options",
         "icu",
-        "boost-timer",
-        "shapelib",
         "libosmium",
         {
             "name": "gdal",

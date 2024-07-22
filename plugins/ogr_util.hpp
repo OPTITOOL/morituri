@@ -12,7 +12,6 @@
 
 #include <geos/io/WKBReader.h>
 #include <geos/io/WKBWriter.h>
-#include <shapefil.h>
 
 #include <geos/geom/CoordinateFilter.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
