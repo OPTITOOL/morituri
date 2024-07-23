@@ -47,7 +47,6 @@ add_executable(${PROJECT_NAME} ${MAIN_CPP_FILES} ${CPP_FILES})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
   PRIVATE Boost::boost Boost::log Boost::program_options
   PRIVATE GEOS::geos
-  PRIVATE ${OSMIUM_INCLUDE_DIRS}
   PRIVATE GDAL::GDAL
   PRIVATE expat bz2
   )
