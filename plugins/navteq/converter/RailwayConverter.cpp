@@ -76,10 +76,10 @@ void RailwayConverter::process_railways(
       tl_builder.add_tag("railway", "rail");
       tl_builder.add_tag("usage", "main");
 
-      if (parse_bool(feat->GetFieldAsString(BRIDGE.data())))
+      if (get_bool_from_feature(feat, BRIDGE))
         tl_builder.add_tag("bridge", YES.data());
 
-      if (parse_bool(feat->GetFieldAsString(TUNNEL.data())))
+      if (get_bool_from_feature(feat, TUNNEL))
         tl_builder.add_tag("tunnel", YES.data());
     }
     {
