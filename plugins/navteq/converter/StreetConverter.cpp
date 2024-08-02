@@ -58,15 +58,11 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
   auto z_level_map = init_z_level_map(dir);
 
-  std::map<std::pair<osmium::Location, short>, osmium::unsigned_object_id_type>
-      z_lvl_nodes_map;
-
   BOOST_LOG_TRIVIAL(info) << " processing way end points";
   process_way_end_nodes(dir, data, g_way_end_points_map, z_level_map, writer);
 
   BOOST_LOG_TRIVIAL(info) << " processing ways";
-  process_way(dir, data, g_way_end_points_map, z_lvl_nodes_map, z_level_map,
-              writer);
+  process_way(dir, data, g_way_end_points_map, z_level_map, writer);
 }
 
 std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
@@ -128,14 +124,13 @@ StreetConverter::init_z_level_map(const std::filesystem::path &dir) {
     uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
     ushort point_num = get_uint_from_feature(feat, POINT_NUM) - 1;
     short z_level = get_uint_from_feature(feat, Z_LEVEL);
-    bool aligned = get_bool_from_feature(feat, ALIGNED);
 
     if (last_link_id != link_id && !v.empty()) {
       z_level_map.emplace(last_link_id, v);
       v = std::vector<z_lvl_index_type_t>();
     }
     if (z_level != 0)
-      v.emplace_back(point_num, z_level, aligned);
+      v.emplace_back(point_num, z_level);
     last_link_id = link_id;
   }
 
@@ -346,8 +341,10 @@ void StreetConverter::process_way_end_nodes(
     uint64_t link_id = feat->GetFieldAsInteger(linkIDField);
     // omit way end nodes with different z-levels (they have to be handled
     // extra)
-    if (z_level_map.find(link_id) == z_level_map.end())
-      process_way_end_nodes(feat, data, way_end_points_map, node_buffer);
+    if (z_level_map.find(link_id) != z_level_map.end())
+      continue;
+
+    process_way_end_nodes(feat, data, way_end_points_map, node_buffer);
   }
   node_buffer.commit();
   writer(std::move(node_buffer));
@@ -480,10 +477,11 @@ void StreetConverter::process_way(
     const std::filesystem::path &dir, const StreetConverter::TagData &data,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &way_end_points_map,
-    std::map<std::pair<osmium::Location, short>,
-             osmium::unsigned_object_id_type> &z_lvl_nodes_map,
     std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
     osmium::io::Writer &writer) {
+
+  std::map<std::pair<osmium::Location, short>, osmium::unsigned_object_id_type>
+      z_lvl_nodes_map;
 
   auto path = dir / STREETS_SHP;
   auto ds = openDataSource(path);

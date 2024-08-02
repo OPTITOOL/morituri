@@ -33,7 +33,6 @@ public:
   struct z_lvl_index_type_t {
     ushort index;
     short z_level;
-    bool aligend;
   };
 
   struct mod_group_type {
@@ -163,8 +162,6 @@ private:
               const StreetConverter::TagData &data,
               std::map<osmium::Location, osmium::unsigned_object_id_type>
                   &way_end_points_map,
-              std::map<std::pair<osmium::Location, short>,
-                       osmium::unsigned_object_id_type> &z_lvl_nodes_map,
               std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
               osmium::io::Writer &writer);
   void
