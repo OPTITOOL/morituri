@@ -427,8 +427,10 @@ private:
   const ushort CT_TRANSPORT_SPECIAL_SPEED_SITUATION = 25;
 
   // should be global for connectivity between regions
-  std::map<osmium::Location, osmium::unsigned_object_id_type>
+  static std::map<osmium::Location, osmium::unsigned_object_id_type>
       g_regionConnectingPoints;
+
+  static std::mutex g_regionConnectingPoints_mutex;
 };
 
 #endif // STREETCONVERTER_HPP
