@@ -2,6 +2,7 @@
     "dependencies": [
         "boost-log",
         "boost-program-options",
+        "concurrencpp",
         "icu",
         "libosmium",
         {

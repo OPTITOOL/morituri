@@ -25,6 +25,11 @@
 
 #include "../../comm2osm_exceptions.hpp"
 
+std::map<osmium::Location, osmium::unsigned_object_id_type>
+    StreetConverter::g_regionConnectingPoints;
+
+std::mutex StreetConverter::g_regionConnectingPoints_mutex;
+
 StreetConverter::StreetConverter(const std::filesystem::path &executable_path)
     : Converter(executable_path) {}
 
@@ -327,8 +332,10 @@ StreetConverter::process_way_end_nodes(
         &z_level_map,
     osmium::io::Writer &writer) {
 
+  g_regionConnectingPoints_mutex.lock();
   std::map<osmium::Location, osmium::unsigned_object_id_type>
       way_end_points_map(regionConnectingPoints);
+  g_regionConnectingPoints_mutex.unlock();
 
   auto path = dir / STREETS_SHP;
   auto ds = openDataSource(path);
@@ -919,26 +926,31 @@ void StreetConverter::update_region_connecting_points(
 
   osmium::memory::Buffer node_buffer(BUFFER_SIZE);
 
-  for (auto &feat : *layer) {
+  // lock the region connecting points
+  {
+    std::lock_guard<std::mutex> lock(g_regionConnectingPoints_mutex);
 
-    bool aligned = get_bool_from_feature(feat, ALIGNED);
-    if (!aligned)
-      continue;
+    for (auto &feat : *layer) {
 
-    auto geom = feat->GetGeometryRef();
-    auto geom_type = geom->getGeometryType();
+      bool aligned = get_bool_from_feature(feat, ALIGNED);
+      if (!aligned)
+        continue;
 
-    if (geom_type != wkbPoint) {
-      throw(std::runtime_error("Region connecting points with geometry=" +
-                               std::string(geom->getGeometryName()) +
-                               " is not yet supported."));
+      auto geom = feat->GetGeometryRef();
+      auto geom_type = geom->getGeometryType();
+
+      if (geom_type != wkbPoint) {
+        throw(std::runtime_error("Region connecting points with geometry=" +
+                                 std::string(geom->getGeometryName()) +
+                                 " is not yet supported."));
+      }
+
+      auto point = static_cast<OGRPoint *>(geom);
+
+      // process the region connecting points
+      process_way_end_node(osmium::Location(point->getX(), point->getY()), data,
+                           regionConnectingPoints, node_buffer);
     }
-
-    auto point = static_cast<OGRPoint *>(geom);
-
-    // process the region connecting points
-    process_way_end_node(osmium::Location(point->getX(), point->getY()), data,
-                         regionConnectingPoints, node_buffer);
   }
 
   node_buffer.commit();
