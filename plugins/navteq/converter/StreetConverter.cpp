@@ -58,11 +58,14 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   BOOST_LOG_TRIVIAL(info) << " processing z-levels";
   auto z_level_map = init_z_level_map(dir);
 
+  update_region_connecting_points(g_regionConnectingPoints, data, dir, writer);
+
   BOOST_LOG_TRIVIAL(info) << " processing way end points";
-  process_way_end_nodes(dir, data, g_way_end_points_map, z_level_map, writer);
+  auto way_end_points_map = process_way_end_nodes(
+      dir, data, g_regionConnectingPoints, z_level_map, writer);
 
   BOOST_LOG_TRIVIAL(info) << " processing ways";
-  process_way(dir, data, g_way_end_points_map, z_level_map, writer);
+  process_way(dir, data, way_end_points_map, z_level_map, writer);
 }
 
 std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
@@ -315,13 +318,17 @@ StreetConverter::init_g_cntry_ref_map(const std::filesystem::path &dir) {
   return cntry_ref_map;
 }
 
-void StreetConverter::process_way_end_nodes(
+std::map<osmium::Location, osmium::unsigned_object_id_type>
+StreetConverter::process_way_end_nodes(
     const std::filesystem::path &dir, const StreetConverter::TagData &data,
-    std::map<osmium::Location, osmium::unsigned_object_id_type>
-        &way_end_points_map,
+    const std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &regionConnectingPoints,
     std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
         &z_level_map,
     osmium::io::Writer &writer) {
+
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+      way_end_points_map(regionConnectingPoints);
 
   auto path = dir / STREETS_SHP;
   auto ds = openDataSource(path);
@@ -348,6 +355,8 @@ void StreetConverter::process_way_end_nodes(
   }
   node_buffer.commit();
   writer(std::move(node_buffer));
+
+  return way_end_points_map;
 }
 
 void StreetConverter::process_way_end_nodes(
@@ -893,4 +902,49 @@ bool StreetConverter::is_superior(short superior, short than) {
   if (abs(superior) > abs(than))
     return true;
   return false;
+}
+
+void StreetConverter::update_region_connecting_points(
+    std::map<osmium::Location, osmium::unsigned_object_id_type>
+        &regionConnectingPoints,
+    const StreetConverter::TagData &data, const std::filesystem::path &dir,
+    osmium::io::Writer &writer) {
+  std::map<uint64_t, std::vector<z_lvl_index_type_t>> z_level_map;
+
+  const std::filesystem::path ZLEVELS_SHP = "Zlevels.shp";
+
+  auto ds = openDataSource(dir / ZLEVELS_SHP);
+  if (!ds)
+    throw(shp_error(dir / ZLEVELS_SHP));
+
+  auto layer = ds->GetLayer(0);
+  if (layer == nullptr)
+    throw(shp_empty_error(dir / ZLEVELS_SHP));
+
+  osmium::memory::Buffer node_buffer(BUFFER_SIZE);
+
+  for (auto &feat : *layer) {
+
+    bool aligned = get_bool_from_feature(feat, ALIGNED);
+    if (!aligned)
+      continue;
+
+    auto geom = feat->GetGeometryRef();
+    auto geom_type = geom->getGeometryType();
+
+    if (geom_type != wkbPoint) {
+      throw(std::runtime_error("Region connecting points with geometry=" +
+                               std::string(geom->getGeometryName()) +
+                               " is not yet supported."));
+    }
+
+    auto point = static_cast<OGRPoint *>(geom);
+
+    // process the region connecting points
+    process_way_end_node(osmium::Location(point->getX(), point->getY()), data,
+                         regionConnectingPoints, node_buffer);
+  }
+
+  node_buffer.commit();
+  writer(std::move(node_buffer));
 }
