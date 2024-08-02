@@ -33,6 +33,7 @@ public:
   struct z_lvl_index_type_t {
     ushort index;
     short z_level;
+    bool aligend;
   };
 
   struct mod_group_type {
@@ -352,6 +353,7 @@ private:
   // ZLEVELS_DBF columns
   static constexpr std::string_view Z_LEVEL = "Z_LEVEL";
   static constexpr std::string_view POINT_NUM = "POINT_NUM";
+  static constexpr std::string_view ALIGNED = "ALIGNED";
 
   static constexpr std::string_view GOVT_CODE = "GOVT_CODE";
   static constexpr std::string_view AREACODE_1 = "AREACODE_1";
