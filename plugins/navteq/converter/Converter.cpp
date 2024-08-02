@@ -9,7 +9,7 @@
 #include <osmium/osm/types.hpp>
 #include <unicode/unistr.h>
 
-osmium::unsigned_object_id_type Converter::g_osm_id = 1;
+std::atomic<osmium::unsigned_object_id_type> Converter::g_osm_id = 0;
 
 std::map<std::string, std::string> Converter::lang_code_map;
 

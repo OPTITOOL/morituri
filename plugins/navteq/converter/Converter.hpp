@@ -17,6 +17,7 @@
 #ifndef CONVERTER_HPP
 #define CONVERTER_HPP
 
+#include <atomic>
 #include <filesystem>
 #include <map>
 #include <ogrsf_frmts.h>
@@ -122,7 +123,7 @@ protected:
              osmium::builder::NodeBuilder &builder);
 
   template <typename T> void setObjectProperties(T &builder) {
-    builder.object().set_id(g_osm_id++);
+    builder.object().set_id(++g_osm_id);
     set_dummy_osm_object_attributes(builder.object());
     builder.set_user(USER.data());
   }
@@ -174,7 +175,7 @@ protected:
   static constexpr std::string_view YES = "yes";
   static constexpr std::string_view NO = "no";
 
-  static osmium::unsigned_object_id_type g_osm_id;
+  static std::atomic<osmium::unsigned_object_id_type> g_osm_id;
 
   static constexpr std::string_view FEAT_COD = "FEAT_COD";
   static constexpr std::string_view POLYGON_NM = "POLYGON_NM";
