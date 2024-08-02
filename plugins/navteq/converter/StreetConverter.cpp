@@ -637,10 +637,6 @@ osmium::unsigned_object_id_type StreetConverter::build_way(
 
   osmium::builder::WayBuilder builder(way_buffer);
   setObjectProperties(builder);
-  osmium::Location start(ogr_ls->getX(0), ogr_ls->getY(0));
-  osmium::Location end(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
-                       ogr_ls->getY(ogr_ls->getNumPoints() - 1));
-
   {
     osmium::builder::WayNodeListBuilder wnl_builder(way_buffer, &builder);
 
