@@ -128,13 +128,14 @@ StreetConverter::init_z_level_map(const std::filesystem::path &dir) {
     uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
     ushort point_num = get_uint_from_feature(feat, POINT_NUM) - 1;
     short z_level = get_uint_from_feature(feat, Z_LEVEL);
+    bool aligned = get_bool_from_feature(feat, ALIGNED);
 
     if (last_link_id != link_id && !v.empty()) {
       z_level_map.emplace(last_link_id, v);
       v = std::vector<z_lvl_index_type_t>();
     }
     if (z_level != 0)
-      v.emplace_back(point_num, z_level);
+      v.emplace_back(point_num, z_level, aligned);
     last_link_id = link_id;
   }
 
