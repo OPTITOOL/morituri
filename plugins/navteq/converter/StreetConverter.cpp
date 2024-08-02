@@ -421,7 +421,7 @@ StreetConverter::read_junction_names(const std::filesystem::path &dbf_file) {
   std::map<uint64_t, std::string> junctionNames;
 
   for (auto &feat : *layer) {
-    if (parse_bool(get_field_from_feature(feat, JUNCTIONNM))) {
+    if (get_bool_from_feature(feat, JUNCTIONNM)) {
       uint64_t link_id = get_uint_from_feature(feat, LINK_ID);
       junctionNames[link_id] = get_field_from_feature(feat, ST_NM_BASE);
     }
@@ -444,15 +444,13 @@ void StreetConverter::parse_ramp_names(
   if (layer == nullptr)
     throw(shp_empty_error(shp_file.string()));
 
-  int exitNameField = layer->FindFieldIndex(EXITNAME.data(), true);
   int linkIdField = layer->FindFieldIndex(LINK_ID.data(), true);
   int baseNameField = layer->FindFieldIndex(ST_NM_BASE.data(), true);
   int directionField = layer->FindFieldIndex(DIR_TRAVEL.data(), true);
-  int rampField = layer->FindFieldIndex(RAMP.data(), true);
 
   for (auto &feat : *layer) {
 
-    if (!parse_bool(feat->GetFieldAsString(rampField))) {
+    if (!get_bool_from_feature(feat, RAMP)) {
       continue;
     }
 
@@ -463,7 +461,7 @@ void StreetConverter::parse_ramp_names(
       location = osmium::Location(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
                                   ogr_ls->getY(ogr_ls->getNumPoints() - 1));
 
-    if (parse_bool(feat->GetFieldAsString(exitNameField))) {
+    if (get_bool_from_feature(feat, EXITNAME)) {
       std::string exitName = feat->GetFieldAsString(baseNameField);
 
       // add junction name
@@ -847,12 +845,12 @@ void StreetConverter::set_ferry_z_lvls_to_zero(
   if (z_lvl_vec.size() > 2)
     z_lvl_vec.erase(z_lvl_vec.begin() + 1, z_lvl_vec.end() - 1);
   // erase first z_lvl if first index references first node
-  if (!z_lvl_vec.empty() && z_lvl_vec.begin()->index != 0)
+  if (!z_lvl_vec.empty() && z_lvl_vec.front().index != 0)
     z_lvl_vec.erase(z_lvl_vec.begin());
   // erase last z_lvl if last index references last node
   OGRLineString *ogr_ls = static_cast<OGRLineString *>(feat->GetGeometryRef());
   if (!z_lvl_vec.empty() &&
-      (z_lvl_vec.end() - 1)->index != ogr_ls->getNumPoints() - 1)
+      z_lvl_vec.back().index != ogr_ls->getNumPoints() - 1)
     z_lvl_vec.erase(z_lvl_vec.end());
 }
 

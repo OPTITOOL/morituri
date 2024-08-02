@@ -114,7 +114,7 @@ uint64_t StreetConverter::parse_street_tags(
   const char *link_id_s = get_field_from_feature(f, LINK_ID);
   uint64_t link_id = std::stoul(link_id_s);
 
-  bool ramp = parse_bool(get_field_from_feature(f, RAMP));
+  bool ramp = get_bool_from_feature(f, RAMP);
 
   ushort route_type = 0;
   if (!(std::string(get_field_from_feature(f, ROUTE)).empty()))
@@ -153,11 +153,11 @@ uint64_t StreetConverter::parse_street_tags(
   if (debugMode) {
     builder.add_tag(LINK_ID.data(), link_id_s);
     add_here_speed_cat_tag(builder, f);
-    if (parse_bool(get_field_from_feature(f, TOLLWAY)))
+    if (get_bool_from_feature(f, TOLLWAY))
       builder.add_tag("here:tollway", YES.data());
-    if (parse_bool(get_field_from_feature(f, URBAN)))
+    if (get_bool_from_feature(f, URBAN))
       builder.add_tag("here:urban", YES.data());
-    if (parse_bool(get_field_from_feature(f, CONTRACC)))
+    if (get_bool_from_feature(f, CONTRACC))
       builder.add_tag("here:controll_access", YES.data());
     if (route_type)
       add_uint_tag(builder, "here:route_type", route_type);
@@ -273,11 +273,10 @@ void StreetConverter::add_ferry_tag(osmium::builder::TagListBuilder &builder,
     if (only_pedestrians(f)) {
       builder.add_tag("foot", YES.data());
     } else {
-      builder.add_tag("foot",
-                      parse_bool(get_field_from_feature(f, AR_PEDESTRIANS))
-                          ? YES.data()
-                          : NO.data());
-      builder.add_tag("motorcar", parse_bool(get_field_from_feature(f, AR_AUTO))
+      builder.add_tag("foot", get_bool_from_feature(f, AR_PEDESTRIANS)
+                                  ? YES.data()
+                                  : NO.data());
+      builder.add_tag("motorcar", get_bool_from_feature(f, AR_AUTO)
                                       ? YES.data()
                                       : NO.data());
     }
@@ -310,17 +309,17 @@ void StreetConverter::add_highway_tags(osmium::builder::TagListBuilder &builder,
   add_lanes_tag(builder, f);
   add_postcode_tag(builder, f);
 
-  if (parse_bool(get_field_from_feature(f, PAVED)))
+  if (get_bool_from_feature(f, PAVED))
     builder.add_tag("surface", "paved");
-  if (parse_bool(get_field_from_feature(f, BRIDGE)))
+  if (get_bool_from_feature(f, BRIDGE))
     builder.add_tag("bridge", YES.data());
-  if (parse_bool(get_field_from_feature(f, TUNNEL)))
+  if (get_bool_from_feature(f, TUNNEL))
     builder.add_tag("tunnel", YES.data());
-  if (parse_bool(get_field_from_feature(f, TOLLWAY)))
+  if (get_bool_from_feature(f, TOLLWAY))
     builder.add_tag("toll", YES.data());
-  if (parse_bool(get_field_from_feature(f, ROUNDABOUT)))
+  if (get_bool_from_feature(f, ROUNDABOUT))
     builder.add_tag("junction", "roundabout");
-  if (parse_bool(get_field_from_feature(f, FOURWHLDR)))
+  if (get_bool_from_feature(f, FOURWHLDR))
     builder.add_tag("4wd_only", YES.data());
 }
 
@@ -339,20 +338,20 @@ void StreetConverter::add_one_way_tag(osmium::builder::TagListBuilder &builder,
 
 void StreetConverter::add_access_tags(osmium::builder::TagListBuilder &builder,
                                       const OGRFeatureUniquePtr &f) {
-  bool automobile_allowed = parse_bool(get_field_from_feature(f, AR_AUTO));
+  bool automobile_allowed = get_bool_from_feature(f, AR_AUTO);
   if (!automobile_allowed)
     builder.add_tag("motorcar", NO.data());
-  if (!parse_bool(get_field_from_feature(f, AR_BUS)))
+  if (!get_bool_from_feature(f, AR_BUS))
     builder.add_tag("bus", NO.data());
-  if (!parse_bool(get_field_from_feature(f, AR_TAXIS)))
+  if (!get_bool_from_feature(f, AR_TAXIS))
     builder.add_tag("taxi", NO.data());
   //    if (! parse_bool(get_field_from_feature(f, AR_CARPOOL)))
   //    builder->add_tag("hov",  NO);
-  if (!parse_bool(get_field_from_feature(f, AR_PEDESTRIANS)))
+  if (!get_bool_from_feature(f, AR_PEDESTRIANS))
     builder.add_tag("foot", NO.data());
-  if (!parse_bool(get_field_from_feature(f, AR_TRUCKS))) {
+  if (!get_bool_from_feature(f, AR_TRUCKS)) {
     // truck access handling:
-    if (!parse_bool(get_field_from_feature(f, AR_DELIV)))
+    if (!get_bool_from_feature(f, AR_DELIV))
       builder.add_tag(
           "hgv",
           NO.data()); // no truck + no delivery => hgv not allowed at all
@@ -364,14 +363,14 @@ void StreetConverter::add_access_tags(osmium::builder::TagListBuilder &builder,
       builder.add_tag("hgv", "delivery"); // automobile generally allowed =>
                                           // only truck is 'delivery'
   }
-  if (!parse_bool(get_field_from_feature(f, AR_EMERVEH)))
+  if (!get_bool_from_feature(f, AR_EMERVEH))
     builder.add_tag("emergency", NO.data());
-  if (!parse_bool(get_field_from_feature(f, AR_MOTORCYCLES)))
+  if (!get_bool_from_feature(f, AR_MOTORCYCLES))
     builder.add_tag("motorcycle", NO.data());
-  if (!parse_bool(get_field_from_feature(f, PUB_ACCESS)) ||
-      parse_bool(get_field_from_feature(f, PRIVATE))) {
+  if (!get_bool_from_feature(f, PUB_ACCESS) ||
+      get_bool_from_feature(f, PRIVATE)) {
     builder.add_tag("access", "private");
-  } else if (!parse_bool(get_field_from_feature(f, AR_THROUGH_TRAFFIC))) {
+  } else if (!get_bool_from_feature(f, AR_THROUGH_TRAFFIC)) {
     builder.add_tag("access", "destination");
   }
 }
@@ -511,7 +510,7 @@ void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
                                       const std::string &ref_name,
                                       bool underConstruction) {
 
-  bool paved = parse_bool(get_field_from_feature(f, PAVED));
+  bool paved = get_bool_from_feature(f, PAVED);
   bool motorized_allowed = is_motorized_allowed(f);
 
   std::string highwayTagName = HIGHWAY.data();
@@ -537,9 +536,9 @@ void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
       builder.add_tag(highwayTagName, FOOTWAY.data());
     } else {
       // paved + motorized allowed
-      bool controlled_access = parse_bool(get_field_from_feature(f, CONTRACC));
-      bool urban = parse_bool(get_field_from_feature(f, URBAN));
-      bool ramp = parse_bool(get_field_from_feature(f, RAMP));
+      bool controlled_access = get_bool_from_feature(f, CONTRACC);
+      bool urban = get_bool_from_feature(f, URBAN);
+      bool ramp = get_bool_from_feature(f, RAMP);
 
       if (controlled_access) {
         // controlled_access => motorway

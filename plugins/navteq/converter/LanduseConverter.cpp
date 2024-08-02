@@ -135,7 +135,7 @@ void LanduseConverter::build_landuse_taglist(
     // FEAT_TYPE 'PARK (STATE)'
     // In many cases this is meant to be a national park or
     // protected area but this is not guaranteed
-    tl_builder.add_tag("leisure", "park");
+    tl_builder.add_tag("boundary", "national_park");
   } else if (featureCode == "900140") {
     // FEAT_TYPE 'PARK IN WATER'
     tl_builder.add_tag("boundary", "national_park");
