@@ -114,6 +114,12 @@ private:
   std::multimap<uint64_t, StreetConverter::cond_type>
   init_cdms_map(const std::filesystem::path &dir);
 
+  void update_region_connecting_points(
+      std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &regionConnectingPoints,
+      const StreetConverter::TagData &data, const std::filesystem::path &dir,
+      osmium::io::Writer &writer);
+
   std::map<uint64_t, uint64_t> init_g_area_to_govt_code_map(
       std::map<uint64_t, StreetConverter::cntry_ref_type> &cntry_ref_map,
       const std::filesystem::path &dir);
@@ -137,10 +143,11 @@ private:
       const std::map<uint64_t, std::string> &junctionNames);
 
   // process end nodes
-  void process_way_end_nodes(
+  std::map<osmium::Location, osmium::unsigned_object_id_type>
+  process_way_end_nodes(
       const std::filesystem::path &dir, const StreetConverter::TagData &data,
-      std::map<osmium::Location, osmium::unsigned_object_id_type>
-          &way_end_points_map,
+      const std::map<osmium::Location, osmium::unsigned_object_id_type>
+          &regionConnectingPoints,
       std::map<uint64_t, std::vector<StreetConverter::z_lvl_index_type_t>>
           &z_level_map,
       osmium::io::Writer &writer);
@@ -162,8 +169,6 @@ private:
               const StreetConverter::TagData &data,
               std::map<osmium::Location, osmium::unsigned_object_id_type>
                   &way_end_points_map,
-              std::map<std::pair<osmium::Location, short>,
-                       osmium::unsigned_object_id_type> &z_lvl_nodes_map,
               std::map<uint64_t, std::vector<z_lvl_index_type_t>> &z_level_map,
               osmium::io::Writer &writer);
   void
@@ -352,6 +357,7 @@ private:
   // ZLEVELS_DBF columns
   static constexpr std::string_view Z_LEVEL = "Z_LEVEL";
   static constexpr std::string_view POINT_NUM = "POINT_NUM";
+  static constexpr std::string_view ALIGNED = "ALIGNED";
 
   static constexpr std::string_view GOVT_CODE = "GOVT_CODE";
   static constexpr std::string_view AREACODE_1 = "AREACODE_1";
@@ -421,8 +427,10 @@ private:
   const ushort CT_TRANSPORT_SPECIAL_SPEED_SITUATION = 25;
 
   // should be global for connectivity between regions
-  std::map<osmium::Location, osmium::unsigned_object_id_type>
-      g_way_end_points_map;
+  static std::map<osmium::Location, osmium::unsigned_object_id_type>
+      g_regionConnectingPoints;
+
+  static std::mutex g_regionConnectingPoints_mutex;
 };
 
 #endif // STREETCONVERTER_HPP
