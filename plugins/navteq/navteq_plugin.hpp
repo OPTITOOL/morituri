@@ -35,8 +35,6 @@ private:
 
   std::vector<std::filesystem::path> dataDirs;
 
-  std::vector<std::unique_ptr<Converter>> converter;
-
   OGREnvelope boundingBox;
 
   std::set<std::string> countriesToConvert;

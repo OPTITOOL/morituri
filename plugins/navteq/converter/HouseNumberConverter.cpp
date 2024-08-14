@@ -60,8 +60,11 @@ void HouseNumberConverter::process_house_numbers(
 
   node_buffer.commit();
   way_buffer.commit();
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+  }
   delete pointMap;
 }
 

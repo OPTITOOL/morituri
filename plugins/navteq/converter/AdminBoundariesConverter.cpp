@@ -93,7 +93,11 @@ void AdminBoundariesConverter::addLevel1Boundaries(
         adminBoundary.second.second, mtd_area_map, rel_buffer, 1);
   }
   rel_buffer.commit();
-  writer(std::move(rel_buffer));
+
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(rel_buffer));
+  }
 }
 
 void AdminBoundariesConverter::add_admin_shape(
@@ -123,9 +127,12 @@ void AdminBoundariesConverter::add_admin_shape(
     process_admin_boundary(feat, g_way_end_points_map, node_buffer, way_buffer,
                            rel_buffer, adminLineMap);
   }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-  writer(std::move(rel_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+    writer(std::move(rel_buffer));
+  }
 }
 
 std::map<int, std::vector<osmium::unsigned_object_id_type>>
@@ -167,8 +174,11 @@ AdminBoundariesConverter::add_admin_lines(
   node_buffer.commit();
   way_buffer.commit();
 
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+  }
 
   return result;
 }
@@ -295,7 +305,10 @@ void AdminBoundariesConverter::addLevelNBoundaries(
         adminBoundary.second.second, mtd_area_map, rel_buffer, level);
   }
   rel_buffer.commit();
-  writer(std::move(rel_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(rel_buffer));
+  }
 }
 
 void AdminBoundariesConverter::build_admin_boundary_taglist(

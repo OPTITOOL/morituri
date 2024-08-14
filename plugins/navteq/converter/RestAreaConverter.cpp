@@ -67,7 +67,10 @@ void RestAreaConverter::add_rest_area(std::filesystem::path rest_area_file,
     }
     process_rest_area(feat, node_buffer);
   }
-  writer(std::move(node_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+  }
 }
 
 void RestAreaConverter::process_rest_area(const OGRFeatureUniquePtr &feat,

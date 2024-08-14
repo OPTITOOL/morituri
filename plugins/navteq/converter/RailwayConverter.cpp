@@ -56,8 +56,11 @@ void RailwayConverter::add_railways_shape(
   for (auto &feat : *layer) {
     process_railways(feat, g_way_end_points_map, node_buffer, way_buffer);
   }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+  }
 }
 
 void RailwayConverter::process_railways(

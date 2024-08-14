@@ -62,8 +62,11 @@ void BuildingConverter::add_building_shape(
       process_building(feat, g_way_end_points_map, node_buffer, way_buffer);
     }
   }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+  }
 }
 
 void BuildingConverter::process_building(
