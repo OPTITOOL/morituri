@@ -9,6 +9,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/iterator_range.hpp>
+#include <concurrencpp/concurrencpp.h>
 #include <exception>
 #include <filesystem>
 #include <iomanip>
@@ -38,19 +39,7 @@
  */
 
 navteq_plugin::navteq_plugin(const std::filesystem::path &executable_path)
-    : base_plugin::base_plugin("Navteq Plugin", executable_path) {
-
-  converter.emplace_back(new AdminBoundariesConverter(executable_path));
-  converter.emplace_back(new StreetConverter(executable_path));
-  converter.emplace_back(new LanduseConverter(executable_path));
-  converter.emplace_back(new CityConverter(executable_path));
-  converter.emplace_back(new HamletConverter(executable_path));
-  converter.emplace_back(new BuildingConverter(executable_path));
-  converter.emplace_back(new RestAreaConverter(executable_path));
-  converter.emplace_back(new RailwayConverter(executable_path));
-  converter.emplace_back(new WaterConverter(executable_path));
-  converter.emplace_back(new HouseNumberConverter(executable_path));
-}
+    : base_plugin::base_plugin("Navteq Plugin", executable_path) {}
 
 navteq_plugin::~navteq_plugin() {}
 
@@ -174,15 +163,69 @@ void navteq_plugin::execute() {
   hdr.set("xml_josm_upload", "false");
   osmium::io::Writer writer(outfile, hdr, osmium::io::overwrite::allow);
 
-  int i = 0;
+  // init the langfile of the converter
+  Converter::parse_lang_code_file(executable_path);
+
+  concurrencpp::runtime runtime;
+
+  std::vector<concurrencpp::result<void>> results;
+
+  auto executor = runtime.thread_pool_executor();
+
+  BOOST_LOG_TRIVIAL(info) << "Max threads: "
+                          << executor->max_concurrency_level();
 
   // run converters
   for (auto &dir : dataDirs) {
-    BOOST_LOG_TRIVIAL(info)
-        << "Processing " << dir << " (" << ++i << "/" << dataDirs.size() << ")";
-    for (auto &c : converter)
-      c->convert(dir, writer);
+
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug)
+          << "Start converting AdminBoundariesConverter " << dir;
+      AdminBoundariesConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting StreetConverter " << dir;
+      StreetConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting LanduseConverter " << dir;
+      LanduseConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting CityConverter " << dir;
+      CityConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting HamletConverter " << dir;
+      HamletConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting BuildingConverter " << dir;
+      BuildingConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting RestAreaConverter " << dir;
+      RestAreaConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting RailwayConverter " << dir;
+      RailwayConverter(executable_path).convert(dir, writer);
+    }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug) << "Start converting WaterConverter " << dir;
+      WaterConverter(executable_path).convert(dir, writer);
+    }));
+    // results.emplace_back(executor->submit([this, &dir, &writer]() {
+    //   BOOST_LOG_TRIVIAL(debug)
+    //       << "Start converting HouseNumberConverter " << dir;
+    //   HouseNumberConverter(executable_path).convert(dir, writer);
+    // }));
   }
+
+  auto allDone =
+      concurrencpp::when_all(executor, results.begin(), results.end()).run();
+
+  allDone.get();
 
   writer.close();
 

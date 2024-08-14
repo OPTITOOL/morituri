@@ -361,7 +361,10 @@ StreetConverter::process_way_end_nodes(
     process_way_end_nodes(feat, data, way_end_points_map, node_buffer);
   }
   node_buffer.commit();
-  writer(std::move(node_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+  }
 
   return way_end_points_map;
 }
@@ -517,8 +520,11 @@ void StreetConverter::process_way(
 
   node_buffer.commit();
   way_buffer.commit();
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+  }
 }
 
 std::map<uint64_t, std::map<uint, std::string>>
@@ -954,5 +960,8 @@ void StreetConverter::update_region_connecting_points(
   }
 
   node_buffer.commit();
-  writer(std::move(node_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+  }
 }

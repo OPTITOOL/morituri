@@ -98,7 +98,10 @@ void CityConverter::add_city_shape(std::filesystem::path city_shape_file,
     process_city(feat, fac_type, node_buffer, translations[poiId]);
   }
   node_buffer.commit();
-  writer(std::move(node_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+  }
 }
 
 void CityConverter::process_city(

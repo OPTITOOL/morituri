@@ -11,6 +11,8 @@
 
 std::atomic<osmium::unsigned_object_id_type> Converter::g_osm_id = 0;
 
+std::mutex Converter::osmiumWriterMutex;
+
 std::map<std::string, std::string> Converter::lang_code_map;
 
 /**
@@ -245,14 +247,15 @@ std::string Converter::navteq_2_osm_admin_lvl(std::string navteq_admin_lvl) {
 // http://www.loc.gov/standards/iso639-2/ISO-639-2_utf-8.txt
 // ISO-639 conversion
 
-void Converter::parse_lang_code_file() {
+void Converter::parse_lang_code_file(
+    const std::filesystem::path &_executable_path) {
   const std::filesystem::path PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT(
       "ISO-639-2_utf-8.txt");
 
-  if (executable_path.empty())
+  if (_executable_path.empty())
     throw(std::runtime_error("executable_path is empty"));
 
-  std::filesystem::path iso_file(executable_path.parent_path() /
+  std::filesystem::path iso_file(_executable_path /
                                  PLUGINS_NAVTEQ_ISO_639_2_UTF_8_TXT);
   std::ifstream file(iso_file.string());
   assert(file.is_open());
@@ -279,7 +282,7 @@ void Converter::parse_lang_code_file() {
 std::string Converter::parse_lang_code(std::string lang_code) {
   std::ranges::transform(lang_code, lang_code.begin(), ::tolower);
   if (lang_code_map.empty())
-    parse_lang_code_file();
+    throw std::runtime_error("lang_code_map is empty");
 
   auto lc = lang_code_map.find(lang_code);
   if (lc != lang_code_map.end()) {

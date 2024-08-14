@@ -68,6 +68,9 @@ public:
     std::vector<std::pair<std::string, std::string>> lang_code_2_area_name;
   };
 
+  static void
+  parse_lang_code_file(const std::filesystem::path &_executable_path);
+
 protected:
   // data structure to store admin boundary tags
 
@@ -135,8 +138,6 @@ protected:
   std::map<osmium::unsigned_object_id_type, mtd_area_dataset>
   process_meta_areas(std::filesystem::path dir);
 
-  void parse_lang_code_file();
-
   std::string parse_lang_code(std::string lang_code);
 
   GDALDatasetUniquePtr openDataSource(const std::filesystem::path &shape_file);
@@ -199,6 +200,8 @@ protected:
   static constexpr int NAVTEQ_ADMIN_LVL_MAX = 7;
 
   bool debugMode;
+
+  static std::mutex osmiumWriterMutex;
 
 private:
   static std::map<std::string, std::string> lang_code_map;

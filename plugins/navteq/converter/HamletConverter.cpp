@@ -68,7 +68,10 @@ void HamletConverter::add_hamlet(std::filesystem::path hamlet_file,
     }
     process_hamlets(feat, node_buffer);
   }
-  writer(std::move(node_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+  }
 }
 
 void HamletConverter::process_hamlets(const OGRFeatureUniquePtr &feat,

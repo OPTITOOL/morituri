@@ -62,9 +62,12 @@ void WaterConverter::add_water_shape(std::filesystem::path water_shape_file,
     process_water(feat, g_way_end_points_map, node_buffer, way_buffer,
                   rel_buffer);
   }
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-  writer(std::move(rel_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+    writer(std::move(rel_buffer));
+  }
 }
 
 /**

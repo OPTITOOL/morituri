@@ -57,9 +57,12 @@ void LanduseConverter::add_landuse_shape(
                     rel_buffer);
   }
 
-  writer(std::move(node_buffer));
-  writer(std::move(way_buffer));
-  writer(std::move(rel_buffer));
+  {
+    std::lock_guard<std::mutex> lock(osmiumWriterMutex);
+    writer(std::move(node_buffer));
+    writer(std::move(way_buffer));
+    writer(std::move(rel_buffer));
+  }
 }
 
 void LanduseConverter::process_landuse(
