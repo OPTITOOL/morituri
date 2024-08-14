@@ -29,13 +29,11 @@ public:
                        osmium::io::Writer &writer) override;
 
 private:
-  void create_house_numbers(const OGRFeatureUniquePtr &feat,
-                            const OGRLineString *ogr_ls, bool left,
+  void create_house_numbers(const OGRFeatureUniquePtr &feat, bool left,
                             osmium::memory::Buffer &node_buffer,
                             osmium::memory::Buffer &way_buffer);
 
   void create_house_numbers(const OGRFeatureUniquePtr &feat,
-                            const OGRLineString *ogr_ls,
                             osmium::memory::Buffer &node_buffer,
                             osmium::memory::Buffer &way_buffer);
 

@@ -81,14 +81,12 @@ void HouseNumberConverter::process_house_numbers(
     int linkId, osmium::memory::Buffer &node_buffer,
     osmium::memory::Buffer &way_buffer) {
 
-  auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
-
   auto it = pointAddresses.find(linkId);
   if (it != pointAddresses.end()) {
     create_premium_house_numbers(feat, it->second, linkId, node_buffer);
   } else {
     if (!strcmp(get_field_from_feature(feat, ADDR_TYPE), "B")) {
-      create_house_numbers(feat, ogr_ls, node_buffer, way_buffer);
+      create_house_numbers(feat, node_buffer, way_buffer);
     }
   }
 }
@@ -139,10 +137,10 @@ HouseNumberConverter::createPointAddressMapList(
 }
 
 void HouseNumberConverter::create_house_numbers(
-    const OGRFeatureUniquePtr &feat, const OGRLineString *ogr_ls,
-    osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
-  create_house_numbers(feat, ogr_ls, true, node_buffer, way_buffer);
-  create_house_numbers(feat, ogr_ls, false, node_buffer, way_buffer);
+    const OGRFeatureUniquePtr &feat, osmium::memory::Buffer &node_buffer,
+    osmium::memory::Buffer &way_buffer) {
+  create_house_numbers(feat, true, node_buffer, way_buffer);
+  create_house_numbers(feat, false, node_buffer, way_buffer);
 }
 
 void HouseNumberConverter::create_premium_house_numbers(
@@ -168,7 +166,7 @@ void HouseNumberConverter::create_premium_house_numbers(
 }
 
 void HouseNumberConverter::create_house_numbers(
-    const OGRFeatureUniquePtr &feat, const OGRLineString *ogr_ls, bool left,
+    const OGRFeatureUniquePtr &feat, bool left,
     osmium::memory::Buffer &node_buffer, osmium::memory::Buffer &way_buffer) {
   const std::string_view &ref_addr = left ? L_REFADDR : R_REFADDR;
   const std::string_view &nref_addr = left ? L_NREFADDR : R_NREFADDR;
@@ -189,8 +187,10 @@ void HouseNumberConverter::create_house_numbers(
   std::string endNumber =
       get_field_from_feature(feat, left ? nref_addr : ref_addr);
 
-  std::unique_ptr<OGRLineString> offset_ogr_ls(
-      create_offset_curve(ogr_ls, HOUSENUMBER_CURVE_OFFSET, left));
+  auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
+
+  auto offset_ogr_ls =
+      create_offset_curve(ogr_ls, HOUSENUMBER_CURVE_OFFSET, left);
   if (startNumber == endNumber) {
     // no interpolation for signel addresses
     OGRPoint midPoint;
