@@ -10,11 +10,9 @@
 
 #include <assert.h>
 
-#include <geos/io/WKBReader.h>
-#include <geos/io/WKBWriter.h>
-
 #include <geos/geom/CoordinateFilter.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
+#include <geos/geom/Geometry.h>
 #include <geos/geom/GeometryFactory.h>
 #include <geos/geom/LineString.h>
 #include <geos/geom/Point.h>
@@ -41,44 +39,7 @@ std::unique_ptr<geos::operation::buffer::OffsetCurveBuilder>
  * Following functions convert OGRGeometry to geos::geom::Geometry and vice
  * versa
  */
-
-geos::io::WKBReader wkb_reader;
-geos::geom::Geometry::Ptr ogr2geos(const OGRGeometry *ogr_geom) {
-  if (!ogr_geom || ogr_geom->IsEmpty())
-    throw std::runtime_error("geometry is nullptr");
-
-  unsigned char staticbuffer[1024 * 1024];
-  unsigned char *buffer = staticbuffer;
-  size_t wkb_size = ogr_geom->WkbSize();
-  if (wkb_size > sizeof(staticbuffer))
-    buffer = (unsigned char *)malloc(wkb_size);
-  ogr_geom->exportToWkb(wkbNDR, buffer);
-
-  geos::geom::Geometry::Ptr geos_geom = wkb_reader.read(buffer, wkb_size);
-  if (buffer != staticbuffer)
-    free(buffer);
-
-  if (!geos_geom)
-    throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
-
-  return geos_geom;
-}
-
-geos::io::WKBWriter wkb_writer;
-OGRGeometry *geos2ogr(const geos::geom::Geometry *geos_geom) {
-  std::ostringstream ss;
-  wkb_writer.setOutputDimension(geos_geom->getCoordinateDimension());
-  wkb_writer.write(*geos_geom, ss);
-  auto str = ss.str();
-
-  OGRGeometry *ogr_geom = nullptr;
-  OGRErr res = OGRGeometryFactory::createFromWkb(
-      (unsigned char *)(str.c_str()), nullptr, &ogr_geom, str.size());
-  if (res != OGRERR_NONE)
-    throw std::runtime_error("creating OGRGeometry from wkb failed: " +
-                             std::to_string(res));
-  return ogr_geom;
-}
+const GEOSContextHandle_t gctx = OGRGeometry::createGEOSContext();
 
 geos::geom::Coordinate move_point(const geos::geom::Coordinate &moving_coord,
                                   const geos::geom::Coordinate &reference_coord,
@@ -170,21 +131,35 @@ cut_caps(const geos::geom::CoordinateSequence *cs) {
   return geos_factory->createLineString(std::move(geos_cs));
 }
 
-OGRLineString *create_offset_curve(const OGRLineString *ogr_ls, double offset,
-                                   bool left) {
+std::unique_ptr<OGRLineString> create_offset_curve(const OGRLineString *ogr_ls,
+                                                   double offset, bool left) {
+
+  if (!ogr_ls || ogr_ls->IsEmpty())
+    throw std::runtime_error("geometry is nullptr");
+
+  auto geos_geom = geos::geom::Geometry::Ptr(
+      (geos::geom::Geometry *)ogr_ls->exportToGEOS(gctx));
+  if (!geos_geom)
+    throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
 
   std::vector<geos::geom::CoordinateSequence *> cs_vec;
-  auto convGeometry = (geos::geom::LineString::Ptr)(ogr2geos(ogr_ls));
+  // get offset curve
   offset_curve_builder->getSingleSidedLineCurve(
-      convGeometry->getCoordinates().get(), offset, cs_vec, left, !left);
+      geos_geom->getCoordinates().get(), offset, cs_vec, left, !left);
 
+  // cut the end of the curve
   auto cs = cs_vec.front();
-
   auto cut_caps_geos_ls = cut_caps(cs);
-  auto offset_ogr_geom = geos2ogr(cut_caps_geos_ls.get());
+
+  // convert geos to ogr
+  auto offset_ogr_geom = OGRGeometryFactory::createFromGEOS(
+      gctx, (GEOSGeom)cut_caps_geos_ls.get());
+  if (!offset_ogr_geom)
+    throw std::runtime_error("creating OGRGeometry from wkb failed");
   delete cs;
 
-  return static_cast<OGRLineString *>(offset_ogr_geom);
+  return std::unique_ptr<OGRLineString>(
+      static_cast<OGRLineString *>(offset_ogr_geom));
 }
 
 #endif /* PLUGINS_OGR_UTIL_HPP_ */
