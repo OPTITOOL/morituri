@@ -55,7 +55,7 @@ void HouseNumberConverter::process_house_numbers(
 
   for (auto &feat : *layer) {
     int linkId = feat->GetFieldAsInteger(linkIdField);
-    process_house_numbers(feat, *pointMap, linkId, node_buffer, way_buffer);
+    process_house_numbers(feat, pointMap, linkId, node_buffer, way_buffer);
   }
 
   node_buffer.commit();
@@ -65,7 +65,6 @@ void HouseNumberConverter::process_house_numbers(
     writer(std::move(node_buffer));
     writer(std::move(way_buffer));
   }
-  delete pointMap;
 }
 
 /**
@@ -94,13 +93,12 @@ void HouseNumberConverter::process_house_numbers(
   }
 }
 
-std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
+std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
 HouseNumberConverter::createPointAddressMapList(
     const std::filesystem::path &dir) {
 
-  auto pointAddressMap =
-      new std::map<uint64_t,
-                   std::vector<std::pair<osmium::Location, std::string>>>();
+  std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
+      pointAddressMap;
 
   static const std::filesystem::path POINT_ADDRESS_SHP = "PointAddress.shp";
 
@@ -133,8 +131,8 @@ HouseNumberConverter::createPointAddressMapList(
       lat = feat->GetFieldAsDouble(latField);
     }
 
-    (*pointAddressMap)[linkId].emplace_back(osmium::Location(lon, lat),
-                                            houseNumber);
+    pointAddressMap[linkId].emplace_back(osmium::Location(lon, lat),
+                                         houseNumber);
   }
 
   return pointAddressMap;

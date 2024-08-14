@@ -55,7 +55,7 @@ private:
       int linkId, osmium::memory::Buffer &node_buffer,
       osmium::memory::Buffer &way_buffer);
 
-  std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>> *
+  std::map<uint64_t, std::vector<std::pair<osmium::Location, std::string>>>
   createPointAddressMapList(const std::filesystem::path &dir);
 
   const char *parse_house_number_schema(const char *schema);

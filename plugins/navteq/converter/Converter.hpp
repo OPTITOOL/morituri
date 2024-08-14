@@ -201,6 +201,7 @@ protected:
 
   bool debugMode;
 
+  // mutex to protect osmium writer
   static std::mutex osmiumWriterMutex;
 
 private:
