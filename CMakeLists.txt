@@ -20,7 +20,7 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES Release)
   add_definitions(-DNDEBUG)
 
   # LTO produces slow binary (maybe libgeos)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -flto -Wall -Wextra -pedantic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -pedantic")
 ENDIF()
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -31,6 +31,7 @@ find_package(GDAL REQUIRED)
 find_package(geos REQUIRED)
 find_path(OSMIUM_INCLUDE_DIRS "osmium/version.hpp")
 find_package(ICU COMPONENTS uc data io i18n tu)
+find_package(concurrencpp CONFIG REQUIRED)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -49,4 +50,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
   PRIVATE GEOS::geos
   PRIVATE GDAL::GDAL
   PRIVATE expat bz2
+  PRIVATE concurrencpp::concurrencpp
   )
