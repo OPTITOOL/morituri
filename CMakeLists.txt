@@ -26,7 +26,7 @@ ENDIF()
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
-find_package(Boost REQUIRED COMPONENTS system log program_options)
+find_package(Boost REQUIRED COMPONENTS system log program_options json)
 find_package(GDAL REQUIRED)
 find_package(geos REQUIRED)
 find_path(OSMIUM_INCLUDE_DIRS "osmium/version.hpp")
@@ -46,7 +46,7 @@ include_directories(${GDAL_INCLUDE_DIRS} ${GEOS_INCLUDE_DIR} ${OSMIUM_INCLUDE_DI
 add_executable(${PROJECT_NAME} ${MAIN_CPP_FILES} ${CPP_FILES})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${ICU_LIBRARY}
-  PRIVATE Boost::boost Boost::log Boost::program_options
+  PRIVATE Boost::boost Boost::log Boost::program_options Boost::json
   PRIVATE GEOS::geos
   PRIVATE GDAL::GDAL
   PRIVATE expat bz2
