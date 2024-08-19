@@ -113,7 +113,9 @@ void StreetConverter::manipulate_cdms_map(
         boost::json::value_to<std::vector<uint64_t>>(cdmsJson["delete"]);
 
     for (auto const &condId : condToDelete) {
-      auto it = cdms_map.find(condId);
+      auto it = std::ranges::find_if(cdms_map, [condId](auto const &entry) {
+        return entry.second.cond_id_type == condId;
+      });
       if (it == cdms_map.end()) {
         BOOST_LOG_TRIVIAL(error)
             << "Patch Failed: Conditional modification with id " << condId
