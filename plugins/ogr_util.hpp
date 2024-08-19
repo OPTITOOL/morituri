@@ -17,6 +17,7 @@
 #include <geos/geom/Point.h>
 #include <geos/operation/buffer/BufferParameters.h>
 #include <geos/operation/buffer/OffsetCurveBuilder.h>
+#include <iterator>
 
 // create static geom factory
 geos::geom::GeometryFactory::Ptr geos_factory =
@@ -60,22 +61,25 @@ geos::geom::CoordinateSequence trimAndCloneCoordinateSequence(
     const geos::geom::CoordinateSequence::Ptr &geos_cs) {
   geos::geom::CoordinateSequence coordSequence;
 
-  const auto &frontC = geos_cs->front();
-  const auto &backC = geos_cs->back();
+  std::vector<geos::geom::Coordinate> coords;
+  geos_cs->toVector(coords);
 
-  int size = geos_cs->getSize();
+  // remove last point if it is the same as the first getOffestCurve always
+  // creates a closed ring
+  if (geos_cs->getAt(0) == geos_cs->getAt(geos_cs->getSize() - 1)) {
+    coords.pop_back();
+  }
 
-  // getSingleSidedLineCurve() always produces a ring (bug?). therefore:
-  // first_coord == last_coord => drop last_coord
-  if (frontC == backC)
-    size--;
+  auto frontIter = coords.begin();
+  auto backIter = std::prev(coords.end());
 
   double cut_ratio = 0.1;
   double max_cut = 0.00025;
   double length = 0.0;
 
-  for (int i = 1; i < size; ++i) {
-    length += geos_cs->getAt(i).distance(geos_cs->getAt(i - 1));
+  // calculate length of line
+  for (auto it = frontIter; it != backIter; ++it) {
+    length += it->distance(*std::next(it));
   }
 
   double cut = std::min(max_cut, length * cut_ratio);
@@ -85,36 +89,37 @@ geos::geom::CoordinateSequence trimAndCloneCoordinateSequence(
 
   double lastFrontCut = 0.0;
 
-  for (int i = 0; i < size; ++i) {
-    auto &currentC = geos_cs->getAt(i);
+  for (auto currentIter = frontIter; currentIter != coords.end();
+       ++currentIter) {
 
     // trim front
-    if (!frontFinished && frontC.distance(currentC) < cut) {
-      lastFrontCut = cut - frontC.distance(currentC);
+    if (!frontFinished && frontIter->distance(*currentIter) < cut) {
+      lastFrontCut = cut - frontIter->distance(*currentIter);
       lastFrontSkipped = true;
       continue;
     } else if (lastFrontSkipped) {
       // create a new point in front at cut distance
       if (lastFrontCut > 0)
         coordSequence.add(
-            move_point(geos_cs->getAt(i - 1), currentC, lastFrontCut));
+            move_point(*std::prev(currentIter), *currentIter, lastFrontCut));
 
       lastFrontSkipped = false;
       frontFinished = true;
     }
 
     // trim back
-    double cutBackDistance = backC.distance(currentC);
+    double cutBackDistance = backIter->distance(*currentIter);
     if (cutBackDistance < cut) {
       // create a new point in back at cut distance
       double backCut = cut - cutBackDistance;
       if (backCut > 0)
-        coordSequence.add(move_point(currentC, coordSequence.back(), backCut));
+        coordSequence.add(
+            move_point(*currentIter, *std::prev(currentIter), backCut));
       break;
     }
 
     // insert copy
-    coordSequence.add(currentC);
+    coordSequence.add(*currentIter);
   }
 
   return coordSequence;
@@ -137,17 +142,13 @@ std::unique_ptr<OGRLineString> create_offset_curve(const OGRLineString *ogr_ls,
   if (!geos_geom)
     throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
 
-  std::vector<geos::geom::CoordinateSequence *> coord_seq_list;
+  auto curve = offset_curve_builder->getOffsetCurve(
+      geos_geom->getCoordinates().get(), left ? offset : -offset);
 
-  offset_curve_builder->getSingleSidedLineCurve(
-      geos_geom->getCoordinates().get(), offset, coord_seq_list, left, !left);
+  if (!left)
+    curve->reverse();
 
-  if (coord_seq_list.size() > 1)
-    BOOST_LOG_TRIVIAL(debug) << "offset curve created";
-
-  auto cs = geos::geom::CoordinateSequence::Ptr(coord_seq_list.front());
-
-  auto cut_caps_geos_ls = cut_caps(cs);
+  auto cut_caps_geos_ls = cut_caps(curve);
 
   // convert geos to ogr
   auto offset_ogr_geom = OGRGeometryFactory::createFromGEOS(
