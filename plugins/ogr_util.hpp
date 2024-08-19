@@ -11,7 +11,6 @@
 #include <assert.h>
 
 #include <geos/geom/CoordinateFilter.h>
-#include <geos/geom/CoordinateSequenceFactory.h>
 #include <geos/geom/Geometry.h>
 #include <geos/geom/GeometryFactory.h>
 #include <geos/geom/LineString.h>
@@ -57,10 +56,9 @@ geos::geom::Coordinate move_point(const geos::geom::Coordinate &moving_coord,
                                 moving_coord.y + move_y);
 }
 
-std::unique_ptr<geos::geom::CoordinateSequence>
-trimAndCloneCoordinateSequence(const geos::geom::CoordinateSequence *geos_cs) {
-  geos::geom::Coordinate::Vect *coordVector =
-      new geos::geom::Coordinate::Vect();
+geos::geom::CoordinateSequence trimAndCloneCoordinateSequence(
+    const geos::geom::CoordinateSequence::Ptr &geos_cs) {
+  geos::geom::CoordinateSequence coordSequence;
 
   const auto &frontC = geos_cs->front();
   const auto &backC = geos_cs->back();
@@ -98,7 +96,7 @@ trimAndCloneCoordinateSequence(const geos::geom::CoordinateSequence *geos_cs) {
     } else if (lastFrontSkipped) {
       // create a new point in front at cut distance
       if (lastFrontCut > 0)
-        coordVector->push_back(
+        coordSequence.add(
             move_point(geos_cs->getAt(i - 1), currentC, lastFrontCut));
 
       lastFrontSkipped = false;
@@ -111,24 +109,21 @@ trimAndCloneCoordinateSequence(const geos::geom::CoordinateSequence *geos_cs) {
       // create a new point in back at cut distance
       double backCut = cut - cutBackDistance;
       if (backCut > 0)
-        coordVector->push_back(
-            move_point(currentC, coordVector->back(), backCut));
+        coordSequence.add(move_point(currentC, coordSequence.back(), backCut));
       break;
     }
 
     // insert copy
-    coordVector->push_back(currentC);
+    coordSequence.add(currentC);
   }
 
-  return geos_factory->getCoordinateSequenceFactory()->create(coordVector);
+  return coordSequence;
 }
 
 std::unique_ptr<geos::geom::LineString>
-cut_caps(const geos::geom::CoordinateSequence *cs) {
-
+cut_caps(const geos::geom::CoordinateSequence::Ptr &cs) {
   auto geos_cs = trimAndCloneCoordinateSequence(cs);
-
-  return geos_factory->createLineString(std::move(geos_cs));
+  return geos_factory->createLineString(geos_cs);
 }
 
 std::unique_ptr<OGRLineString> create_offset_curve(const OGRLineString *ogr_ls,
@@ -142,13 +137,9 @@ std::unique_ptr<OGRLineString> create_offset_curve(const OGRLineString *ogr_ls,
   if (!geos_geom)
     throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
 
-  std::vector<geos::geom::CoordinateSequence *> cs_vec;
-  // get offset curve
-  offset_curve_builder->getSingleSidedLineCurve(
-      geos_geom->getCoordinates().get(), offset, cs_vec, left, !left);
+  auto cs = offset_curve_builder->getOffsetCurve(
+      geos_geom->getCoordinates().get(), left ? offset : -offset);
 
-  // cut the end of the curve
-  auto cs = cs_vec.front();
   auto cut_caps_geos_ls = cut_caps(cs);
 
   // convert geos to ogr
@@ -156,7 +147,6 @@ std::unique_ptr<OGRLineString> create_offset_curve(const OGRLineString *ogr_ls,
       gctx, (GEOSGeom)cut_caps_geos_ls.get());
   if (!offset_ogr_geom)
     throw std::runtime_error("creating OGRGeometry from wkb failed");
-  delete cs;
 
   return std::unique_ptr<OGRLineString>(
       static_cast<OGRLineString *>(offset_ogr_geom));

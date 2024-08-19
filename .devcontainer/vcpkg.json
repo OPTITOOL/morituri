@@ -1,5 +1,4 @@
 {
-    "builtin-baseline": "d114d595a881cbf085e03dff25ff6e6fc83d288b",
     "dependencies": [
         "boost-log",
         "boost-program-options",
