@@ -137,8 +137,15 @@ std::unique_ptr<OGRLineString> create_offset_curve(const OGRLineString *ogr_ls,
   if (!geos_geom)
     throw std::runtime_error("creating geos::geom::Geometry from wkb failed");
 
-  auto cs = offset_curve_builder->getOffsetCurve(
-      geos_geom->getCoordinates().get(), left ? offset : -offset);
+  std::vector<geos::geom::CoordinateSequence *> coord_seq_list;
+
+  offset_curve_builder->getSingleSidedLineCurve(
+      geos_geom->getCoordinates().get(), offset, coord_seq_list, left, !left);
+
+  if (coord_seq_list.size() > 1)
+    BOOST_LOG_TRIVIAL(debug) << "offset curve created";
+
+  auto cs = geos::geom::CoordinateSequence::Ptr(coord_seq_list.front());
 
   auto cut_caps_geos_ls = cut_caps(cs);
 
