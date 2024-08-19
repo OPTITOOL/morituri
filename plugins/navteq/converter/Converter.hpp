@@ -204,9 +204,10 @@ protected:
   // mutex to protect osmium writer
   static std::mutex osmiumWriterMutex;
 
+  std::filesystem::path executable_path;
+
 private:
   static std::map<std::string, std::string> lang_code_map;
-  std::filesystem::path executable_path;
 };
 
 #endif // CONVERTER_HPP

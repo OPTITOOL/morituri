@@ -350,6 +350,9 @@ private:
                          const std::string &restriction, int direction,
                          bool is_imperial_units, uint64_t max_value);
 
+  void manipulate_cdms_map(std::multimap<uint64_t, cond_type> &cdms_map,
+                           const std::filesystem::path &dir);
+
   // CndMod types (CM)
   static constexpr std::string_view CM_MOD_TYPE = "MOD_TYPE";
   static constexpr std::string_view CM_MOD_VAL = "MOD_VAL";

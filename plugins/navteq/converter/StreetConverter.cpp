@@ -16,7 +16,9 @@
 
 #include "StreetConverter.hpp"
 
+#include <boost/json.hpp>
 #include <boost/log/trivial.hpp>
+#include <fstream>
 #include <osmium/builder/osm_object_builder.hpp>
 #include <osmium/io/writer.hpp>
 #include <osmium/memory/buffer.hpp>
@@ -46,6 +48,10 @@ void StreetConverter::convert(const std::filesystem::path &dir,
   init_cnd_mod(cdms_map, dir);
   init_cnd_dt_mod(cdms_map, dir);
 
+  // patch the conditions with a additional json file
+  // this is a workaround for the informations that are not fixed by HERE yet
+  manipulate_cdms_map(cdms_map, dir);
+
   BOOST_LOG_TRIVIAL(info) << " processing country reference";
   auto cntry_ref_map = init_g_cntry_ref_map(dir);
   auto area_to_govt_code_map = init_g_area_to_govt_code_map(cntry_ref_map, dir);
@@ -71,6 +77,52 @@ void StreetConverter::convert(const std::filesystem::path &dir,
 
   BOOST_LOG_TRIVIAL(info) << " processing ways";
   process_way(dir, data, way_end_points_map, z_level_map, writer);
+}
+
+void StreetConverter::manipulate_cdms_map(
+    std::multimap<uint64_t, cond_type> &cdms_map,
+    const std::filesystem::path &dir) {
+
+  std::string filePrefix = dir.parent_path().filename();
+
+  for (auto const &dir_entry :
+       std::filesystem::directory_iterator{executable_path}) {
+    if (dir_entry.is_directory())
+      continue;
+
+    if (dir_entry.path().extension() != ".json")
+      continue;
+
+    if (dir_entry.path().filename().string().find(filePrefix) ==
+        std::string::npos)
+      continue;
+
+    BOOST_LOG_TRIVIAL(info) << " processing json file: " << dir_entry.path();
+
+    std::ifstream ifs(dir_entry.path());
+    auto jv = boost::json::parse(ifs);
+
+    auto jsonPatch = jv.get_object();
+    if (jsonPatch["cdms"].is_null())
+      return;
+
+    // check if all Ids are in the cdms_map
+    auto cdmsJson = jsonPatch["cdms"].get_object();
+
+    auto condToDelete =
+        boost::json::value_to<std::vector<uint64_t>>(cdmsJson["delete"]);
+
+    for (auto const &condId : condToDelete) {
+      auto it = cdms_map.find(condId);
+      if (it == cdms_map.end()) {
+        BOOST_LOG_TRIVIAL(error)
+            << "Patch Failed: Conditional modification with id " << condId
+            << " not found in database! See " << dir_entry.path();
+        exit(1);
+      }
+      cdms_map.erase(it);
+    }
+  }
 }
 
 std::map<uint64_t, ushort> StreetConverter::process_alt_steets_route_types(
