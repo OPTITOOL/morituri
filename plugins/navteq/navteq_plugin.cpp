@@ -215,11 +215,11 @@ void navteq_plugin::execute() {
       BOOST_LOG_TRIVIAL(debug) << "Start converting WaterConverter " << dir;
       WaterConverter(executable_path).convert(dir, writer);
     }));
-    // results.emplace_back(executor->submit([this, &dir, &writer]() {
-    //   BOOST_LOG_TRIVIAL(debug)
-    //       << "Start converting HouseNumberConverter " << dir;
-    //   HouseNumberConverter(executable_path).convert(dir, writer);
-    // }));
+    results.emplace_back(executor->submit([this, &dir, &writer]() {
+      BOOST_LOG_TRIVIAL(debug)
+          << "Start converting HouseNumberConverter " << dir;
+      HouseNumberConverter(executable_path).convert(dir, writer);
+    }));
   }
 
   auto allDone =
