@@ -181,6 +181,8 @@ void HouseNumberConverter::create_house_numbers(
   if (!strcmp(get_field_from_feature(feat, addr_schema), "M"))
     return;
 
+  uint64_t linkId = get_uint_from_feature(feat, LINK_ID);
+
   std::string startNumber =
       get_field_from_feature(feat, left ? ref_addr : nref_addr);
 
@@ -203,6 +205,7 @@ void HouseNumberConverter::create_house_numbers(
       {
         // scope tl_builder
         osmium::builder::TagListBuilder tl_builder(node_builder);
+        tl_builder.add_tag(LINK_ID.data(), std::to_string(linkId));
         tl_builder.add_tag("addr:housenumber", startNumber);
         tl_builder.add_tag(
             "addr:street",
@@ -237,6 +240,7 @@ void HouseNumberConverter::create_house_numbers(
               tl_builder.add_tag("addr:street",
                                  to_camel_case_with_spaces(
                                      get_field_from_feature(feat, ST_NAME)));
+              tl_builder.add_tag(LINK_ID.data(), std::to_string(linkId));
             }
           }
 
@@ -250,6 +254,7 @@ void HouseNumberConverter::create_house_numbers(
       const char *schema =
           parse_house_number_schema(get_field_from_feature(feat, addr_schema));
       tl_builder.add_tag("addr:interpolation", schema);
+      tl_builder.add_tag(LINK_ID.data(), std::to_string(linkId));
     }
   }
   node_buffer.commit();
