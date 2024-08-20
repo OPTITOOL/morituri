@@ -16,6 +16,9 @@
 #include <ogr_api.h>
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
+#include <osmium/io/output_iterator.hpp>
+#include <osmium/object_pointer_collection.hpp>
+#include <osmium/osm/object_comparisons.hpp>
 #include <ranges>
 
 #include "converter/AdminBoundariesConverter.hpp"
@@ -253,9 +256,11 @@ void navteq_plugin::sortPBF() {
   osmium::io::File tmpfile(
       output_path.parent_path().append("tmp.pbf").string());
 
-  copyType(writer, tmpfile, osmium::osm_entity_bits::node);
-  copyType(writer, tmpfile, osmium::osm_entity_bits::way);
-  copyType(writer, tmpfile, osmium::osm_entity_bits::relation);
+  for (const auto entity :
+       {osmium::osm_entity_bits::node, osmium::osm_entity_bits::way,
+        osmium::osm_entity_bits::relation}) {
+    copyType(writer, tmpfile, entity);
+  }
 
   writer.close();
 
@@ -264,11 +269,20 @@ void navteq_plugin::sortPBF() {
 
 void navteq_plugin::copyType(osmium::io::Writer &writer, osmium::io::File &file,
                              osmium::osm_entity_bits::type bits) {
-  osmium::io::Reader reader(file, bits);
+  std::vector<osmium::memory::Buffer> data;
+  osmium::ObjectPointerCollection objects;
+
+  osmium::io::Reader reader{file, bits};
   while (osmium::memory::Buffer buffer = reader.read()) {
-    writer(std::move(buffer));
+    osmium::apply(buffer, objects);
+    data.push_back(std::move(buffer));
   }
   reader.close();
+
+  objects.sort(osmium::object_order_type_id_version());
+
+  auto out = osmium::io::make_output_iterator(writer);
+  std::copy(objects.begin(), objects.end(), out);
 }
 
 void navteq_plugin::setBoundingBox(double minX, double minY, double maxX,
