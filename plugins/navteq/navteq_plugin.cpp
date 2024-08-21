@@ -17,6 +17,7 @@
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
 #include <osmium/io/output_iterator.hpp>
+#include <osmium/io/reader_with_progress_bar.hpp>
 #include <osmium/object_pointer_collection.hpp>
 #include <osmium/osm/object_comparisons.hpp>
 #include <ranges>
@@ -272,7 +273,7 @@ void navteq_plugin::copyType(osmium::io::Writer &writer, osmium::io::File &file,
   std::vector<osmium::memory::Buffer> data;
   osmium::ObjectPointerCollection objects;
 
-  osmium::io::Reader reader{file, bits};
+  osmium::io::ReaderWithProgressBar reader(true, file, bits);
   while (osmium::memory::Buffer buffer = reader.read()) {
     osmium::apply(buffer, objects);
     data.push_back(std::move(buffer));

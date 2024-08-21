@@ -348,7 +348,8 @@ private:
 
   void addRestrictionTag(osmium::builder::TagListBuilder &builder,
                          const std::string &restriction, int direction,
-                         bool is_imperial_units, uint64_t max_value);
+                         bool is_imperial_units, bool isWeight,
+                         uint64_t max_value);
 
   void manipulate_cdms_map(std::multimap<uint64_t, cond_type> &cdms_map,
                            const std::filesystem::path &dir);
