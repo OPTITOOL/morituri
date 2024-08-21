@@ -776,28 +776,34 @@ void StreetConverter::addTransportAccessRestriction(
   }
 
   if (max_height > 0)
-    addRestrictionTag(builder, "maxheight", direction, imperial_units,
+    addRestrictionTag(builder, "maxheight", direction, imperial_units, false,
                       max_height);
   if (max_width > 0)
-    addRestrictionTag(builder, "maxwidth", direction, imperial_units,
+    addRestrictionTag(builder, "maxwidth", direction, imperial_units, false,
                       max_width);
   if (max_length > 0)
-    addRestrictionTag(builder, "maxlength", direction, imperial_units,
+    addRestrictionTag(builder, "maxlength", direction, imperial_units, false,
                       max_length);
   if (max_weight > 0)
-    addRestrictionTag(builder, "maxweight", direction, imperial_units,
+    addRestrictionTag(builder, "maxweight", direction, imperial_units, true,
                       max_weight);
   if (max_axleload > 0)
-    addRestrictionTag(builder, "maxaxleload", direction, imperial_units,
-                      max_weight);
+    addRestrictionTag(builder, "maxaxleload", direction, imperial_units, true,
+                      max_axleload);
 }
 
 void StreetConverter::addRestrictionTag(
     osmium::builder::TagListBuilder &builder, const std::string &restriction,
-    int direction, bool is_imperial_units, uint64_t max_value) {
+    int direction, bool is_imperial_units, bool isWeight, uint64_t max_value) {
   {
-    std::string convertedValue =
-        is_imperial_units ? inch_to_feet(max_value) : cm_to_m(max_value);
+
+    std::string convertedValue = "";
+    if (isWeight)
+      convertedValue =
+          is_imperial_units ? lbs_to_metric_ton(max_value) : kg_to_t(max_value);
+    else
+      convertedValue =
+          is_imperial_units ? inch_to_feet(max_value) : cm_to_m(max_value);
 
     if (direction == 2)
       builder.add_tag(restriction + ":forward", convertedValue);
