@@ -16,7 +16,7 @@ std::mutex Converter::osmiumWriterMutex;
 
 std::map<std::string, std::string> Converter::lang_code_map;
 
-// timestamp of the conversion
+// timestamp of the conversion process
 int Converter::TIMESTAMP =
     std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch())
