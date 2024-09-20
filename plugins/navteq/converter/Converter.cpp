@@ -2,6 +2,7 @@
 #include "Converter.hpp"
 
 #include <boost/log/trivial.hpp>
+#include <chrono>
 #include <fstream>
 #include <ogrsf_frmts.h>
 #include <osmium/builder/osm_object_builder.hpp>
@@ -14,6 +15,12 @@ std::atomic<osmium::unsigned_object_id_type> Converter::g_osm_id = 0;
 std::mutex Converter::osmiumWriterMutex;
 
 std::map<std::string, std::string> Converter::lang_code_map;
+
+// timestamp of the conversion
+int Converter::TIMESTAMP =
+    std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch())
+        .count();
 
 /**
  * \brief Dummy attributes enable josm to read output xml files.
