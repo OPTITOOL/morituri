@@ -171,7 +171,7 @@ protected:
   static constexpr std::string_view VERSION = "1";
   static constexpr std::string_view CHANGESET = "1";
   static constexpr std::string_view USERID = "1";
-  static constexpr int TIMESTAMP = 1;
+  static int TIMESTAMP;
 
   static constexpr std::string_view YES = "yes";
   static constexpr std::string_view NO = "no";
