@@ -162,7 +162,7 @@ private:
       const osmium::Location &location, const StreetConverter::TagData &data,
       std::map<osmium::Location, osmium::unsigned_object_id_type>
           &way_end_points_map,
-      osmium::memory::Buffer &node_buffer);
+      bool gloablEndPoints, osmium::memory::Buffer &node_buffer);
 
   void
   process_way(const std::filesystem::path &dir,
