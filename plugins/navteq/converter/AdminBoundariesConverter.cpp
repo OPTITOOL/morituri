@@ -335,11 +335,12 @@ void AdminBoundariesConverter::build_admin_boundary_taglist(
 
     if (!d.admin_lvl.empty())
       tl_builder.add_tag("admin_level", navteq_2_osm_admin_lvl(d.admin_lvl));
-    if (!d.name.empty())
-      tl_builder.add_tag("name", d.name);
-    if (!d.short_name.empty())
-      tl_builder.add_tag("short_name", d.short_name);
     if (level != 5) {
+      if (!d.name.empty())
+        tl_builder.add_tag("name", d.name);
+      if (!d.short_name.empty())
+        tl_builder.add_tag("short_name", d.short_name);
+
       for (auto it : d.lang_code_2_area_name)
         tl_builder.add_tag(std::string("name:" + parse_lang_code(it.first)),
                            it.second);
@@ -382,7 +383,8 @@ void AdminBoundariesConverter::build_admin_boundary_taglist(
   }
 
   std::string polygonName = feat->GetFieldAsString(POLYGON_NM.data());
-  if (!polygonName.empty()) {
+  // only add name tag for admin levels 1-4
+  if (!polygonName.empty() && level != 5) {
     std::string waters_name = to_camel_case_with_spaces(polygonName);
     if (!waters_name.empty())
       tl_builder.add_tag("name", waters_name);
