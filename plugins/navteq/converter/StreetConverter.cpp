@@ -432,18 +432,18 @@ void StreetConverter::process_way_end_nodes(
   auto ogr_ls = static_cast<const OGRLineString *>(feat->GetGeometryRef());
 
   process_way_end_node(osmium::Location(ogr_ls->getX(0), ogr_ls->getY(0)), data,
-                       way_end_points_map, node_buffer);
+                       way_end_points_map, false, node_buffer);
   process_way_end_node(
       osmium::Location(ogr_ls->getX(ogr_ls->getNumPoints() - 1),
                        ogr_ls->getY(ogr_ls->getNumPoints() - 1)),
-      data, way_end_points_map, node_buffer);
+      data, way_end_points_map, false, node_buffer);
 }
 
 void StreetConverter::process_way_end_node(
     const osmium::Location &location, const StreetConverter::TagData &data,
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &way_end_points_map,
-    osmium::memory::Buffer &node_buffer) {
+    bool gloablEndPoints, osmium::memory::Buffer &node_buffer) {
 
   auto it = way_end_points_map.find(location);
   if (it != way_end_points_map.end())
@@ -461,6 +461,12 @@ void StreetConverter::process_way_end_node(
     if (!junctionName.empty())
       tglBuilder.add_tag("name", junctionName);
   }
+
+  if (gloablEndPoints && debugMode) {
+    osmium::builder::TagListBuilder tglBuilder(builder);
+    tglBuilder.add_tag("region_end", "yes");
+  }
+
   way_end_points_map.emplace(location, osm_id);
 }
 
@@ -753,12 +759,23 @@ void StreetConverter::process_end_point(
     if (it != z_lvl_nodes_map.end()) {
       node_ref_map.emplace(location, it->second);
     } else {
-      osmium::unsigned_object_id_type osm_id =
-          build_node(location, node_buffer);
+
+      osmium::unsigned_object_id_type osm_id;
+      auto it = way_end_points_map.find(location);
+      if (it != way_end_points_map.end()) {
+        osm_id = it->second;
+      } else {
+        osm_id = build_node(location, node_buffer);
+      }
+
       node_ref_map.emplace(location, osm_id);
       z_lvl_nodes_map.emplace(node_id, osm_id);
     }
   } else {
+
+    if (way_end_points_map.find(location) != way_end_points_map.end())
+      return;
+
     // adds all zero z-level end points to g_way_end_points_map
     way_end_points_map.emplace(location, build_node(location, node_buffer));
   }
@@ -1009,7 +1026,7 @@ void StreetConverter::update_region_connecting_points(
 
       // process the region connecting points
       process_way_end_node(osmium::Location(point->getX(), point->getY()), data,
-                           regionConnectingPoints, node_buffer);
+                           regionConnectingPoints, true, node_buffer);
     }
   }
 

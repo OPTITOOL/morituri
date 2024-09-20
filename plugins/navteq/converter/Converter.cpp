@@ -114,7 +114,6 @@ Converter::create_open_way_nodes(
     osmium::memory::Buffer &node_buffer) {
   std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
       osm_way_node_ids;
-
   for (auto &point : *line) {
     osmium::Location location(point.getX(), point.getY());
     auto it = g_way_end_points_map.find(location);
@@ -175,20 +174,8 @@ Converter::create_closed_way_nodes(
     std::map<osmium::Location, osmium::unsigned_object_id_type>
         &g_way_end_points_map,
     osmium::memory::Buffer &node_buffer) {
-  std::vector<std::pair<osmium::Location, osmium::unsigned_object_id_type>>
-      osm_way_node_ids;
-  for (auto &point : *ring) {
-    osmium::Location location(point.getX(), point.getY());
-    auto it = g_way_end_points_map.find(location);
-
-    if (it != g_way_end_points_map.end()) {
-      osm_way_node_ids.emplace_back(location, it->second);
-    } else {
-      auto osm_id = build_node(location, node_buffer);
-      osm_way_node_ids.emplace_back(location, osm_id);
-      g_way_end_points_map.emplace(location, osm_id);
-    }
-  }
+  auto osm_way_node_ids =
+      create_open_way_nodes(ring, g_way_end_points_map, node_buffer);
 
   // first and last node are the same in rings, hence add first node_id and
   // skip last node.
