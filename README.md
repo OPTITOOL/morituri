@@ -92,7 +92,7 @@ If you want to test this program and you don't have data of your own you may get
 # For developers
 
 Development is mostly done in vscode with the devcontainer extension. This allows for a consistent development environment across platforms. The devcontainer is based
-on Ubuntu 22.04 and all dependencies are installed via vcpkg.
+on Ubuntu 24.04 and all dependencies are installed via vcpkg.
 
 Feel free to add plugins to convert data from other suppliers.<br>
 There is only a single real test. More tests are welcome.
