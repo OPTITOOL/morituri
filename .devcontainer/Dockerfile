@@ -35,8 +35,8 @@ RUN apt-get update && apt-get upgrade --yes && \
     gdb \
     locales \
     clang-format \
-    gcc-13 \
-    g++-13 && \
+    gcc-14 \
+    g++-14 && \
     \
     # cleanup
     apt-get autoremove --purge -y && \
