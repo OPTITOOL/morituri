@@ -10,8 +10,6 @@
         "ms-vscode.cpptools",
         "piotrkosek.vscode-gtest-test-adapter-with-code-lens",
         "xaver.clang-format",
-        "twxs.cmake",
-        //   "josetr.cmake-language-support-vscode",
         "ms-vscode.cmake-tools",
         "donjayamanne.git-extension-pack"
       ]
