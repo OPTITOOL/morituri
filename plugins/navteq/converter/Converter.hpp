@@ -175,6 +175,7 @@ protected:
 
   static constexpr std::string_view YES = "yes";
   static constexpr std::string_view NO = "no";
+  static constexpr std::string_view DESTINATION = "destination";
 
   static std::atomic<osmium::unsigned_object_id_type> g_osm_id;
 

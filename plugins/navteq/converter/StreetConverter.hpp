@@ -228,7 +228,7 @@ private:
   void addTransportAccessRestriction(
       std::multimap<uint64_t, StreetConverter::cond_type>::const_iterator &it,
       osmium::builder::TagListBuilder &builder, uint64_t link_id,
-      const StreetConverter::cntry_ref_type &cntry_ref, bool imperial_units);
+      bool imperial_units);
 
   void process_end_point(
       bool first, short z_lvl, OGRLineString *ogr_ls,

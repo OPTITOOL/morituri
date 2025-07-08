@@ -858,8 +858,8 @@ ushort StreetConverter::create_continuing_sub_ways(
     bool last_element = node_z_level_vector.cend() - 1 == it;
     bool not_last_element = !last_element;
     ushort index = it->index;
-    ushort next_index;
-    short next_z_lvl;
+    short next_index = -1;
+    short next_z_lvl = -1;
     if (not_last_element) {
       auto next_it = it + 1;
       next_index = next_it->index;

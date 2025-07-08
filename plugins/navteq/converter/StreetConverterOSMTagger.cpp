@@ -57,6 +57,7 @@ static constexpr std::string_view RESIDENTIAL = "residential";
 static constexpr std::string_view TRACK = "track";
 static constexpr std::string_view PATH = "path";
 static constexpr std::string_view FOOTWAY = "footway";
+static constexpr std::string_view PEDESTRIAN = "pedestrian";
 
 static constexpr std::string_view CONSTRUCTION = "construction";
 
@@ -339,39 +340,50 @@ void StreetConverter::add_one_way_tag(osmium::builder::TagListBuilder &builder,
 void StreetConverter::add_access_tags(osmium::builder::TagListBuilder &builder,
                                       const OGRFeatureUniquePtr &f) {
   bool automobile_allowed = get_bool_from_feature(f, AR_AUTO);
-  if (!automobile_allowed)
+  bool trucks_allowed = get_bool_from_feature(f, AR_TRUCKS);
+  bool delivery_allowed = get_bool_from_feature(f, AR_DELIV);
+  bool through_traffic_allowed = get_bool_from_feature(f, AR_THROUGH_TRAFFIC);
+
+  // car access handling:
+  if (!automobile_allowed) {
     builder.add_tag("motorcar", NO.data());
-  if (!get_bool_from_feature(f, AR_BUS))
-    builder.add_tag("bus", NO.data());
-  if (!get_bool_from_feature(f, AR_TAXIS))
-    builder.add_tag("taxi", NO.data());
-  //    if (! parse_bool(get_field_from_feature(f, AR_CARPOOL)))
-  //    builder->add_tag("hov",  NO);
-  if (!get_bool_from_feature(f, AR_PEDESTRIANS))
-    builder.add_tag("foot", NO.data());
-  if (!get_bool_from_feature(f, AR_TRUCKS)) {
-    // truck access handling:
-    if (!get_bool_from_feature(f, AR_DELIV))
-      builder.add_tag(
-          "hgv",
-          NO.data()); // no truck + no delivery => hgv not allowed at all
-    else if (!automobile_allowed)
-      builder.add_tag("access",
-                      "delivery"); // no automobile + no truck but delivery
-                                   // => general access is 'delivery'
-    else if (automobile_allowed)
-      builder.add_tag("hgv", "delivery"); // automobile generally allowed =>
-                                          // only truck is 'delivery'
+  } else if (!through_traffic_allowed) {
+    builder.add_tag("motor_vehicle", DESTINATION.data()); // 'Anlieger frei'
   }
-  if (!get_bool_from_feature(f, AR_EMERVEH))
-    builder.add_tag("emergency", NO.data());
-  if (!get_bool_from_feature(f, AR_MOTORCYCLES))
-    builder.add_tag("motorcycle", NO.data());
-  if (!get_bool_from_feature(f, PUB_ACCESS) ||
-      get_bool_from_feature(f, PRIVATE)) {
+
+  // truck access handling:
+  if (!trucks_allowed) {
+    if (!delivery_allowed) {
+      builder.add_tag("hgv", NO.data());
+    } else {
+      builder.add_tag("hgv", "delivery");
+    }
+  }
+
+  if (get_bool_from_feature(f, PRIVATE)) {
     builder.add_tag("access", "private");
-  } else if (!get_bool_from_feature(f, AR_THROUGH_TRAFFIC)) {
-    builder.add_tag("access", "destination");
+  }
+
+  // pedestrians
+  if (!get_bool_from_feature(f, AR_PEDESTRIANS)) {
+    builder.add_tag("foot", NO.data());
+  }
+
+  // special cars
+  if (!get_bool_from_feature(f, AR_TAXIS)) {
+    builder.add_tag("taxi", NO.data());
+  }
+
+  if (!get_bool_from_feature(f, AR_EMERVEH)) {
+    builder.add_tag("emergency", NO.data());
+  }
+
+  if (!get_bool_from_feature(f, AR_BUS)) {
+    builder.add_tag("bus", NO.data());
+  }
+
+  if (!get_bool_from_feature(f, AR_MOTORCYCLES)) {
+    builder.add_tag("motorcycle", NO.data());
   }
 }
 
@@ -512,6 +524,7 @@ void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
 
   bool paved = get_bool_from_feature(f, PAVED);
   bool motorized_allowed = is_motorized_allowed(f);
+  int speed_cat = get_uint_from_feature(f, SPEED_CAT);
 
   std::string highwayTagName = HIGHWAY.data();
 
@@ -531,9 +544,11 @@ void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
   } else {
     if (!motorized_allowed) {
       // paved + non-motorized => footway
-      // it seems imposref_nameible to distinguish footways from cycle ways or
-      // pedestrian zones
+      // it seems imposref_nameible to distinguish footways from cycle ways
       builder.add_tag(highwayTagName, FOOTWAY.data());
+    } else if (speed_cat == 8) {
+      // motorized and speedcat == 8 -->  pedestrian zones
+      builder.add_tag(highwayTagName, PEDESTRIAN.data());
     } else {
       // paved + motorized allowed
       bool controlled_access = get_bool_from_feature(f, CONTRACC);
@@ -654,8 +669,7 @@ void StreetConverter::add_additional_restrictions(
     }
 
     if (it->second.cond_type_type == CT_TRANSPORT_ACCESS_RESTRICTION) {
-      addTransportAccessRestriction(it, builder, link_id, cntry_ref,
-                                    imperial_units);
+      addTransportAccessRestriction(it, builder, link_id, imperial_units);
     } else if (it->second.cond_type_type ==
                CT_TRANSPORT_SPECIAL_SPEED_SITUATION) {
       addSpecialSpeedSituation(it, link_id, cntry_ref, builder, imperial_units);
@@ -735,7 +749,7 @@ void StreetConverter::addSpecialSpeedSituation(
 void StreetConverter::addTransportAccessRestriction(
     std::multimap<uint64_t, StreetConverter::cond_type>::const_iterator &it,
     osmium::builder::TagListBuilder &builder, uint64_t link_id,
-    const StreetConverter::cntry_ref_type &cntry_ref, bool imperial_units) {
+    bool imperial_units) {
   uint64_t max_height = 0;
   uint64_t max_width = 0;
   uint64_t max_length = 0;
