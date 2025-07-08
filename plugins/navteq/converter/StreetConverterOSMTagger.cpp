@@ -465,6 +465,20 @@ bool StreetConverter::is_motorized_allowed(const OGRFeatureUniquePtr &f) {
   return false;
 }
 
+bool StreetConverter::is_pedestrian(const OGRFeatureUniquePtr &f) {
+  // no cars
+  if (get_bool_from_feature(f, AR_AUTO))
+    return false;
+
+  // delivery allowed
+  if (!get_bool_from_feature(f, AR_DELIV))
+    return false;
+
+  // speed_cat is 8
+  int speed_cat = get_uint_from_feature(f, SPEED_CAT);
+  return speed_cat == 8;
+}
+
 bool StreetConverter::need_to_consider(const OGRFeatureUniquePtr &f) {
   return get_bool_from_feature(f, AR_AUTO) ||
          get_bool_from_feature(f, AR_TRUCKS) ||
@@ -524,7 +538,7 @@ void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
 
   bool paved = get_bool_from_feature(f, PAVED);
   bool motorized_allowed = is_motorized_allowed(f);
-  int speed_cat = get_uint_from_feature(f, SPEED_CAT);
+  bool pedestrian = is_pedestrian(f);
 
   std::string highwayTagName = HIGHWAY.data();
 
@@ -546,7 +560,7 @@ void StreetConverter::add_highway_tag(osmium::builder::TagListBuilder &builder,
       // paved + non-motorized => footway
       // it seems imposref_nameible to distinguish footways from cycle ways
       builder.add_tag(highwayTagName, FOOTWAY.data());
-    } else if (speed_cat == 8) {
+    } else if (pedestrian) {
       // motorized and speedcat == 8 -->  pedestrian zones
       builder.add_tag(highwayTagName, PEDESTRIAN.data());
     } else {

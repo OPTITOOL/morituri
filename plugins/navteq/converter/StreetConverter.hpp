@@ -276,6 +276,8 @@ private:
 
   bool is_motorized_allowed(const OGRFeatureUniquePtr &f);
 
+  bool is_pedestrian(const OGRFeatureUniquePtr &f);
+
   bool is_hgv_only(const OGRFeatureUniquePtr &f);
 
   bool need_to_consider(const OGRFeatureUniquePtr &f);
