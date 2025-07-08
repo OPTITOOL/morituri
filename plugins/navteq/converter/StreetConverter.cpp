@@ -85,6 +85,9 @@ void StreetConverter::manipulate_cdms_map(
 
   std::string filePrefix = dir.parent_path().filename();
 
+  // get the first 4 characters of the file prefix
+  std::string shortPrefix = filePrefix.substr(0, 4);
+
   for (auto const &dir_entry :
        std::filesystem::directory_iterator{executable_path}) {
     if (dir_entry.is_directory())
@@ -93,7 +96,7 @@ void StreetConverter::manipulate_cdms_map(
     if (dir_entry.path().extension() != ".json")
       continue;
 
-    if (dir_entry.path().filename().string().find(filePrefix) ==
+    if (dir_entry.path().filename().string().find(shortPrefix) ==
         std::string::npos)
       continue;
 
